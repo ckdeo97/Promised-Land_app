@@ -196,26 +196,26 @@ tailwind.config = {
   .hide-scrollbar::-webkit-scrollbar { display: none; }
   .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-  /* ── 모션: 대기업 앱 스타일 (스케일 없음, 슬라이드/페이드만) ── */
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+  /* ── 모션: 슬라이드 위주 ── */
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
   @keyframes slideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
-  @keyframes slideInRight { from { transform: translateX(24px); opacity:0; } to { transform: translateX(0); opacity:1; } }
-  @keyframes slideInLeft { from { transform: translateX(-24px); opacity:0; } to { transform: translateX(0); opacity:1; } }
+  @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+  @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+  @keyframes slideInUp { from { transform: translateY(16px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-  .fade-in { animation: fadeIn 0.18s ease; }
-  .slide-up { animation: slideUp 0.3s cubic-bezier(0.32,0.72,0,1); }
-  .slide-in-right { animation: slideInRight 0.26s cubic-bezier(0.25,0.46,0.45,0.94); }
-  .slide-in-left { animation: slideInLeft 0.26s cubic-bezier(0.25,0.46,0.45,0.94); }
-  .scale-in { animation: fadeIn 0.2s ease; } /* 스케일 대신 페이드 */
-  .pop-in { animation: slideUp 0.28s cubic-bezier(0.32,0.72,0,1); } /* 스케일 대신 슬라이드업 */
+  .fade-in { animation: slideInUp 0.22s cubic-bezier(0.25,0.46,0.45,0.94); }
+  .slide-up { animation: slideUp 0.32s cubic-bezier(0.32,0.72,0,1); }
+  .slide-in-right { animation: slideInRight 0.28s cubic-bezier(0.32,0.72,0,1); }
+  .slide-in-left { animation: slideInLeft 0.28s cubic-bezier(0.32,0.72,0,1); }
+  .scale-in { animation: slideInUp 0.22s cubic-bezier(0.25,0.46,0.45,0.94); }
+  .pop-in { animation: slideUp 0.28s cubic-bezier(0.32,0.72,0,1); }
 
-  .tab-content { animation: fadeIn 0.18s ease; }
-  .detail-page { animation: slideInRight 0.26s cubic-bezier(0.25,0.46,0.45,0.94); }
-  .modal-overlay { animation: fadeIn 0.16s ease; }
-  .modal-sheet { animation: slideUp 0.3s cubic-bezier(0.32,0.72,0,1); }
-  .login-page { animation: fadeIn 0.22s ease; }
+  .tab-content { animation: slideInUp 0.2s cubic-bezier(0.25,0.46,0.45,0.94); }
+  .detail-page { animation: slideInRight 0.28s cubic-bezier(0.32,0.72,0,1); }
+  .modal-overlay { animation: fadeIn 0.15s ease; }
+  .modal-sheet { animation: slideUp 0.32s cubic-bezier(0.32,0.72,0,1); }
+  .login-page { animation: slideInUp 0.24s cubic-bezier(0.25,0.46,0.45,0.94); }
   .toast-anim { animation: slideUp 0.22s cubic-bezier(0.32,0.72,0,1); }
 
   .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -497,7 +497,7 @@ function renderMain() {
   return `
   <div class="min-h-screen bg-zinc-50 pb-36 fade-in">
     <!-- Header -->
-    <header class="sticky top-0 z-50 px-5 pt-5 pb-4 bg-white/90 backdrop-blur-xl border-b border-zinc-100">
+    <header class="sticky top-0 z-50 px-5 pt-3 pb-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100">
       <div class="flex justify-between items-center">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl overflow-hidden bg-black flex items-center justify-center">
@@ -516,7 +516,7 @@ function renderMain() {
       </div>
     </header>
 
-    <main class="px-5 mt-8 pb-8"><div class="tab-content space-y-10">${content}</div></main>
+    <main class="px-5 mt-5 pb-8"><div class="tab-content space-y-10">${content}</div></main>
 
     <!-- Bottom Nav -->
     <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white/90 backdrop-blur-xl border-t border-zinc-100">
@@ -637,10 +637,10 @@ function renderHomeTab() {
       <div class="absolute -right-4 top-4 opacity-[0.06]">${icon('menu_book','text-white',120)}</div>
     </div>
   </section>
-  <div class="h-1"></div>
+  <div class="h-3"></div>
   ${dutySection}
   ${latest ? `
-  <div class="h-1"></div><section>
+  <div class="h-3"></div><section>
     <div class="flex justify-between items-center mb-5">
       <h3 class="text-base font-bold flex items-center gap-1.5">${icon('music_note','',18)} 이번주 찬양</h3>
       <button data-action="go-worship" class="text-zinc-400 text-xs font-bold">전체보기</button>
@@ -657,7 +657,7 @@ function renderHomeTab() {
       `).join('')}
     </div>
   </section>` : ''}
-  <div class="h-1"></div>
+  <div class="h-3"></div>
   <section>
     <div class="flex justify-between items-center mb-5">
       <h3 class="text-base font-bold flex items-center gap-1.5">${icon('campaign','',18)} 공지사항</h3>
@@ -678,7 +678,7 @@ function renderHomeTab() {
       `).join('')}
     </div>
   </section>
-  <div class="h-1"></div>
+  <div class="h-3"></div>
   <section class="pb-8">
     <div class="flex justify-between items-center mb-5">
       <h3 class="text-base font-bold flex items-center gap-1.5">${icon('calendar_month','',18)} 다가오는 일정</h3>
@@ -1009,7 +1009,7 @@ function renderProfilePage() {
   if (pg === 'edit') {
     return `<div class="min-h-screen bg-zinc-50 slide-in-right">
       ${header('프로필 수정')}
-      <div class="px-5 py-7 space-y-6">
+      <div class="px-5 py-4 space-y-4">
         <div class="flex flex-col items-center gap-4">
           <div class="relative">
             <div class="w-24 h-24 rounded-full bg-zinc-200 border-2 border-black overflow-hidden">
@@ -1032,10 +1032,10 @@ function renderProfilePage() {
           <input id="edit-birth" value="${fmtDate(u.birth||'')}" placeholder="1995.03.15" inputmode="numeric" class="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
         </div>
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">목장</label>
-          <select id="edit-cell" class="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
-            <option value="">미배정</option>
-            ${cells.map(c=>`<option value="${c.id}"${c.id===u.cellId?' selected':''}>${c.name}</option>`).join('')}
-          </select>
+          <div class="w-full px-4 py-3 bg-zinc-100 border border-zinc-200 rounded-xl text-sm text-zinc-500 flex items-center justify-between">
+            <span>${cells.find(c=>c.id===u.cellId)?.name || '미배정'}</span>
+            <span class="text-[10px] text-zinc-400">관리자만 변경 가능</span>
+          </div>
         </div>
         <button id="save-profile-edit" class="w-full py-3.5 bg-black text-white rounded-xl text-sm font-bold transition-opacity active:opacity-70">저장</button>
       </div>
@@ -1125,16 +1125,15 @@ function renderProfilePage() {
 // ADMIN PAGE
 // ============================================================
 function renderAdmin() {
+  const pendingCount = state.cache.users.filter(u=>u.status==='pending'||u.status==='withdraw_pending').length;
   const menu = [
-    { k:'approve', i:'how_to_reg', l:'가입 승인', badge: state.cache.users.filter(u=>u.status==='pending').length },
-    { k:'withdraw_approve', i:'person_remove', l:'탈퇴 승인', badge: state.cache.users.filter(u=>u.status==='withdraw_pending').length },
     { k:'bulletin', i:'menu_book', l:'주보 관리' },
     { k:'worship', i:'music_note', l:'찬양 관리' },
     { k:'notice', i:'campaign', l:'공지 관리' },
     { k:'event', i:'calendar_month', l:'일정 관리' },
     { k:'attendance', i:'fact_check', l:'출석 관리' },
     { k:'offering', i:'volunteer_activism', l:'헌금 기록' },
-    { k:'roster', i:'people', l:'명부 관리' },
+    { k:'roster', i:'people', l:'명부 관리', badge: pendingCount },
     { k:'cellmeet', i:'groups', l:'목장 모임 자료' },
     { k:'cells', i:'dashboard', l:'목장 관리' },
     { k:'noti', i:'notifications', l:'알림 발송' },
@@ -1152,9 +1151,7 @@ function renderAdmin() {
     `).join('')}</div>`;
   } else {
     content = `<button data-admin="dashboard" class="flex items-center gap-1 text-xs text-zinc-400 font-bold mb-5">${icon('arrow_back','',16)} 메뉴로</button>`;
-    if (state.adminSub === 'approve') content += renderAdminApprove();
-    else if (state.adminSub === 'withdraw_approve') content += renderAdminWithdrawApprove();
-    else if (state.adminSub === 'bulletin') content += renderAdminBulletin();
+    if (state.adminSub === 'bulletin') content += renderAdminBulletin();
     else if (state.adminSub === 'worship') content += renderAdminWorship();
     else if (state.adminSub === 'notice') content += renderAdminNotice();
     else if (state.adminSub === 'event') content += renderAdminEvent();
@@ -1345,18 +1342,63 @@ function renderAdminOffering() {
   `).join('')}</div>`:''}`;
 }
 
+function renderRosterTabs(activeTab, cells, joinCount, withdrawCount) {
+  const tabs = [
+    {id:'all', name:'전체'},
+    ...cells.map(c=>({id:c.id, name:c.name})),
+    {id:'pending_join', name:'가입신청', badge: joinCount},
+    {id:'pending_withdraw', name:'탈퇴신청', badge: withdrawCount},
+  ];
+  return `<div class="flex gap-2 mb-4 overflow-x-auto hide-scrollbar pb-1">
+    ${tabs.map(t=>`<button data-roster-tab="${t.id}" class="flex-none flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${activeTab===t.id?'bg-black text-white border-black':'bg-white text-zinc-500 border-zinc-200'}">${t.name}${t.badge>0?`<span class="bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">${t.badge}</span>`:''}</button>`).join('')}
+  </div>`;
+}
+
 function renderAdminRoster() {
   const rosters = state.cache.rosters;
   const cells = state.cache.cells;
   const users = state.cache.users;
   const activeTab = state.adminRosterTab || 'all';
+  const pendingJoin = users.filter(u=>u.status==='pending');
+  const pendingWithdraw = users.filter(u=>u.status==='withdraw_pending');
+
+  // 가입신청 탭
+  if (activeTab === 'pending_join') {
+    return `<h2 class="text-lg font-bold mb-1">명부 관리</h2>
+    ${renderRosterTabs(activeTab, cells, pendingJoin.length, pendingWithdraw.length)}
+    <div class="space-y-3">${pendingJoin.length ? pendingJoin.map(u=>{
+      const match = rosters.find(r=>r.phone===u.phone);
+      return `<div class="bg-white p-4 rounded-2xl border border-zinc-100">
+        <div class="flex items-center justify-between mb-2">
+          <div><p class="font-bold text-sm">${u.name}</p><p class="text-xs text-zinc-400">${fmtPhone(u.phone)} · ${fmtDate(u.birth)}</p></div>
+          <button data-action="approve" data-uid="${u.uid}" class="px-4 py-2 bg-black text-white rounded-xl text-xs font-bold">승인</button>
+        </div>
+        ${match?`<p class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded inline-block">📋 명부 매칭: ${match.name}</p>`:''}
+      </div>`;
+    }).join('') : '<p class="text-sm text-zinc-400 text-center py-10">대기 중인 가입 신청이 없습니다.</p>'}</div>`;
+  }
+
+  // 탈퇴신청 탭
+  if (activeTab === 'pending_withdraw') {
+    return `<h2 class="text-lg font-bold mb-1">명부 관리</h2>
+    ${renderRosterTabs(activeTab, cells, pendingJoin.length, pendingWithdraw.length)}
+    <div class="space-y-3">${pendingWithdraw.length ? pendingWithdraw.map(u=>`
+      <div class="bg-white p-4 rounded-2xl border border-zinc-100">
+        <div class="flex items-center justify-between">
+          <div><p class="font-bold text-sm">${u.name}</p><p class="text-xs text-zinc-400">${u.id} · ${fmtPhone(u.phone)}</p>
+            <p class="text-[10px] text-zinc-400 mt-0.5">신청일: ${u.withdrawAt||'-'}</p>
+          </div>
+          <button data-action="approve-withdraw" data-uid="${u.uid}" class="px-4 py-2 bg-red-500 text-white rounded-xl text-xs font-bold">탈퇴 처리</button>
+        </div>
+      </div>`).join('') : '<p class="text-sm text-zinc-400 text-center py-10">대기 중인 탈퇴 신청이 없습니다.</p>'}</div>`;
+  }
+
+  // 일반 명부 탭
   const filtered = activeTab === 'all' ? rosters : rosters.filter(r=>r.cellId===activeTab);
   const tabs = [{id:'all',name:'전체'},...cells.map(c=>({id:c.id,name:c.name}))];
 
-  return `<h2 class="text-lg font-bold mb-4">명부 관리</h2>
-  <div class="flex gap-2 mb-4 overflow-x-auto hide-scrollbar pb-1">
-    ${tabs.map(t=>`<button data-roster-tab="${t.id}" class="flex-none px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${activeTab===t.id?'bg-black text-white border-black':'bg-white text-zinc-500 border-zinc-200'}">${t.name}</button>`).join('')}
-  </div>
+  return `<h2 class="text-lg font-bold mb-1">명부 관리</h2>
+  ${renderRosterTabs(activeTab, cells, pendingJoin.length, pendingWithdraw.length)}
   <button data-action="show-roster-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-3">+ 명부 추가</button>
   <div id="roster-form-area"></div>
   <div class="space-y-2">${filtered.map(r=>{
@@ -2130,7 +2172,7 @@ function bindEvents() {
     const name = document.getElementById('edit-name')?.value;
     const phone = fmtPhone(document.getElementById('edit-phone')?.value||'');
     const birth = document.getElementById('edit-birth')?.value.replace(/\D/g,'');
-    const cellId = document.getElementById('edit-cell')?.value;
+    const cellId = state.user.cellId; // 목장은 관리자만 변경 가능
     let profileImg = state.user.profileImg;
     if (state._pendingProfileImg) {
       showToast('사진 업로드 중...');
