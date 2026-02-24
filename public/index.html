@@ -170,14 +170,12 @@
   // ============================================================
   // INIT APP AFTER FIREBASE READY
   // ============================================================
-  seedIfNeeded().then(() => {
-    window._fbReady = true;
-    if (window._appInit) window._appInit();
-  }).catch(e => {
-    console.error('seed error', e);
-    window._fbReady = true;
-    if (window._appInit) window._appInit();
-  });
+  // FDB는 이미 준비됨 → 앱 바로 시작, seed는 백그라운드
+  window._fbReady = true;
+  if (window._appInit) window._appInit();
+
+  // seed는 백그라운드에서 조용히 실행
+  seedIfNeeded().catch(e => console.warn('seed skipped:', e));
 </script>
 <script>
 tailwind.config = {
@@ -2520,8 +2518,26 @@ async function initApp() {
   render();
 }
 
+// Firebase 준비될 때까지 대기 후 initApp 실행
 window._appInit = initApp;
-if (window._fbReady) initApp();
+if (window._fbReady) {
+  initApp();
+} else {
+  // 최대 10초 대기
+  let waited = 0;
+  const waitForFB = setInterval(() => {
+    waited += 100;
+    if (window._fbReady) {
+      clearInterval(waitForFB);
+      initApp();
+    } else if (waited >= 10000) {
+      clearInterval(waitForFB);
+      // Firebase 타임아웃: 로그인 화면으로
+      state.page = 'login';
+      render();
+    }
+  }, 100);
+}
 </script>
 </body>
 </html>
