@@ -362,6 +362,13 @@ function renderCropModal() {
 // ============================================================
 // LOGO
 // ============================================================
+// YouTube 썸네일 추출
+function getYtThumb(url) {
+  if (!url) return null;
+  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
+  return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : null;
+}
+
 function logoImg(cls='w-10 h-10') {
   return `<img src="asset/logo.png" class="${cls} object-contain" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="logo"/>
           <div class="hidden ${cls} bg-black rounded-xl items-center justify-center"><span class="text-white font-black text-sm">PL</span></div>`;
@@ -401,7 +408,14 @@ function render() {
   html += renderConfirmModal();
   html += renderCropModal();
 
+  // 깜빡임 방지: display none → 교체 → display block
+  app.style.opacity = '0';
   app.innerHTML = html;
+  // requestAnimationFrame으로 다음 프레임에 페인트
+  requestAnimationFrame(() => {
+    app.style.transition = 'opacity 0.1s ease';
+    app.style.opacity = '1';
+  });
   bindEvents();
   bindCropModal();
 }
@@ -460,7 +474,7 @@ function renderRegister() {
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">전화번호</label><input id="reg-phone" inputmode="numeric" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="010-1234-5678"/></div>
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">생년월일</label><input id="reg-birth" inputmode="numeric" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="1995.03.15"/></div>
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">아이디</label><input id="reg-id" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="사용할 아이디"/></div>
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">비밀번호</label><input id="reg-pw" type="password" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="4자 이상"/></div>
+        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">비밀번호</label><input id="reg-pw" type="password" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="영문+숫자 혼합 8자 이상"/></div>
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">비밀번호 확인</label><input id="reg-pw2" type="password" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="비밀번호 재입력"/></div>
         <label class="flex items-start gap-3 pt-2">
           <input id="reg-agree" type="checkbox" class="mt-0.5 w-5 h-5 rounded border-zinc-300 accent-black"/>
@@ -646,15 +660,23 @@ function renderHomeTab() {
       <button data-action="go-worship" class="text-zinc-400 text-xs font-bold">전체보기</button>
     </div>
     <div class="flex gap-3 overflow-x-auto pb-1 -mx-5 px-5 hide-scrollbar">
-      ${latest.songs.map((s,i) => `
-        <button data-action="go-worship" class="flex-none w-36 bg-white rounded-2xl border border-zinc-200 overflow-hidden active:bg-zinc-50 transition-colors text-left">
-          <div class="w-full h-24 bg-zinc-100 flex items-center justify-center overflow-hidden"><img src="asset/logo.png" class="w-12 h-12 object-contain opacity-30" onerror="this.style.display='none'"/></div>
+      ${latest.songs.map((s,i) => {
+        const thumb = getYtThumb(s.url);
+        return `<button data-worship-play="${i}" class="flex-none w-36 bg-white rounded-2xl border border-zinc-200 overflow-hidden active:bg-zinc-50 transition-colors text-left">
+          <div class="w-full h-24 bg-zinc-100 flex items-center justify-center overflow-hidden relative">
+            ${thumb
+              ? `<img src="${thumb}" class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+                 <div class="hidden w-full h-full items-center justify-center"><img src="asset/logo.png" class="w-12 h-12 object-contain opacity-30"/></div>
+                 <div class="absolute inset-0 flex items-center justify-center"><div class="w-8 h-8 bg-black/60 rounded-full flex items-center justify-center">${icon('play_arrow','text-white',18)}</div></div>`
+              : `<img src="asset/logo.png" class="w-12 h-12 object-contain opacity-30"/>`
+            }
+          </div>
           <div class="p-3">
             <p class="text-xs font-bold leading-tight truncate">${s.title}</p>
             <p class="text-[10px] text-zinc-400 mt-0.5">Key: ${s.key}</p>
           </div>
-        </button>
-      `).join('')}
+        </button>`;
+      }).join('')}
     </div>
   </section>` : ''}
   <div class="h-3"></div>
@@ -1034,7 +1056,7 @@ function renderProfilePage() {
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">목장</label>
           <div class="w-full px-4 py-3 bg-zinc-100 border border-zinc-200 rounded-xl text-sm text-zinc-500 flex items-center justify-between">
             <span>${cells.find(c=>c.id===u.cellId)?.name || '미배정'}</span>
-            <span class="text-[10px] text-zinc-400">관리자만 변경 가능</span>
+            
           </div>
         </div>
         <button id="save-profile-edit" class="w-full py-3.5 bg-black text-white rounded-xl text-sm font-bold transition-opacity active:opacity-70">저장</button>
@@ -1133,7 +1155,7 @@ function renderAdmin() {
     { k:'event', i:'calendar_month', l:'일정 관리' },
     { k:'attendance', i:'fact_check', l:'출석 관리' },
     { k:'offering', i:'volunteer_activism', l:'헌금 기록' },
-    { k:'roster', i:'people', l:'명부 관리', badge: pendingCount },
+    { k:'roster', i:'people', l:'명부 관리', dot: pendingCount > 0 },
     { k:'cellmeet', i:'groups', l:'목장 모임 자료' },
     { k:'cells', i:'dashboard', l:'목장 관리' },
     { k:'noti', i:'notifications', l:'알림 발송' },
@@ -1145,6 +1167,7 @@ function renderAdmin() {
       <button data-admin="${m.k}" class="w-full flex items-center gap-4 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
         <div class="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center">${icon(m.i,'text-black',20)}</div>
         <span class="flex-1 font-bold text-sm">${m.l}</span>
+        ${m.dot?`<span class="w-2.5 h-2.5 bg-red-500 rounded-full"></span>`:''}
         ${m.badge>0?`<span class="bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">${m.badge}</span>`:''}
         ${icon('chevron_right','text-zinc-300',20)}
       </button>
@@ -1164,7 +1187,7 @@ function renderAdmin() {
   }
 
   return `
-  <div class="min-h-screen bg-zinc-50 fade-in">
+  <div class="min-h-screen bg-zinc-50 slide-in-right">
     <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back-main" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">관리자</h1>
@@ -1343,14 +1366,27 @@ function renderAdminOffering() {
 }
 
 function renderRosterTabs(activeTab, cells, joinCount, withdrawCount) {
-  const tabs = [
-    {id:'all', name:'전체'},
-    ...cells.map(c=>({id:c.id, name:c.name})),
-    {id:'pending_join', name:'가입신청', badge: joinCount},
-    {id:'pending_withdraw', name:'탈퇴신청', badge: withdrawCount},
+  const normalTabs = [{id:'all', name:'전체'}, ...cells.map(c=>({id:c.id, name:c.name}))];
+  const specialTabs = [
+    {id:'pending_join', name:'가입신청', badge: joinCount, color: 'emerald'},
+    {id:'pending_withdraw', name:'탈퇴신청', badge: withdrawCount, color: 'red'},
   ];
+  const renderTab = (t) => {
+    const isActive = activeTab === t.id;
+    const isSpecial = !!t.color;
+    let cls = '';
+    if (isActive && t.color === 'emerald') cls = 'bg-emerald-500 text-white border-emerald-500';
+    else if (isActive && t.color === 'red') cls = 'bg-red-500 text-white border-red-500';
+    else if (isActive) cls = 'bg-black text-white border-black';
+    else if (t.color === 'emerald') cls = 'bg-emerald-50 text-emerald-600 border-emerald-200';
+    else if (t.color === 'red') cls = 'bg-red-50 text-red-500 border-red-200';
+    else cls = 'bg-white text-zinc-500 border-zinc-200';
+    return `<button data-roster-tab="${t.id}" class="flex-none flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${cls}">${t.name}${t.badge>0?`<span class="${isActive?'bg-white/30':'bg-red-500'} text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">${t.badge}</span>`:''}</button>`;
+  };
   return `<div class="flex gap-2 mb-4 overflow-x-auto hide-scrollbar pb-1">
-    ${tabs.map(t=>`<button data-roster-tab="${t.id}" class="flex-none flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${activeTab===t.id?'bg-black text-white border-black':'bg-white text-zinc-500 border-zinc-200'}">${t.name}${t.badge>0?`<span class="bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">${t.badge}</span>`:''}</button>`).join('')}
+    ${normalTabs.map(renderTab).join('')}
+    <div class="w-px bg-zinc-200 mx-1 my-1 flex-none"></div>
+    ${specialTabs.map(renderTab).join('')}
   </div>`;
 }
 
@@ -1494,9 +1530,9 @@ function bindEvents() {
     const mainEl = () => document.querySelector('main') || document.querySelector('.min-h-screen');
 
     document.addEventListener('touchstart', e => {
-      const el = mainEl();
-      if (!el) return;
-      const scrollTop = el.scrollTop || window.scrollY || 0;
+      // 홈탭에서만 PTR 동작
+      if (state.page !== 'main' || state.tab !== 'home' || state.detail || state.profilePage) return;
+      const scrollTop = window.scrollY || 0;
       if (scrollTop <= 0) { startY = e.touches[0].clientY; pulling = true; }
     }, { passive: true });
 
@@ -1584,7 +1620,7 @@ function bindEvents() {
     const showErr = msg => { errEl.textContent=msg; errEl.classList.remove('hidden'); };
     if (!name||!rawPhone||!birth||!id||!pw) return showErr('모든 항목을 입력해주세요.');
     if (pw!==pw2) return showErr('비밀번호가 일치하지 않습니다.');
-    if (pw.length<4) return showErr('비밀번호는 4자 이상이어야 합니다.');
+    if (pw.length<8 || !/[a-zA-Z]/.test(pw) || !/[0-9]/.test(pw)) return showErr('비밀번호는 영문+숫자 혼합 8자 이상이어야 합니다.');
     if (!agree) return showErr('개인정보 수집에 동의해주세요.');
     if (!/^\d{8}$/.test(birth)) return showErr('생년월일은 8자리 숫자로 입력해주세요.');
     const phone = fmtPhone(rawPhone);
@@ -1621,7 +1657,13 @@ function bindEvents() {
   document.querySelectorAll('[data-action="back"]').forEach(el => {
     el.addEventListener('click', () => { state.detail=null; render(); });
   });
-  document.querySelector('[data-action="back-main"]')?.addEventListener('click', () => { state.page='main'; state.tab='home'; render(); });
+  document.querySelector('[data-action="back-main"]')?.addEventListener('click', () => {
+    if (state.page === 'admin' && state.adminSub !== 'dashboard') {
+      state.adminSub = 'dashboard'; render();
+    } else {
+      state.page='main'; state.tab='home'; render();
+    }
+  });
 
   // ── Details ──
   document.querySelectorAll('[data-detail]').forEach(el => {
@@ -1637,9 +1679,49 @@ function bindEvents() {
     });
   });
 
+
+  // ── iOS 스와이프 뒤로가기 ──
+  (function setupSwipeBack() {
+    let startX = 0, startY = 0, swiping = false;
+    const EDGE = 30; // 왼쪽 30px 안에서 시작해야 인식
+    document.addEventListener('touchstart', e => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      swiping = startX < EDGE;
+    }, { passive: true });
+    document.addEventListener('touchend', e => {
+      if (!swiping) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = Math.abs(e.changedTouches[0].clientY - startY);
+      swiping = false;
+      if (dx > 60 && dy < 80) {
+        // 뒤로가기 우선순위
+        if (state.detail) { state.detail = null; render(); }
+        else if (state.profilePage) { state.profilePage = null; render(); }
+        else if (state.page === 'admin' && state.adminSub !== 'dashboard') { state.adminSub = 'dashboard'; render(); }
+        else if (state.page === 'admin') { state.page = 'main'; state.tab = 'home'; render(); }
+        else if (state.page === 'register') { state.page = 'login'; render(); }
+      }
+    });
+  })();
+
   // ── Worship ──
   document.querySelectorAll('[data-action="go-worship"]').forEach(el => {
     el.addEventListener('click', () => { state.detail={type:'worship',id:'latest'}; render(); });
+  });
+  // 홈탭 찬양카드: 유튜브 있으면 바로 재생, 없으면 세트 이동
+  document.querySelectorAll('[data-worship-play]').forEach(el => {
+    el.addEventListener('click', () => {
+      const idx = parseInt(el.dataset.worshipPlay);
+      const worships = state.cache.worshipSets;
+      const latest = worships[worships.length - 1];
+      const song = latest?.songs?.[idx];
+      if (song?.url) {
+        window.open(song.url, '_blank');
+      } else {
+        state.detail={type:'worship',id:'latest'}; render();
+      }
+    });
   });
 
   // ── Sheet toggle ──
@@ -2104,7 +2186,7 @@ function bindEvents() {
     const u=state.cache.users.find(x=>x.uid===state.user.uid);
     if (!u||u.pw!==cur) return showToast('현재 비밀번호가 틀렸습니다.');
     if (nw!==cf) return showToast('새 비밀번호가 일치하지 않습니다.');
-    if (nw.length<4) return showToast('4자 이상이어야 합니다.');
+    if (nw.length<8 || !/[a-zA-Z]/.test(nw) || !/[0-9]/.test(nw)) return showToast('영문+숫자 혼합 8자 이상이어야 합니다.');
     u.pw=nw;
     await window.FDB.setDoc('users', u.uid, { pw:nw });
     state.user=u; SESSION.set(u);
