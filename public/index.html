@@ -301,10 +301,7 @@ async function loadAll() {
   state.cache.events = events.sort((a,b)=>a.date.localeCompare(b.date));
   state.cache.cellMeetings = cellMeetings.sort((a,b)=>b.date.localeCompare(a.date));
 
-  // ── 어드민 계정 자동 복구: Firestore에 admin 계정이 없으면 생성 ──
-  const adminExists = state.cache.users.find(u => u.id === 'admin' && u.role === 'admin');
-  if (!adminExists && state.cache.users.length === 0) {
-    // Firestore 보안 규칙이 막혀있거나 완전히 비어있는 경우 fall
+
 
 // ============================================================
 // CONFIRM MODAL
