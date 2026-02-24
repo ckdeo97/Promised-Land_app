@@ -6,6 +6,9 @@
 <title>약속의 땅</title>
 <!-- PWA / 홈화면 추가 -->
 <link rel="manifest" href="manifest.json"/>
+<link rel="icon" href="asset/favicon.ico" type="image/x-icon"/>
+<link rel="icon" type="image/png" sizes="192x192" href="asset/logo.png"/>
+<link rel="apple-touch-icon" sizes="192x192" href="asset/logo.png"/>
 <link rel="apple-touch-icon" href="asset/logo.png"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
@@ -634,10 +637,10 @@ function renderHomeTab() {
       <div class="absolute -right-4 top-4 opacity-[0.06]">${icon('menu_book','text-white',120)}</div>
     </div>
   </section>
-  <div class="h-10"></div>
+  <div class="h-1"></div>
   ${dutySection}
   ${latest ? `
-  <div class="h-10"></div><section>
+  <div class="h-1"></div><section>
     <div class="flex justify-between items-center mb-5">
       <h3 class="text-base font-bold flex items-center gap-1.5">${icon('music_note','',18)} 이번주 찬양</h3>
       <button data-action="go-worship" class="text-zinc-400 text-xs font-bold">전체보기</button>
@@ -654,7 +657,7 @@ function renderHomeTab() {
       `).join('')}
     </div>
   </section>` : ''}
-  <div class="h-10"></div>
+  <div class="h-1"></div>
   <section>
     <div class="flex justify-between items-center mb-5">
       <h3 class="text-base font-bold flex items-center gap-1.5">${icon('campaign','',18)} 공지사항</h3>
@@ -675,7 +678,7 @@ function renderHomeTab() {
       `).join('')}
     </div>
   </section>
-  <div class="h-10"></div>
+  <div class="h-1"></div>
   <section class="pb-8">
     <div class="flex justify-between items-center mb-5">
       <h3 class="text-base font-bold flex items-center gap-1.5">${icon('calendar_month','',18)} 다가오는 일정</h3>
