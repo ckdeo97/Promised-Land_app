@@ -170,14 +170,11 @@
   // ============================================================
   // INIT APP AFTER FIREBASE READY
   // ============================================================
-  seedIfNeeded().then(() => {
-    window._fbReady = true;
-    if (window._appInit) window._appInit();
-  }).catch(e => {
-    console.error('seed error', e);
-    window._fbReady = true;
-    if (window._appInit) window._appInit();
-  });
+  // FDB 준비 완료 → 즉시 앱 시작
+  window._fbReady = true;
+  if (window._appInit) window._appInit();
+  // seed는 백그라운드 (앱 시작 블로킹 안 함)
+  seedIfNeeded().catch(e => console.warn('seed:', e));
 </script>
 <script>
 tailwind.config = {
