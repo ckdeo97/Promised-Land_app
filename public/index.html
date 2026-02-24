@@ -170,12 +170,14 @@
   // ============================================================
   // INIT APP AFTER FIREBASE READY
   // ============================================================
-  // FDB는 이미 준비됨 → 앱 바로 시작, seed는 백그라운드
-  window._fbReady = true;
-  if (window._appInit) window._appInit();
-
-  // seed는 백그라운드에서 조용히 실행
-  seedIfNeeded().catch(e => console.warn('seed skipped:', e));
+  seedIfNeeded().then(() => {
+    window._fbReady = true;
+    if (window._appInit) window._appInit();
+  }).catch(e => {
+    console.error('seed error', e);
+    window._fbReady = true;
+    if (window._appInit) window._appInit();
+  });
 </script>
 <script>
 tailwind.config = {
@@ -300,8 +302,7 @@ async function loadAll() {
   state.cache.worshipSets = worshipSets.sort((a,b)=>a.date.localeCompare(b.date));
   state.cache.events = events.sort((a,b)=>a.date.localeCompare(b.date));
   state.cache.cellMeetings = cellMeetings.sort((a,b)=>b.date.localeCompare(a.date));
-
-
+}
 
 // ============================================================
 // CONFIRM MODAL
@@ -1448,33 +1449,26 @@ function bindEvents() {
 
   // ── Login ──
   const doLogin = async () => {
-    const id = document.getElementById('login-id')?.value?.trim();
-    const pw = document.getElementById('login-pw')?.value;
+    const id = (document.getElementById('login-id')?.value || '').trim();
+    const pw = document.getElementById('login-pw')?.value || '';
     const errEl = document.getElementById('login-error');
     const btnEl = document.getElementById('btn-login');
     if (!id || !pw) { errEl.textContent='아이디와 비밀번호를 입력해주세요.'; errEl.classList.remove('hidden'); return; }
-
-    // 로딩 표시
     if (btnEl) { btnEl.textContent='로그인 중...'; btnEl.disabled=true; }
     errEl.classList.add('hidden');
-
     try {
-      // Firestore에서 직접 조회 (캐시 의존 X)
       const allUsers = await window.FDB.getCol('users');
       const u = allUsers.find(x => x.id === id && x.pw === pw);
-
       if (!u) { errEl.textContent='아이디 또는 비밀번호가 틀렸습니다.'; errEl.classList.remove('hidden'); return; }
       if (u.status === 'pending') { errEl.textContent='관리자 승인 대기 중입니다.'; errEl.classList.remove('hidden'); return; }
       if (u.status === 'withdraw_pending') { errEl.textContent='탈퇴 신청 중인 계정입니다.'; errEl.classList.remove('hidden'); return; }
-
-      state.user = u;
-      state.page = 'main';
+      state.user = u; state.page = 'main';
       SESSION.set(u);
       await loadAll();
       render();
     } catch(e) {
       console.error('login error', e);
-      errEl.textContent='서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.';
+      errEl.textContent='서버 연결 오류. 잠시 후 다시 시도해주세요.';
       errEl.classList.remove('hidden');
     } finally {
       if (btnEl) { btnEl.textContent='로그인'; btnEl.disabled=false; }
@@ -2515,26 +2509,8 @@ async function initApp() {
   render();
 }
 
-// Firebase 준비될 때까지 대기 후 initApp 실행
 window._appInit = initApp;
-if (window._fbReady) {
-  initApp();
-} else {
-  // 최대 10초 대기
-  let waited = 0;
-  const waitForFB = setInterval(() => {
-    waited += 100;
-    if (window._fbReady) {
-      clearInterval(waitForFB);
-      initApp();
-    } else if (waited >= 10000) {
-      clearInterval(waitForFB);
-      // Firebase 타임아웃: 로그인 화면으로
-      state.page = 'login';
-      render();
-    }
-  }, 100);
-}
+if (window._fbReady) initApp();
 </script>
 </body>
 </html>
