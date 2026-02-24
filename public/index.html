@@ -196,27 +196,56 @@ tailwind.config = {
   .hide-scrollbar::-webkit-scrollbar { display: none; }
   .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-  /* ── 모션: 슬라이드 위주 ── */
-  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-  @keyframes slideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
-  @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
-  @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-  @keyframes slideInUp { from { transform: translateY(16px); opacity:0; } to { transform: translateY(0); opacity:1; } }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  /* ── 모션: 탑앱 스타일 (iOS/Android 네이티브 패턴) ── */
+  /* 탭전환: 즉시(모션 없음) - 카카오/인스타/유튜브 모두 탭은 즉시 */
+  /* 상세진입: 아래서 살짝 올라오며 페이드 - 자연스럽고 가벼움 */
+  /* 전체화면: 오른쪽에서 슬라이드 - 네이티브 push 느낌 */
+  /* 시트/모달: 아래서 슬라이드업 */
 
-  .fade-in { animation: slideInUp 0.22s cubic-bezier(0.25,0.46,0.45,0.94); }
-  .slide-up { animation: slideUp 0.32s cubic-bezier(0.32,0.72,0,1); }
-  .slide-in-right { animation: slideInRight 0.28s cubic-bezier(0.32,0.72,0,1); }
-  .slide-in-left { animation: slideInLeft 0.28s cubic-bezier(0.32,0.72,0,1); }
-  .scale-in { animation: slideInUp 0.22s cubic-bezier(0.25,0.46,0.45,0.94); }
-  .pop-in { animation: slideUp 0.28s cubic-bezier(0.32,0.72,0,1); }
+  @keyframes _pushIn {
+    from { transform: translateX(40px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+  }
+  @keyframes _riseIn {
+    from { transform: translateY(10px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  @keyframes _sheetUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  @keyframes _overlayIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes _toastUp {
+    from { transform: translateY(8px) translateX(-50%); opacity:0; }
+    to   { transform: translateY(0)   translateX(-50%); opacity:1; }
+  }
 
-  .tab-content { animation: slideInUp 0.2s cubic-bezier(0.25,0.46,0.45,0.94); }
-  .detail-page { animation: slideInRight 0.28s cubic-bezier(0.32,0.72,0,1); }
-  .modal-overlay { animation: fadeIn 0.15s ease; }
-  .modal-sheet { animation: slideUp 0.32s cubic-bezier(0.32,0.72,0,1); }
-  .login-page { animation: slideInUp 0.24s cubic-bezier(0.25,0.46,0.45,0.94); }
-  .toast-anim { animation: slideUp 0.22s cubic-bezier(0.32,0.72,0,1); }
+  /* 전체화면 전환 (admin, profile 페이지) */
+  .slide-in-right { animation: _pushIn 0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+  .slide-in-left  { animation: _pushIn 0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+
+  /* 상세 페이지 (notice/bulletin/worship detail) */
+  .detail-page { animation: _pushIn 0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+
+  /* 콘텐츠 영역 (탭 전환 - 매우 가볍게) */
+  .tab-content { animation: _riseIn 0.16s ease both; }
+
+  /* 메인/로그인 등 첫 진입 */
+  .fade-in   { animation: _riseIn 0.2s ease both; }
+  .scale-in  { animation: _riseIn 0.2s ease both; }
+  .pop-in    { animation: _riseIn 0.2s ease both; }
+
+  /* 시트/모달 */
+  .slide-up     { animation: _sheetUp 0.32s cubic-bezier(0.32,0.72,0,1) both; }
+  .modal-sheet  { animation: _sheetUp 0.32s cubic-bezier(0.32,0.72,0,1) both; }
+  .modal-overlay{ animation: _overlayIn 0.18s ease both; }
+  .login-page   { animation: _riseIn 0.22s ease both; }
+
+  /* 토스트 */
+  .toast-anim { animation: _toastUp 0.22s cubic-bezier(0.32,0.72,0,1) both; }
 
   .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   input, textarea, select { font-family: 'Inter', sans-serif; }
@@ -230,8 +259,8 @@ tailwind.config = {
   #crop-modal canvas { touch-action: none; }
 </style>
 </head>
-<body class="bg-white text-black min-h-screen">
-<div id="app"><div class="fixed-layout"><div class="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin"></div></div></div>
+<body class="bg-zinc-50 text-black min-h-screen">
+<div id="app" style="background:#f4f4f5;min-height:100vh;"><div class="fixed-layout"><div class="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin"></div></div></div>
 
 <script>
 // ============================================================
@@ -334,26 +363,50 @@ function renderConfirmModal() {
 function renderCropModal() {
   if (!state._cropModal) return '';
   const src = state._cropModal.src;
+  const scaleVal = Math.round((state._cropModal.w / state._cropModal.origW) * 100);
+  const SIZE = 240;
   return `
-  <div id="crop-modal" class="fixed inset-0 z-[310] bg-black/80 backdrop-blur-sm flex items-center justify-center px-6">
-    <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl fade-in">
+  <div id="crop-modal" class="fixed inset-0 z-[310] bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center">
+    <div class="bg-white w-full sm:rounded-3xl sm:max-w-sm sm:mx-6 rounded-t-3xl shadow-2xl" style="animation:_sheetUp 0.3s cubic-bezier(0.32,0.72,0,1) both">
+      <!-- 헤더 -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
-        <button id="crop-cancel" class="text-sm text-zinc-500 font-medium">취소</button>
+        <button id="crop-cancel" class="text-sm text-zinc-500 font-medium px-1 py-1">취소</button>
         <p class="text-sm font-bold">프로필 사진</p>
-        <button id="crop-confirm" class="text-sm font-bold text-black">완료</button>
+        <button id="crop-confirm" class="text-sm font-bold text-black px-1 py-1">완료</button>
       </div>
-      <div class="relative bg-zinc-100 flex items-center justify-center" style="height:280px;">
-        <div id="crop-container" style="position:relative;width:240px;height:240px;touch-action:none;border-radius:50%;overflow:hidden;border:3px solid #000;">
-          <img id="crop-img" src="${src}" style="position:absolute;width:${state._cropModal.w}px;height:${state._cropModal.h}px;left:${state._cropModal.ox}px;top:${state._cropModal.oy}px;user-select:none;-webkit-user-drag:none;" draggable="false"/>
+      <!-- 크롭 영역 -->
+      <div class="relative bg-zinc-900 flex items-center justify-center select-none" style="height:300px;">
+        <!-- 배경 (오버레이) -->
+        <div id="crop-overlay" style="position:absolute;inset:0;pointer-events:none;">
+          <svg width="100%" height="100%" style="position:absolute;inset:0;">
+            <defs>
+              <mask id="circleMask">
+                <rect width="100%" height="100%" fill="white"/>
+                <circle cx="50%" cy="50%" r="${SIZE/2}" fill="black"/>
+              </mask>
+            </defs>
+            <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#circleMask)"/>
+            <circle cx="50%" cy="50%" r="${SIZE/2 - 1}" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"/>
+          </svg>
+        </div>
+        <!-- 이미지 드래그 영역 (전체 영역) -->
+        <div id="crop-drag-area" style="position:absolute;inset:0;touch-action:none;cursor:grab;overflow:hidden;">
+          <img id="crop-img" src="${src}"
+            style="position:absolute;width:${state._cropModal.w}px;height:${state._cropModal.h}px;left:${state._cropModal.ox}px;top:${state._cropModal.oy}px;user-select:none;-webkit-user-drag:none;pointer-events:none;"
+            draggable="false"/>
         </div>
       </div>
-      <div class="px-5 py-4 space-y-3 border-t border-zinc-100">
+      <!-- 컨트롤 -->
+      <div class="px-5 pt-4 pb-6 space-y-2">
         <div class="flex items-center gap-3">
-          <span class="text-zinc-300 text-xs">작게</span>
-          <input id="crop-scale" type="range" min="100" max="300" value="${Math.round((state._cropModal.w / state._cropModal.origW) * 100)}" class="flex-1 accent-black"/>
-          <span class="text-zinc-500 text-xs">크게</span>
+          <span class="text-zinc-400 text-xs w-6 text-center">−</span>
+          <input id="crop-scale" type="range" min="100" max="350" value="${scaleVal}" class="flex-1 accent-black h-1.5" style="cursor:pointer"/>
+          <span class="text-zinc-600 text-xs w-6 text-center">+</span>
         </div>
-        <p class="text-[11px] text-zinc-400 text-center">드래그로 위치 조정, 슬라이더로 크기 조정</p>
+        <p class="text-[11px] text-zinc-400 text-center" id="crop-hint">
+          <span class="hidden sm:inline">마우스로 드래그해서 위치 조정</span>
+          <span class="sm:hidden">한 손가락으로 이동 · 두 손가락으로 확대축소</span>
+        </p>
       </div>
     </div>
   </div>`;
@@ -408,14 +461,11 @@ function render() {
   html += renderConfirmModal();
   html += renderCropModal();
 
-  // 깜빡임 방지: display none → 교체 → display block
-  app.style.opacity = '0';
+  // 깜빡임 완전 제거: 배경색 고정 + 즉시 교체
+  // CSS 애니메이션이 자식 요소에서 처리하므로 app 자체는 즉시 교체
+  app.style.transition = '';
+  app.style.opacity = '1';
   app.innerHTML = html;
-  // requestAnimationFrame으로 다음 프레임에 페인트
-  requestAnimationFrame(() => {
-    app.style.transition = 'opacity 0.1s ease';
-    app.style.opacity = '1';
-  });
   bindEvents();
   bindCropModal();
 }
@@ -509,7 +559,7 @@ function renderMain() {
   ];
 
   return `
-  <div class="min-h-screen bg-zinc-50 pb-36 fade-in">
+  <div class="min-h-screen bg-zinc-100/60 pb-36 fade-in">
     <!-- Header -->
     <header class="sticky top-0 z-50 px-5 pt-3 pb-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100">
       <div class="flex justify-between items-center">
@@ -1695,12 +1745,14 @@ function bindEvents() {
       const dy = Math.abs(e.changedTouches[0].clientY - startY);
       swiping = false;
       if (dx > 60 && dy < 80) {
-        // 뒤로가기 우선순위
+        // 뒤로가기: 하위 페이지/모달만 닫음, 홈(메인탭)은 스와이프 불가
         if (state.detail) { state.detail = null; render(); }
         else if (state.profilePage) { state.profilePage = null; render(); }
         else if (state.page === 'admin' && state.adminSub !== 'dashboard') { state.adminSub = 'dashboard'; render(); }
         else if (state.page === 'admin') { state.page = 'main'; state.tab = 'home'; render(); }
         else if (state.page === 'register') { state.page = 'login'; render(); }
+        // 메인 탭 간 스와이프는 의도치 않은 동작 방지를 위해 제거
+        // (홈탭에서 스와이프해도 아무 동작 없음)
       }
     });
   })();
@@ -2586,79 +2638,182 @@ function bindEvents() {
 // ============================================================
 function bindCropModal() {
   if (!state._cropModal) return;
-  const container = document.getElementById('crop-container');
-  const imgEl = document.getElementById('crop-img');
+  const dragArea = document.getElementById('crop-drag-area');
+  const imgEl    = document.getElementById('crop-img');
   const scaleInput = document.getElementById('crop-scale');
-  if (!container || !imgEl) return;
+  if (!dragArea || !imgEl) return;
 
-  const size = 240;
-  let dragging=false, startX, startY, startOX, startOY;
+  const SIZE = 240; // 원형 크롭 지름
+  // 드래그 영역 중심 = 이미지 표시 기준점
+  const areaRect = dragArea.getBoundingClientRect();
+  const areaW = areaRect.width || 360;
+  const areaH = areaRect.height || 300;
+  // 원의 중심 (drag area 기준)
+  const cx = areaW / 2;
+  const cy = areaH / 2;
 
-  const clampPos = (ox,oy,w,h) => ({
-    ox: Math.min(0, Math.max(size-w, ox)),
-    oy: Math.min(0, Math.max(size-h, oy))
-  });
-
-  const applyTransform = () => {
+  // state._cropModal.ox/oy 는 이미지 left/top (drag area 기준)
+  // 이미지가 원을 완전히 덮도록 클램프
+  const clamp = () => {
     const c = state._cropModal;
-    const pos = clampPos(c.ox,c.oy,c.w,c.h);
-    state._cropModal.ox=pos.ox; state._cropModal.oy=pos.oy;
-    imgEl.style.left=pos.ox+'px'; imgEl.style.top=pos.oy+'px';
-    imgEl.style.width=c.w+'px'; imgEl.style.height=c.h+'px';
+    // 이미지 오른쪽 끝이 원의 오른쪽보다 오른쪽이어야 함
+    const minOx = cx + SIZE/2 - c.w; // 이미지 최소 left
+    const maxOx = cx - SIZE/2;       // 이미지 최대 left
+    const minOy = cy + SIZE/2 - c.h;
+    const maxOy = cy - SIZE/2;
+    c.ox = Math.min(maxOx, Math.max(minOx, c.ox));
+    c.oy = Math.min(maxOy, Math.max(minOy, c.oy));
   };
-  applyTransform();
 
-  const onStart = e => {
-    dragging=true;
-    const pt=e.touches?e.touches[0]:e;
-    startX=pt.clientX; startY=pt.clientY;
-    startOX=state._cropModal.ox; startOY=state._cropModal.oy;
-    e.preventDefault();
+  const applyImg = () => {
+    clamp();
+    const c = state._cropModal;
+    imgEl.style.left  = c.ox + 'px';
+    imgEl.style.top   = c.oy + 'px';
+    imgEl.style.width = c.w  + 'px';
+    imgEl.style.height= c.h  + 'px';
   };
-  const onMove = e => {
-    if (!dragging) return;
-    const pt=e.touches?e.touches[0]:e;
-    state._cropModal.ox=startOX+(pt.clientX-startX);
-    state._cropModal.oy=startOY+(pt.clientY-startY);
-    applyTransform(); e.preventDefault();
-  };
-  const onEnd = () => { dragging=false; };
+  applyImg();
 
-  container.addEventListener('mousedown', onStart);
-  container.addEventListener('touchstart', onStart, {passive:false});
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('touchmove', onMove, {passive:false});
-  document.addEventListener('mouseup', onEnd);
-  document.addEventListener('touchend', onEnd);
+  // ── 슬라이더 ──
+  const applyScale = (scale) => {
+    const c = state._cropModal;
+    const newW = c.origW * scale;
+    const newH = c.origH * scale;
+    // 원 중심 기준으로 스케일
+    const pivotX = cx; const pivotY = cy;
+    const ratioX = (pivotX - c.ox) / c.w;
+    const ratioY = (pivotY - c.oy) / c.h;
+    c.ox = pivotX - ratioX * newW;
+    c.oy = pivotY - ratioY * newH;
+    c.w  = newW; c.h = newH;
+    applyImg();
+  };
 
   scaleInput?.addEventListener('input', function() {
-    const scale = parseInt(this.value)/100;
-    const c = state._cropModal;
-    const newW = c.origW*scale; const newH = c.origH*scale;
-    // keep center
-    const centerX = c.ox + c.w/2; const centerY = c.oy + c.h/2;
-    state._cropModal.w=newW; state._cropModal.h=newH;
-    state._cropModal.ox=centerX-newW/2; state._cropModal.oy=centerY-newH/2;
-    applyTransform();
+    applyScale(parseInt(this.value) / 100);
   });
 
-  document.getElementById('crop-cancel')?.addEventListener('click', () => {
-    state._cropModal=null; state._pendingProfileFile=null; render();
+  // ── PC: 마우스 드래그 ──
+  let dragging = false, mStartX, mStartY, mStartOX, mStartOY;
+  dragArea.addEventListener('mousedown', e => {
+    dragging = true;
+    mStartX = e.clientX; mStartY = e.clientY;
+    mStartOX = state._cropModal.ox; mStartOY = state._cropModal.oy;
+    dragArea.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    state._cropModal.ox = mStartOX + (e.clientX - mStartX);
+    state._cropModal.oy = mStartOY + (e.clientY - mStartY);
+    applyImg();
+  });
+  document.addEventListener('mouseup', () => {
+    dragging = false;
+    if (dragArea) dragArea.style.cursor = 'grab';
   });
 
+  // ── 모바일: 한손가락 이동 + 두손가락 핀치줌 ──
+  let tStartOX, tStartOY, tStartX, tStartY;
+  let pinchStartDist = 0, pinchStartW = 0, pinchStartH = 0;
+  let pinchStartOX = 0, pinchStartOY = 0;
+
+  const getTouchDist = (t) => {
+    const dx = t[1].clientX - t[0].clientX;
+    const dy = t[1].clientY - t[0].clientY;
+    return Math.sqrt(dx*dx + dy*dy);
+  };
+  const getTouchCenter = (t) => ({
+    x: (t[0].clientX + t[1].clientX) / 2,
+    y: (t[0].clientY + t[1].clientY) / 2,
+  });
+
+  dragArea.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+      tStartX = e.touches[0].clientX; tStartY = e.touches[0].clientY;
+      tStartOX = state._cropModal.ox; tStartOY = state._cropModal.oy;
+    } else if (e.touches.length === 2) {
+      pinchStartDist = getTouchDist(e.touches);
+      pinchStartW = state._cropModal.w;
+      pinchStartH = state._cropModal.h;
+      pinchStartOX = state._cropModal.ox;
+      pinchStartOY = state._cropModal.oy;
+    }
+    e.preventDefault();
+  }, { passive: false });
+
+  dragArea.addEventListener('touchmove', e => {
+    if (e.touches.length === 1) {
+      // 한손가락 이동
+      state._cropModal.ox = tStartOX + (e.touches[0].clientX - tStartX);
+      state._cropModal.oy = tStartOY + (e.touches[0].clientY - tStartY);
+      applyImg();
+    } else if (e.touches.length === 2) {
+      // 두손가락 핀치줌
+      const dist  = getTouchDist(e.touches);
+      const ratio = dist / pinchStartDist;
+      const newW  = pinchStartW * ratio;
+      const newH  = pinchStartH * ratio;
+      // 핀치 중심 기준으로 이미지 이동
+      const center = getTouchCenter(e.touches);
+      const startCenter = { x: (pinchStartOX + pinchStartW/2), y: (pinchStartOY + pinchStartH/2) };
+      // 핀치 센터 기준 스케일
+      const rect2 = dragArea.getBoundingClientRect();
+      const lcx = center.x - rect2.left;
+      const lcy = center.y - rect2.top;
+      const ratioX2 = (lcx - pinchStartOX) / pinchStartW;
+      const ratioY2 = (lcy - pinchStartOY) / pinchStartH;
+      state._cropModal.ox = lcx - ratioX2 * newW;
+      state._cropModal.oy = lcy - ratioY2 * newH;
+      state._cropModal.w  = newW; state._cropModal.h = newH;
+      // 슬라이더 동기화
+      if (scaleInput) scaleInput.value = Math.round(newW / state._cropModal.origW * 100);
+      applyImg();
+    }
+    e.preventDefault();
+  }, { passive: false });
+
+  dragArea.addEventListener('touchend', e => {}, { passive: true });
+
+  // ── 완료 버튼: 원형 크롭 캔버스 ──
   document.getElementById('crop-confirm')?.addEventListener('click', () => {
-    const c = state._cropModal;
+    const c   = state._cropModal;
+    const OUT = 400; // 출력 해상도
     const canvas = document.createElement('canvas');
-    canvas.width=240; canvas.height=240;
+    canvas.width = OUT; canvas.height = OUT;
     const ctx = canvas.getContext('2d');
+
+    // 원형 클리핑
+    ctx.beginPath();
+    ctx.arc(OUT/2, OUT/2, OUT/2, 0, Math.PI*2);
+    ctx.clip();
+
+    // drag area 기준 원 위치
+    const rect3 = dragArea.getBoundingClientRect();
+    const aw = rect3.width || areaW;
+    const ah = rect3.height || areaH;
+    const circleCX = aw / 2;
+    const circleCY = ah / 2;
+    // 이미지에서 원이 차지하는 소스 영역
+    const srcX = (circleCX - SIZE/2 - c.ox) * (c.origW / c.w);
+    const srcY = (circleCY - SIZE/2 - c.oy) * (c.origH / c.h);
+    const srcW = SIZE * (c.origW / c.w);
+    const srcH = SIZE * (c.origH / c.h);
+
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
-      ctx.drawImage(img, c.ox, c.oy, c.w, c.h);
-      state._pendingProfileImg = canvas.toDataURL('image/jpeg', 0.88);
+      ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, OUT, OUT);
+      state._pendingProfileImg = canvas.toDataURL('image/jpeg', 0.9);
       state._cropModal = null;
       render();
     };
     img.src = c.src;
+  });
+
+  document.getElementById('crop-cancel')?.addEventListener('click', () => {
+    state._cropModal = null; state._pendingProfileFile = null; render();
   });
 }
 
