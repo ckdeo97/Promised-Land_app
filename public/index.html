@@ -107,23 +107,75 @@
     const batch = writeBatch(db);
 
     const users = [
-      { uid:'admin1', id:'admin', pw:'1234', name:'약속의 땅 관리자', phone:'010-1234-5678', birth:'19950315', cellId:'c2', role:'admin', status:'active', createdAt:'2026-01-01', profileImg:'', idChangedAt:null }
+      { uid:'admin1', id:'admin', pw:'1234', name:'약속의 땅 관리자', phone:'010-3440-4318', birth:'19970908', cellId:'c1', role:'admin', status:'active', createdAt:'2026-01-01', profileImg:'', idChangedAt:null }
     ];
     users.forEach(u => batch.set(doc(db,'users',u.uid), u));
 
     const cells = [
-      { id:'c1', name:'리나목장', leader:'김리나', order:1 },
-      { id:'c2', name:'창대목장', leader:'김창대', order:2 },
-      { id:'c3', name:'은혜목장', leader:'박은혜', order:3 },
+      {id:"c1",name:"김창대목장",leader:"김창대",order:1},
+      {id:"c2",name:"김유나목장",leader:"김유나",order:2},
+      {id:"c3",name:"김제현목장",leader:"김제현",order:3},
+      {id:"c4",name:"김예지목장",leader:"김예지",order:4}
     ];
     cells.forEach(c => batch.set(doc(db,'cells',c.id), c));
 
     const rosters = [
-      { id:'r1', name:'김창대', phone:'010-1234-5678', birth:'19950315', cellId:'c2', linkedUid:'admin1' },
-      { id:'r2', name:'이서연', phone:'010-2345-6789', birth:'19970827', cellId:'c1', linkedUid:null },
-      { id:'r3', name:'박민준', phone:'010-3456-7890', birth:'19961127', cellId:'c1', linkedUid:null },
-      { id:'r4', name:'최유진', phone:'010-4567-8901', birth:'19980503', cellId:'c3', linkedUid:null },
-      { id:'r5', name:'정하은', phone:'010-5678-9012', birth:'20000112', cellId:'c2', linkedUid:null },
+      {id:"r__4318",name:"김창대",phone:"010-3440-4318",birth:"19970908",cellId:"c1",role:"리더",linkedUid:null,joined:false},
+      {id:"r__0683",name:"강주혜",phone:"010-9411-0683",birth:"20060105",cellId:"c1",role:"1",linkedUid:null,joined:false},
+      {id:"r__7399",name:"고범수",phone:"010-6505-7399",birth:"20050826",cellId:"c1",role:"2",linkedUid:null,joined:false},
+      {id:"r__1990",name:"김 난",phone:"010-6611-1990",birth:"19981103",cellId:"c1",role:"3",linkedUid:null,joined:false},
+      {id:"r__8075",name:"김한수",phone:"010-7654-8075",birth:"19990712",cellId:"c1",role:"4",linkedUid:null,joined:false},
+      {id:"r__4768",name:"노다온",phone:"010-9580-4768",birth:"20060126",cellId:"c1",role:"5",linkedUid:null,joined:false},
+      {id:"r__1317",name:"양성경",phone:"010-4483-1317",birth:"19980817",cellId:"c1",role:"6",linkedUid:null,joined:false},
+      {id:"r__7224",name:"왕종민",phone:"010-2044-7224",birth:"19950908",cellId:"c1",role:"7",linkedUid:null,joined:false},
+      {id:"r__9728",name:"이은수",phone:"010-2288-9728",birth:"20050306",cellId:"c1",role:"8",linkedUid:null,joined:false},
+      {id:"r__4230",name:"이지윤",phone:"010-2291-4230",birth:"20010626",cellId:"c1",role:"9",linkedUid:null,joined:false},
+      {id:"r__0224",name:"전상록",phone:"010-9381-0224",birth:"",cellId:"c1",role:"10",linkedUid:null,joined:false},
+      {id:"r__7440",name:"정의석",phone:"010-3871-7440",birth:"20020205",cellId:"c1",role:"11",linkedUid:null,joined:false},
+      {id:"r__4080",name:"천사랑",phone:"010-8786-4080",birth:"20000710",cellId:"c1",role:"12",linkedUid:null,joined:false},
+      {id:"r__8315",name:"오재준",phone:"010-3903-8315",birth:"20070323",cellId:"c1",role:"13",linkedUid:null,joined:false},
+      {id:"r__5712",name:"김유나",phone:"010-8236-5712",birth:"20000118",cellId:"c2",role:"리더",linkedUid:null,joined:false},
+      {id:"r__6517",name:"이혜영",phone:"010-6286-6517",birth:"20041110",cellId:"c2",role:"부리더",linkedUid:null,joined:false},
+      {id:"r__0675",name:"권서영",phone:"010-9739-0675",birth:"20060413",cellId:"c2",role:"1",linkedUid:null,joined:false},
+      {id:"r__5533",name:"김리나",phone:"010-7587-5533",birth:"19960803",cellId:"c2",role:"2",linkedUid:null,joined:false},
+      {id:"r__6405",name:"김명희",phone:"010-8709-6405",birth:"19930709",cellId:"c2",role:"3",linkedUid:null,joined:false},
+      {id:"r__7645",name:"김연태",phone:"010-2799-7645",birth:"19961117",cellId:"c2",role:"4",linkedUid:null,joined:false},
+      {id:"r__7079",name:"김우재",phone:"010-9688-7079",birth:"19941014",cellId:"c2",role:"5",linkedUid:null,joined:false},
+      {id:"r__8895",name:"김주헌",phone:"010-3934-8895",birth:"19981007",cellId:"c2",role:"6",linkedUid:null,joined:false},
+      {id:"r__5449",name:"박찬홍",phone:"010-5477-5449",birth:"20020504",cellId:"c2",role:"7",linkedUid:null,joined:false},
+      {id:"r__7072",name:"송진현",phone:"010-2380-7072",birth:"19990922",cellId:"c2",role:"8",linkedUid:null,joined:false},
+      {id:"r__7160",name:"양희찬",phone:"010-7912-7160",birth:"19990617",cellId:"c2",role:"9",linkedUid:null,joined:false},
+      {id:"r__1764",name:"이사라",phone:"010-8729-1764",birth:"19960308",cellId:"c2",role:"10",linkedUid:null,joined:false},
+      {id:"r__5310",name:"임동민",phone:"010-2319-5310",birth:"20050201",cellId:"c2",role:"11",linkedUid:null,joined:false},
+      {id:"r__2566",name:"토모카",phone:"010-9846-2566",birth:"20010110",cellId:"c2",role:"12",linkedUid:null,joined:false},
+      {id:"r__7103",name:"김제현",phone:"010-3510-7103",birth:"20010129",cellId:"c3",role:"리더",linkedUid:null,joined:false},
+      {id:"r__1943",name:"강유나",phone:"010-8994-1943",birth:"19980122",cellId:"c3",role:"1",linkedUid:null,joined:false},
+      {id:"r__6163",name:"강은혜",phone:"010-9183-6163",birth:"19981014",cellId:"c3",role:"2",linkedUid:null,joined:false},
+      {id:"r__5196",name:"강희영",phone:"010-6374-5196",birth:"20051011",cellId:"c3",role:"3",linkedUid:null,joined:false},
+      {id:"r__5196",name:"강희윤",phone:"010-6359-5196",birth:"20031009",cellId:"c3",role:"4",linkedUid:null,joined:false},
+      {id:"r__5712",name:"김서연",phone:"010-6494-5712",birth:"20050307",cellId:"c3",role:"5",linkedUid:null,joined:false},
+      {id:"r__4106",name:"노승철",phone:"010-5536-4106",birth:"20021022",cellId:"c3",role:"6",linkedUid:null,joined:false},
+      {id:"r__9382",name:"안사무엘",phone:"010-2571-9382",birth:"19930124",cellId:"c3",role:"7",linkedUid:null,joined:false},
+      {id:"r__3192",name:"이건호",phone:"010-7552-3192",birth:"19920515",cellId:"c3",role:"8",linkedUid:null,joined:false},
+      {id:"r__3327",name:"이준영",phone:"010-8867-3327",birth:"19991030",cellId:"c3",role:"9",linkedUid:null,joined:false},
+      {id:"r__8772",name:"장서희",phone:"010-5733-8772",birth:"20060926",cellId:"c3",role:"10",linkedUid:null,joined:false},
+      {id:"r__3108",name:"장수진",phone:"010-5742-3108",birth:"20060407",cellId:"c3",role:"11",linkedUid:null,joined:false},
+      {id:"r__9118",name:"지정현",phone:"010-8954-9118",birth:"20001002",cellId:"c3",role:"12",linkedUid:null,joined:false},
+      {id:"r__7399",name:"고범준",phone:"010-2310-7399",birth:"20070703",cellId:"c3",role:"13",linkedUid:null,joined:false},
+      {id:"r__4728",name:"김예지",phone:"010-4370-4728",birth:"19971203",cellId:"c4",role:"리더",linkedUid:null,joined:false},
+      {id:"r__7103",name:"김다현",phone:"010-9252-7103",birth:"19981101",cellId:"c4",role:"1",linkedUid:null,joined:false},
+      {id:"r__2959",name:"김윤성",phone:"010-5527-2959",birth:"19920501",cellId:"c4",role:"2",linkedUid:null,joined:false},
+      {id:"r__3461",name:"박건우",phone:"010-4033-3461",birth:"20020624",cellId:"c4",role:"3",linkedUid:null,joined:false},
+      {id:"r__5449",name:"박세림",phone:"010-3048-5449",birth:"20041001",cellId:"c4",role:"4",linkedUid:null,joined:false},
+      {id:"r__4528",name:"박채은",phone:"010-5453-4528",birth:"20060923",cellId:"c4",role:"5",linkedUid:null,joined:false},
+      {id:"r__4230",name:"이민우",phone:"010-7544-4230",birth:"20040216",cellId:"c4",role:"6",linkedUid:null,joined:false},
+      {id:"r__1764",name:"이상재",phone:"010-4177-1764",birth:"19940328",cellId:"c4",role:"7",linkedUid:null,joined:false},
+      {id:"r__0929",name:"장은지",phone:"010-9026-0929",birth:"19980926",cellId:"c4",role:"8",linkedUid:null,joined:false},
+      {id:"r__0547",name:"정유승",phone:"010-9459-0547",birth:"19990428",cellId:"c4",role:"9",linkedUid:null,joined:false},
+      {id:"r__2066",name:"조민수",phone:"010-2083-2066",birth:"19901012",cellId:"c4",role:"10",linkedUid:null,joined:false},
+      {id:"r__9870",name:"최찬영",phone:"010-4925-9870",birth:"19980618",cellId:"c4",role:"11",linkedUid:null,joined:false},
+      {id:"r__9757",name:"홍석준",phone:"010-9487-9757",birth:"19960831",cellId:"c4",role:"12",linkedUid:null,joined:false},
+      {id:"r__7069",name:"황지현",phone:"010-5458-7069",birth:"19990926",cellId:"c4",role:"13",linkedUid:null,joined:false}
     ];
     rosters.forEach(r => batch.set(doc(db,'rosters',r.id), r));
 
@@ -1497,9 +1549,10 @@ function renderAdminRoster() {
         <span class="text-white font-bold text-sm">${r.name[0]}</span>
       </div>
       <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-1.5">
+        <div class="flex items-center gap-1.5 flex-wrap">
           <p class="font-bold text-sm">${r.name}</p>
           ${isAdminR?`<span class="text-[9px] font-bold bg-black text-white px-1.5 py-0.5 rounded">관리자</span>`:''}
+          ${r.joined?`<span class="text-[9px] font-bold bg-emerald-500 text-white px-1.5 py-0.5 rounded">앱 가입</span>`:`<span class="text-[9px] font-bold bg-zinc-200 text-zinc-500 px-1.5 py-0.5 rounded">미가입</span>`}
         </div>
         <p class="text-xs text-zinc-400">${fmtPhone(r.phone)} · ${cell?.name||'미배정'}</p>
       </div>
@@ -1676,11 +1729,31 @@ function bindEvents() {
     const phone = fmtPhone(rawPhone);
     if (state.cache.users.find(u=>u.id===id)) return showErr('이미 존재하는 아이디입니다.');
     if (state.cache.users.find(u=>u.phone===phone)) return showErr('이미 등록된 전화번호입니다.');
+
+    // 명부 매칭: 이름+전화번호 일치 or 이름+생년월일 일치
+    const rosters = state.cache.rosters;
+    const matchedRoster = rosters.find(r => {
+      const phoneMatch = r.phone && r.phone.replace(/[^\d]/g,'') === phone.replace(/[^\d]/g,'');
+      const birthMatch = r.birth && r.birth === birth;
+      const nameMatch  = r.name && r.name.replace(/\s/g,'') === name.replace(/\s/g,'');
+      return nameMatch && (phoneMatch || birthMatch);
+    });
+
     const newUid = uid();
-    const newUser = { uid:newUid, id, pw, name, phone, birth, cellId:'', role:'user', status:'pending', createdAt:today(), profileImg:'', idChangedAt:null };
+    const cellId = matchedRoster ? matchedRoster.cellId : '';
+    const newUser = { uid:newUid, id, pw, name, phone, birth, cellId, role:'user', status:'pending', createdAt:today(), profileImg:'', idChangedAt:null };
     await window.FDB.setDoc('users', newUid, newUser);
     state.cache.users.push(newUser);
-    showToast('가입 신청 완료! 관리자 승인 후 로그인 가능합니다.');
+
+    // 명부 매칭 시 roster 업데이트
+    if (matchedRoster) {
+      await window.FDB.setDoc('rosters', matchedRoster.id, { linkedUid: newUid, joined: true });
+      matchedRoster.linkedUid = newUid;
+      matchedRoster.joined = true;
+    }
+
+    const matchMsg = matchedRoster ? ' 명부에서 확인되었습니다.' : ' (명부 미확인 — 관리자가 수동 확인합니다.)';
+    showToast('가입 신청 완료!' + matchMsg + ' 관리자 승인 후 로그인 가능합니다.');
     state.page='login'; render();
   });
 
@@ -1823,10 +1896,28 @@ function bindEvents() {
   document.querySelectorAll('[data-action="approve"]').forEach(el => {
     el.addEventListener('click', async () => {
       const targetUid = el.dataset.uid;
-      await window.FDB.setDoc('users', targetUid, { status:'active' });
       const u = state.cache.users.find(x=>x.uid===targetUid);
-      if (u) u.status='active';
-      showToast('승인 완료!'); render();
+      // 명부 매칭 재확인 (아직 linkedUid 없을 경우)
+      const rosters = state.cache.rosters;
+      let matchedRoster = rosters.find(r=>r.linkedUid===targetUid);
+      if (!matchedRoster && u) {
+        matchedRoster = rosters.find(r => {
+          const phoneMatch = r.phone && r.phone.replace(/[^\d]/g,'') === (u.phone||'').replace(/[^\d]/g,'');
+          const birthMatch = r.birth && r.birth === u.birth;
+          const nameMatch  = r.name && r.name.replace(/\s/g,'') === (u.name||'').replace(/\s/g,'');
+          return nameMatch && (phoneMatch || birthMatch);
+        });
+        if (matchedRoster) {
+          await window.FDB.setDoc('rosters', matchedRoster.id, { linkedUid: targetUid, joined: true });
+          matchedRoster.linkedUid = targetUid;
+          matchedRoster.joined = true;
+        }
+      }
+      // cellId 자동 배정
+      const cellId = matchedRoster ? matchedRoster.cellId : (u?.cellId || '');
+      await window.FDB.setDoc('users', targetUid, { status:'active', cellId });
+      if (u) { u.status='active'; u.cellId=cellId; }
+      showToast('승인 완료!' + (matchedRoster ? ` (${matchedRoster.name} — ${state.cache.cells.find(c=>c.id===cellId)?.name||'목장 배정'})` : '')); render();
     });
   });
 
