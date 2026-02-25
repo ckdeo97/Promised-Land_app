@@ -255,7 +255,8 @@ tailwind.config = {
 <style>
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
   html { overflow-y: scroll; scrollbar-gutter: stable; }
-  body { font-family: 'Inter', sans-serif; overscroll-behavior: none; }
+  body { font-family: 'Inter', sans-serif; overscroll-behavior: none; background: #fafafa; }
+  #app { background: #fafafa; min-height: 100vh; }
   body.no-scroll { overflow: hidden; position: fixed; width: 100%; height: 100%; }
   .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
   .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
@@ -350,6 +351,7 @@ let state = {
   profilePage: null,
   toast: null,
   adminRosterTab: 'all',
+  rosterSearch: '',
   adminAttTab: null,
   _pendingProfileImg: null,
   _pendingProfileFile: null,
@@ -364,11 +366,14 @@ let state = {
   cache: {
     users: [], cells: [], rosters: [], notices: [], bulletins: [],
     worshipSets: [], events: [], cellMeetings: [], notifications: [],
-    attendance: {}, offerings: {}, comments: {}
+    attendance: {}, offerings: {}, comments: {},
+    serviceSchedules: []  // 임사 관리
   }
 };
 
 const uid = () => Math.random().toString(36).substr(2, 9);
+const koSort = (a, b) => (a||'').localeCompare(b||'', 'ko');
+const sortByName = arr => [...arr].sort((a,b) => koSort(a.name, b.name));
 const today = () => new Date().toISOString().split('T')[0];
 const fmtPhone = v => { const d = v.replace(/\D/g,''); if(d.length<=3) return d; if(d.length<=7) return d.slice(0,3)+'-'+d.slice(3); return d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7,11); };
 const fmtDate = v => { if(!v) return ''; const d = String(v).replace(/\D/g,''); if(d.length===8) return d.slice(0,4)+'.'+d.slice(4,6)+'.'+d.slice(6,8); return v; };
@@ -386,18 +391,19 @@ const SESSION = {
 // ============================================================
 async function loadAll() {
   const FDB = window.FDB;
-  const [users, cells, rosters, notices, bulletins, worshipSets, events, cellMeetings] = await Promise.all([
+  const [users, cells, rosters, notices, bulletins, worshipSets, events, cellMeetings, serviceSchedules] = await Promise.all([
     FDB.getCol('users'), FDB.getCol('cells'), FDB.getCol('rosters'),
     FDB.getCol('notices'), FDB.getCol('bulletins'), FDB.getCol('worshipSets'),
-    FDB.getCol('events'), FDB.getCol('cellMeetings')
+    FDB.getCol('events'), FDB.getCol('cellMeetings'), FDB.getCol('serviceSchedules')
   ]);
   state.cache.users = users;
   state.cache.cells = cells.sort((a,b)=>(a.order||0)-(b.order||0));
-  state.cache.rosters = rosters;
+  state.cache.rosters = rosters.sort((a,b)=>koSort(a.name,b.name));
   state.cache.notices = notices.sort((a,b)=>b.at.localeCompare(a.at));
   state.cache.bulletins = bulletins.sort((a,b)=>a.date.localeCompare(b.date));
   state.cache.worshipSets = worshipSets.sort((a,b)=>a.date.localeCompare(b.date));
   state.cache.events = events.sort((a,b)=>a.date.localeCompare(b.date));
+  state.cache.serviceSchedules = serviceSchedules.sort((a,b)=>a.date.localeCompare(b.date));
   state.cache.cellMeetings = cellMeetings.sort((a,b)=>b.date.localeCompare(a.date));
 }
 
@@ -498,6 +504,42 @@ function logoImg(cls='w-10 h-10') {
 // ============================================================
 // RENDER
 // ============================================================
+// DOM morph: 구조가 같으면 바뀐 부분만 교체, 다르면 전체 교체
+function morphDOM(container, newHTML) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = newHTML;
+  const newNodes = Array.from(tmp.childNodes);
+  const oldNodes = Array.from(container.childNodes);
+
+  const focused = document.activeElement;
+  const focusedId = focused?.id;
+  const focusedVal = focused?.value;
+
+  if (newNodes.length === oldNodes.length &&
+      newNodes.every((n,i) => n.nodeType === oldNodes[i].nodeType &&
+        (n.nodeType !== 1 || n.tagName === oldNodes[i].tagName))) {
+    newNodes.forEach((n, i) => {
+      if (n.nodeType === 1 && n.outerHTML !== oldNodes[i].outerHTML) {
+        oldNodes[i].replaceWith(n);
+      }
+    });
+  } else {
+    container.innerHTML = newHTML;
+  }
+
+  // 포커스 복원 (검색 input 등)
+  if (focusedId) {
+    const el = document.getElementById(focusedId);
+    if (el && el !== document.activeElement) {
+      el.focus();
+      if (focusedVal !== undefined && el.tagName === 'INPUT') {
+        el.value = focusedVal;
+        try { el.setSelectionRange(focusedVal.length, focusedVal.length); } catch(e){}
+      }
+    }
+  }
+}
+
 function render() {
   const app = document.getElementById('app');
   let html = '';
@@ -522,29 +564,31 @@ function render() {
     }
   }
 
-  // 프로필 시트는 항상 최상위 레이어로 (스크롤 영향 없음)
   if (state.profileOpen) html += renderProfileSheet();
-
-  if (state.toast) {
-    html += `<div class="fixed top-20 left-1/2 -translate-x-1/2 z-[200] bg-black text-white px-5 py-3 rounded-2xl text-sm font-bold shadow-xl toast-anim">${state.toast}</div>`;
-  }
-
   html += renderConfirmModal();
   html += renderCropModal();
 
-  // 깜빡임 완전 제거: 배경색 고정 + 즉시 교체
-  // CSS 애니메이션이 자식 요소에서 처리하므로 app 자체는 즉시 교체
-  app.style.transition = '';
-  app.style.opacity = '1';
-  app.innerHTML = html;
+  // morph: 가능하면 바뀐 노드만 교체 → 깜빡임/폰트 재로드 없음
+  morphDOM(app, html);
   bindEvents();
   bindCropModal();
 }
 
 function showToast(msg) {
-  state.toast = msg;
-  render();
-  setTimeout(() => { state.toast = null; render(); }, 2200);
+  // render() 없이 DOM 직접 조작 → 깜빡임 없음
+  let toastEl = document.getElementById('_toast');
+  if (!toastEl) {
+    toastEl = document.createElement('div');
+    toastEl.id = '_toast';
+    document.body.appendChild(toastEl);
+  }
+  toastEl.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-[300] bg-black text-white px-5 py-3 rounded-2xl text-sm font-bold shadow-xl toast-anim';
+  toastEl.textContent = msg;
+  toastEl.style.display = 'block';
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => {
+    if (toastEl) toastEl.style.display = 'none';
+  }, 2200);
 }
 
 function icon(name, cls='', size=24, fill=false) {
@@ -898,44 +942,122 @@ function renderBulletinTab() {
 function renderBulletinDetail() {
   const b = state.cache.bulletins.find(x => x.id === state.detail.id);
   if (!b) return '';
-  const sections = [
-    { i:'format_list_numbered', t:'예배순서', c:b.order },
-    { i:'volunteer_activism', t:'대표기도', c:b.prayer_duty },
-    { i:'menu_book', t:'성경봉독', c:b.bible_reading },
-    { i:'campaign', t:'성도의 교제 (광고)', c:b.announcement_duty },
-    { i:'favorite', t:'봉헌', c:b.offering_duty },
-    { i:'music_note', t:'찬양곡 목록', c:b.songs },
-    { i:'campaign', t:'광고 / 알림', c:b.announce },
-  ];
+
+  // 임사 정보 (해당 날짜 serviceSchedules에서 가져옴)
+  const svc = state.cache.serviceSchedules.find(s=>s.date===b.date) || {};
+
+  // 예배순서 items: [{name, scripture, participant, remark}]
+  const orderItems = b.orderItems || [];
+
+  // 광고 items: [{title, body}]
+  const announcements = b.announcements || [];
+
+  // 헌금 정보
+  const offering = b.offering || {};
+
+  // 임사 표 (4주치 = 이번주 다음주부터)
+  const nextSundays = getUpcomingSundays(4, true); // 다음주부터 4주
+  const svcRows = nextSundays.map(date => {
+    const sv = state.cache.serviceSchedules.find(s=>s.date===date) || {};
+    const d = new Date(date);
+    const label = `${d.getMonth()+1}/${d.getDate()}`;
+    return `<tr class="border-b border-zinc-100 last:border-0">
+      <td class="py-2 px-3 text-xs font-bold text-zinc-600 whitespace-nowrap">${label}</td>
+      ${SVC_COLS.map(col=>`<td class="py-2 px-3 text-xs text-zinc-700 text-center">${sv[col]||'-'}</td>`).join('')}
+    </tr>`;
+  }).join('');
+
   return `
   <div class="min-h-screen bg-zinc-50 detail-page">
     <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">주보</h1>
     </header>
-    <div class="p-5">
-      <div class="bg-white rounded-3xl overflow-hidden shadow-lg border border-zinc-100">
-        <div class="bg-black text-white p-8 text-center relative overflow-hidden dot-pattern">
-          <div class="relative z-10">
-            <p class="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 mb-2">약속의 땅 · 주일예배</p>
-            <h2 class="text-2xl font-bold">${b.date}</h2>
-            <div class="w-12 h-0.5 bg-white/20 mx-auto mt-4"></div>
-          </div>
+    <div class="p-5 space-y-4 pb-12">
+
+      <!-- 헤더 -->
+      <div class="bg-black text-white rounded-3xl p-8 text-center relative overflow-hidden dot-pattern">
+        <div class="relative z-10">
+          <p class="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 mb-2">약속의 땅 청년부 · 주일예배</p>
+          <h2 class="text-xl font-bold">${b.date}</h2>
+          ${b.verse ? `<p class="text-white/70 text-sm mt-2">${b.verse}</p>` : ''}
         </div>
-        <div class="divide-y divide-zinc-100">
-          ${sections.filter(s=>s.c).map(s => `
-            <div class="p-6">
-              <div class="flex items-center gap-2 mb-3">
-                ${icon(s.i,'text-zinc-400',16)}
-                <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">${s.t}</h3>
-              </div>
-              <div class="text-sm leading-relaxed text-zinc-700 whitespace-pre-line">${s.c}</div>
+      </div>
+
+      <!-- 예배순서 -->
+      ${orderItems.length ? `
+      <div class="bg-white rounded-3xl overflow-hidden border border-zinc-100">
+        <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
+          ${icon('format_list_numbered','text-zinc-400',16)}
+          <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">예배순서</h3>
+        </div>
+        <div class="divide-y divide-zinc-50">
+          ${orderItems.map(item=>`
+          <div class="flex items-center px-5 py-3 gap-3 ${item.star?'bg-amber-50/50':''}">
+            <span class="text-zinc-300 text-xs w-3">${item.star?'*':''}</span>
+            <div class="flex-1 min-w-0">
+              <span class="text-sm font-medium text-zinc-800">${item.name}</span>
+              ${item.scripture?`<span class="text-xs text-zinc-400 ml-2">${item.scripture}</span>`:''}
             </div>
-          `).join('')}
+            <span class="text-xs text-zinc-500 text-right">${item.participant||''}</span>
+          </div>`).join('')}
         </div>
-        <div class="bg-zinc-50 p-6 text-center">
-          <p class="text-[10px] text-zinc-300 font-bold uppercase tracking-[0.2em]">약속의 땅 청년부</p>
+      </div>` : ''}
+
+      <!-- 광고 -->
+      ${announcements.length ? `
+      <div class="bg-white rounded-3xl overflow-hidden border border-zinc-100">
+        <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
+          ${icon('campaign','text-zinc-400',16)}
+          <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">광고</h3>
         </div>
+        <div class="divide-y divide-zinc-50">
+          ${announcements.map((a,i)=>`
+          <div class="px-5 py-4">
+            <div class="flex items-start gap-2.5">
+              <span class="w-5 h-5 bg-zinc-900 text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-none mt-0.5">${i+1}</span>
+              <div>
+                <p class="text-sm font-bold">${a.title}</p>
+                ${a.body?`<p class="text-xs text-zinc-500 mt-1 leading-relaxed whitespace-pre-line">${a.body}</p>`:''}
+              </div>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- 헌금 -->
+      ${(offering.account||offering.prayerDuty||offering.thanksDuty) ? `
+      <div class="bg-white rounded-3xl overflow-hidden border border-zinc-100">
+        <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
+          ${icon('volunteer_activism','text-zinc-400',16)}
+          <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">헌금</h3>
+        </div>
+        <div class="p-5 space-y-2">
+          ${offering.account?`<div class="flex justify-between text-sm"><span class="text-zinc-400">온라인 계좌</span><span class="font-bold">${offering.account}</span></div>`:''}
+          ${offering.prayerDuty?`<div class="flex justify-between text-sm"><span class="text-zinc-400">주정헌금</span><span class="font-medium">${offering.prayerDuty}</span></div>`:''}
+          ${offering.thanksDuty?`<div class="flex justify-between text-sm"><span class="text-zinc-400">감사헌금</span><span class="font-medium">${offering.thanksDuty}</span></div>`:''}
+        </div>
+      </div>` : ''}
+
+      <!-- 임사 4주치 -->
+      <div class="bg-white rounded-3xl overflow-hidden border border-zinc-100">
+        <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
+          ${icon('assignment_ind','text-zinc-400',16)}
+          <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">우리의 섬김 (4주)</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-max">
+            <thead><tr class="bg-zinc-50 border-b border-zinc-100">
+              <th class="py-2 px-3 text-[10px] font-bold text-zinc-400 text-left">날짜</th>
+              ${SVC_COLS.map(c=>`<th class="py-2 px-3 text-[10px] font-bold text-zinc-400 text-center">${SVC_COL_LABELS[c]}</th>`).join('')}
+            </tr></thead>
+            <tbody>${svcRows}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="text-center py-4">
+        <p class="text-[10px] text-zinc-300 font-bold uppercase tracking-[0.2em]">약속의 땅 청년부</p>
       </div>
     </div>
   </div>`;
@@ -1282,6 +1404,7 @@ function renderAdmin() {
   const pendingCount = state.cache.users.filter(u=>u.status==='pending'||u.status==='withdraw_pending').length;
   const menu = [
     { k:'bulletin', i:'menu_book', l:'주보 관리' },
+    { k:'service_schedule', i:'assignment_ind', l:'임사 관리' },
     { k:'worship', i:'music_note', l:'찬양 관리' },
     { k:'notice', i:'campaign', l:'공지 관리' },
     { k:'event', i:'calendar_month', l:'일정 관리' },
@@ -1316,6 +1439,7 @@ function renderAdmin() {
     else if (state.adminSub === 'cellmeet') content += renderAdminCellMeet();
     else if (state.adminSub === 'cells') content += renderAdminCells();
     else if (state.adminSub === 'noti') content += renderAdminNoti();
+    else if (state.adminSub === 'service_schedule') content += renderAdminServiceSchedule();
   }
 
   return `
@@ -1366,18 +1490,84 @@ function adminTextarea(id, label, ph, rows=4) {
   return `<div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">${label}</label><textarea id="${id}" rows="${rows}" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black resize-none" placeholder="${ph}"></textarea></div>`;
 }
 
+// ============================================================
+// 임사 관리 (Service Schedule)
+// ============================================================
+const SVC_COLS = ['prayer','fellowship','offering','bible'];
+const SVC_COL_LABELS = {prayer:'오늘의 기도', fellowship:'성도의 교제', offering:'헌금봉헌', bible:'성경봉독'};
+
+function getUpcomingSundays(n, startFromNext) {
+  const d = new Date();
+  const day = d.getDay(); // 0=일
+  // 이번 일요일
+  const thisSunday = new Date(d);
+  thisSunday.setDate(d.getDate() - day);
+  thisSunday.setHours(0,0,0,0);
+  const start = startFromNext ? new Date(thisSunday.getTime() + 7*86400000) : thisSunday;
+  const result = [];
+  for (let i=0; i<n; i++) {
+    const dd = new Date(start.getTime() + i*7*86400000);
+    result.push(dd.toISOString().split('T')[0]);
+  }
+  return result;
+}
+
+function getSvcForDate(date) {
+  return state.cache.serviceSchedules.find(s=>s.date===date) || {};
+}
+
+function renderAdminServiceSchedule() {
+  const sundays = getUpcomingSundays(8);
+  const rosters = state.cache.rosters;
+  const allNames = [...new Set(rosters.filter(r=>r.name).map(r=>r.name))].sort((a,b)=>koSort(a,b));
+  const nameOpts = `<option value="">-미정-</option>` + allNames.map(n=>`<option value="${n}">${n}</option>`).join('');
+
+  const rows = sundays.map(date => {
+    const s = getSvcForDate(date);
+    const d = new Date(date);
+    const label = `${d.getMonth()+1}월 ${d.getDate()}일`;
+    return `
+    <div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden mb-3">
+      <div class="px-4 py-3 bg-zinc-50 border-b border-zinc-100 flex items-center justify-between">
+        <div>
+          <span class="text-sm font-bold">${label} 주일</span>
+          <span class="text-xs text-zinc-400 ml-2">${date}</span>
+        </div>
+        <button data-svc-save="${date}" class="text-xs font-bold text-white bg-black px-3 py-1.5 rounded-full active:opacity-70">저장</button>
+      </div>
+      <div class="p-4 grid grid-cols-2 gap-3">
+        ${SVC_COLS.map(col=>`
+        <div>
+          <label class="block text-[10px] font-bold text-zinc-500 mb-1.5">${SVC_COL_LABELS[col]}</label>
+          <select id="svc-${date}-${col}" data-svc-date="${date}" data-svc-col="${col}"
+            class="w-full px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black">
+            ${nameOpts}
+          </select>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <h2 class="text-lg font-bold mb-1">임사 관리</h2>
+  <p class="text-xs text-zinc-400 mb-4">저장하면 해당 주 주보에 자동 반영됩니다.</p>
+  <div id="svc-list">${rows}</div>`;
+}
+
 function renderAdminBulletin() {
   const list = [...state.cache.bulletins].reverse();
   return `<h2 class="text-lg font-bold mb-4">주보 관리</h2>
   <div id="admin-form-area">
-    <button data-action="show-bulletin-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-4">+ 새 주보</button>
-    <div class="space-y-2">${list.map(b=>`<div class="bg-white p-4 rounded-2xl border border-zinc-100 flex items-center justify-between">
-      <div><p class="font-bold text-sm">${b.title}</p><p class="text-xs text-zinc-400">${b.date}</p></div>
+    <button data-action="show-bulletin-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-4">+ 새 주보 작성</button>
+    <div class="space-y-2">${list.map(b=>`
+    <div class="bg-white p-4 rounded-2xl border border-zinc-100 flex items-center justify-between">
+      <div><p class="font-bold text-sm">${b.title||b.date+' 주보'}</p><p class="text-xs text-zinc-400">${b.date}</p></div>
       <div class="flex gap-1">
         <button data-action="edit-bulletin" data-bid="${b.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('edit','text-zinc-400',18)}</button>
         <button data-action="del-bulletin" data-bid="${b.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-red-50">${icon('delete','text-red-400',18)}</button>
       </div>
-    </div>`).join('')}</div>
+    </div>`).join('')}
+    </div>
   </div>`;
 }
 
@@ -1471,7 +1661,7 @@ function renderAdminOffering() {
   <div class="mt-4 bg-white p-4 rounded-2xl border border-zinc-100 space-y-3">
     <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">이름</label>
       <select id="off-person" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
-        <option value="">선택</option>${rosters.map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}
+        <option value="">선택</option>${sortByName(rosters).map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}
       </select>
     </div>
     <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">항목</label>
@@ -1534,14 +1724,18 @@ function renderAdminRoster() {
   if (activeTab === 'pending_join') {
     return `<h2 class="text-lg font-bold mb-1">명부 관리</h2>
     ${renderRosterTabs(activeTab, cells, pendingJoin.length, pendingWithdraw.length)}
-    <div class="space-y-3">${pendingJoin.length ? pendingJoin.map(u=>{
-      const match = rosters.find(r=>r.phone===u.phone);
+    <div class="space-y-3">${pendingJoin.length ? sortByName(pendingJoin).map(u=>{
+      const match = rosters.find(r=>{
+        const pd = (u.phone||'').replace(/\D/g,'');
+        const rd = (r.phone||'').replace(/\D/g,'');
+        return rd && pd && rd===pd;
+      });
       return `<div class="bg-white p-4 rounded-2xl border border-zinc-100">
         <div class="flex items-center justify-between mb-2">
           <div><p class="font-bold text-sm">${u.name}</p><p class="text-xs text-zinc-400">${fmtPhone(u.phone)} · ${fmtDate(u.birth)}</p></div>
           <button data-action="approve" data-uid="${u.uid}" class="px-4 py-2 bg-black text-white rounded-xl text-xs font-bold">승인</button>
         </div>
-        ${match?`<p class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded inline-block">📋 명부 매칭: ${match.name}</p>`:''}
+        ${match?`<p class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg inline-block">📋 명부 매칭: ${match.name}</p>`:`<p class="text-[10px] text-amber-600 bg-amber-50 px-2 py-1 rounded-lg inline-block">🆕 명부 미등록 — 승인 시 새신자로 추가</p>`}
       </div>`;
     }).join('') : '<p class="text-sm text-zinc-400 text-center py-10">대기 중인 가입 신청이 없습니다.</p>'}</div>`;
   }
@@ -1550,7 +1744,7 @@ function renderAdminRoster() {
   if (activeTab === 'pending_withdraw') {
     return `<h2 class="text-lg font-bold mb-1">명부 관리</h2>
     ${renderRosterTabs(activeTab, cells, pendingJoin.length, pendingWithdraw.length)}
-    <div class="space-y-3">${pendingWithdraw.length ? pendingWithdraw.map(u=>`
+    <div class="space-y-3">${pendingWithdraw.length ? sortByName(pendingWithdraw).map(u=>`
       <div class="bg-white p-4 rounded-2xl border border-zinc-100">
         <div class="flex items-center justify-between">
           <div><p class="font-bold text-sm">${u.name}</p><p class="text-xs text-zinc-400">${u.id} · ${fmtPhone(u.phone)}</p>
@@ -1561,30 +1755,40 @@ function renderAdminRoster() {
       </div>`).join('') : '<p class="text-sm text-zinc-400 text-center py-10">대기 중인 탈퇴 신청이 없습니다.</p>'}</div>`;
   }
 
-  // 일반 명부 탭
-  const filtered = activeTab === 'all' ? rosters : rosters.filter(r=>r.cellId===activeTab);
-  const tabs = [{id:'all',name:'전체'},...cells.map(c=>({id:c.id,name:c.name}))];
+  // 일반 명부 탭 - 명부 + 명부없는 가입자 합산
+  const activeUsers = users.filter(u=>u.status==='active');
+  // 명부에 없는 active 사용자 (새신자)
+  const noRosterUsers = activeUsers.filter(u => !rosters.find(r=>r.linkedUid===u.uid));
 
-  return `<h2 class="text-lg font-bold mb-1">명부 관리</h2>
-  ${renderRosterTabs(activeTab, cells, pendingJoin.length, pendingWithdraw.length)}
-  <button data-action="show-roster-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-3">+ 명부 추가</button>
-  <div id="roster-form-area"></div>
-  <div class="space-y-2">${filtered.map(r=>{
+  // 명부 필터
+  let filteredRosters = activeTab === 'all' ? rosters : rosters.filter(r=>r.cellId===activeTab);
+
+  // 검색 (전체탭만)
+  const searchQ = (state.rosterSearch||'').trim();
+  if (activeTab === 'all' && searchQ) {
+    filteredRosters = filteredRosters.filter(r =>
+      r.name.includes(searchQ) || (r.phone||'').includes(searchQ)
+    );
+  }
+
+  const renderRosterCard = (r, isNew=false) => {
     const cell = cells.find(c=>c.id===r.cellId);
     const linkedUser = r.linkedUid ? users.find(u=>u.uid===r.linkedUid) : null;
     const isAdminR = linkedUser?.role === 'admin';
     return `
-    <div id="roster-card-${r.id}" class="relative bg-white p-4 rounded-2xl border border-zinc-100 flex items-center gap-3">
-      <div class="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center flex-none">
-        <span class="text-white font-bold text-sm">${r.name[0]}</span>
+    <div id="roster-card-${r.id}" class="relative bg-white p-4 rounded-2xl border ${isNew?'border-amber-200 bg-amber-50/30':'border-zinc-100'} flex items-center gap-3">
+      <div class="w-10 h-10 rounded-full ${isNew?'bg-amber-400':'bg-zinc-900'} flex items-center justify-center flex-none">
+        <span class="text-white font-bold text-sm">${(r.name||'?')[0]}</span>
       </div>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-1.5 flex-wrap">
           <p class="font-bold text-sm">${r.name}</p>
           ${isAdminR?`<span class="text-[9px] font-bold bg-black text-white px-1.5 py-0.5 rounded">관리자</span>`:''}
-          ${r.joined?`<span class="text-[9px] font-bold bg-emerald-500 text-white px-1.5 py-0.5 rounded">앱 가입</span>`:`<span class="text-[9px] font-bold bg-zinc-200 text-zinc-500 px-1.5 py-0.5 rounded">미가입</span>`}
+          ${isNew?`<span class="text-[9px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded">새신자</span>`
+            :r.joined?`<span class="text-[9px] font-bold bg-emerald-500 text-white px-1.5 py-0.5 rounded">앱 가입</span>`
+            :`<span class="text-[9px] font-bold bg-zinc-200 text-zinc-500 px-1.5 py-0.5 rounded">미가입</span>`}
         </div>
-        <p class="text-xs text-zinc-400">${fmtPhone(r.phone)} · ${cell?.name||'미배정'}</p>
+        <p class="text-xs text-zinc-400">${fmtPhone(r.phone||'')} · ${cell?.name||'미배정'}</p>
       </div>
       <button data-action="roster-menu" data-rid="${r.id}" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 active:bg-zinc-100 flex-none">
         ${icon('more_vert','text-zinc-400',20)}
@@ -1595,7 +1799,30 @@ function renderAdminRoster() {
         <button data-action="roster-delete" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 text-left">${icon('delete','text-red-500',16)} 탈퇴 처리</button>
       </div>
     </div>`;
-  }).join('')}</div>`;
+  };
+
+  // 새신자 카드 (명부 없는 가입자) - 전체탭만 표시
+  const newRosterCards = (activeTab === 'all' && !searchQ) ? noRosterUsers.sort((a,b)=>koSort(a.name,b.name)).map(u => {
+    const fakeRoster = { id:'nr_'+u.uid, name:u.name, phone:u.phone, birth:u.birth, cellId:u.cellId||'', linkedUid:u.uid, joined:true };
+    return renderRosterCard(fakeRoster, true);
+  }).join('') : '';
+
+  const totalCount = filteredRosters.length + (activeTab==='all'&&!searchQ?noRosterUsers.length:0);
+
+  return `<h2 class="text-lg font-bold mb-1">명부 관리</h2>
+  ${renderRosterTabs(activeTab, cells, pendingJoin.length, pendingWithdraw.length)}
+  ${activeTab==='all' ? `
+  <div class="relative mb-3">
+    <input id="roster-search" value="${searchQ.replace(/"/g,'&quot;')}" placeholder="이름 또는 전화번호 검색..."
+      class="w-full pl-10 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl text-sm focus:outline-none focus:border-black"/>
+    <span class="absolute left-3.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-zinc-400" style="font-size:18px">search</span>
+    ${searchQ?`<button id="roster-search-clear" class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-zinc-200 text-zinc-500 text-xs">✕</button>`:''}
+  </div>` : ''}
+  <p class="text-xs text-zinc-400 mb-3">총 ${totalCount}명</p>
+  <div class="space-y-2">
+    ${newRosterCards}
+    ${filteredRosters.map(r=>renderRosterCard(r,false)).join('')}
+  </div>`;
 }
 
 function renderAdminCells() {
@@ -2022,11 +2249,20 @@ function bindEvents() {
           matchedRoster.joined = true;
         }
       }
+      // 명부 없으면 새신자로 자동 생성
+      if (!matchedRoster && u) {
+        const newRid = uid();
+        const newRoster = { id:newRid, name:u.name, phone:u.phone||'', birth:u.birth||'', cellId:'', linkedUid:targetUid, joined:true };
+        await window.FDB.setDoc('rosters', newRid, newRoster);
+        state.cache.rosters.push(newRoster);
+        state.cache.rosters.sort((a,b)=>koSort(a.name,b.name));
+        matchedRoster = newRoster;
+      }
       // cellId 자동 배정
       const cellId = matchedRoster ? matchedRoster.cellId : (u?.cellId || '');
       await window.FDB.setDoc('users', targetUid, { status:'active', cellId });
       if (u) { u.status='active'; u.cellId=cellId; }
-      showToast('승인 완료!' + (matchedRoster ? ` (${matchedRoster.name} — ${state.cache.cells.find(c=>c.id===cellId)?.name||'목장 배정'})` : '')); render();
+      showToast('승인 완료!' + (matchedRoster?.cellId ? ` — ${state.cache.cells.find(c=>c.id===cellId)?.name||''}` : ' (새신자 추가됨)')); render();
     });
   });
 
@@ -2149,7 +2385,24 @@ function bindEvents() {
 
   // ── Admin: Roster tab ──
   document.querySelectorAll('[data-roster-tab]').forEach(el => {
-    el.addEventListener('click', () => { state.adminRosterTab=el.dataset.rosterTab; render(); });
+    el.addEventListener('click', () => {
+      state.adminRosterTab=el.dataset.rosterTab;
+      state.rosterSearch='';
+      render();
+    });
+  });
+
+  // 명부 검색
+  const rosterSearchEl = document.getElementById('roster-search');
+  if (rosterSearchEl) {
+    rosterSearchEl.addEventListener('input', () => {
+      state.rosterSearch = rosterSearchEl.value;
+      render();
+    });
+  }
+  document.getElementById('roster-search-clear')?.addEventListener('click', () => {
+    state.rosterSearch = '';
+    render();
   });
 
   // ── Admin: Roster menu ──
@@ -2286,35 +2539,7 @@ function bindEvents() {
     el.addEventListener('click', () => {
       const bid = el.dataset.bid;
       const b = state.cache.bulletins.find(x=>x.id===bid); if (!b) return;
-      const rosters = state.cache.rosters;
-      const rOpts = `<option value="">미정</option>${rosters.map(r=>`<option value="${r.name}">${r.name}</option>`).join('')}`;
-      const area = document.getElementById('admin-form-area'); if (!area) return;
-      area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
-        ${adminInput('bf-title','제목','')} ${adminInput('bf-date','날짜','')}
-        ${adminTextarea('bf-order','예배순서','',6)}
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">대표기도</label><select id="bf-prayer" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm">${rOpts}</select></div>
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">성경봉독</label><select id="bf-bible" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm">${rOpts}</select></div>
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">성도의 교제</label><select id="bf-announce" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm">${rOpts}</select></div>
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">봉헌</label><select id="bf-offering" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm">${rOpts}</select></div>
-        ${adminTextarea('bf-songs','찬양곡 목록','',4)} ${adminTextarea('bf-announce-text','광고 내용','',4)}
-        <div class="flex gap-2">
-          <button onclick="state.adminSub='bulletin';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
-          <button id="update-bulletin" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">수정</button>
-        </div>
-      </div>`;
-      document.getElementById('bf-title').value=b.title; document.getElementById('bf-date').value=b.date;
-      document.getElementById('bf-order').value=b.order||'';
-      const selVal = (sid, val) => { const el=document.getElementById(sid); if(el) el.value=val||''; };
-      selVal('bf-prayer',b.prayer_duty); selVal('bf-bible',b.bible_reading); selVal('bf-announce',b.announcement_duty); selVal('bf-offering',b.offering_duty);
-      document.getElementById('bf-songs').value=b.songs||''; document.getElementById('bf-announce-text').value=b.announce||'';
-      document.getElementById('update-bulletin')?.addEventListener('click', async () => {
-        const g = id => document.getElementById(id)?.value||'';
-        const updated = { ...b, title:g('bf-title'), date:g('bf-date'), order:g('bf-order'), prayer_duty:g('bf-prayer'), bible_reading:g('bf-bible'), announcement_duty:g('bf-announce'), offering_duty:g('bf-offering'), songs:g('bf-songs'), announce:g('bf-announce-text') };
-        await window.FDB.setDoc('bulletins', bid, updated);
-        const idx = state.cache.bulletins.findIndex(x=>x.id===bid);
-        if(idx>=0) state.cache.bulletins[idx]=updated;
-        showToast('주보 수정 완료!'); render();
-      });
+      openBulletinForm(b);
     });
   });
 
@@ -2626,34 +2851,7 @@ function bindEvents() {
   });
 
   // Roster form
-  document.querySelector('[data-action="show-roster-form"]')?.addEventListener('click', () => {
-    const cells = state.cache.cells;
-    const area = document.getElementById('roster-form-area'); if (!area) return;
-    area.innerHTML = `<div class="bg-white p-4 rounded-2xl border border-zinc-100 mb-4 space-y-3 fade-in">
-      <input id="rf-name" placeholder="이름" class="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-      <input id="rf-phone" inputmode="numeric" placeholder="010-0000-0000" class="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-      <input id="rf-birth" inputmode="numeric" placeholder="19950315" class="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-      <select id="rf-cell" class="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
-        <option value="">목장 선택</option>${cells.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}
-      </select>
-      <div class="flex gap-2">
-        <button id="cancel-roster-form" class="flex-1 py-2 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
-        <button id="save-roster" class="flex-1 py-2 bg-black text-white rounded-xl text-sm font-bold">추가</button>
-      </div>
-    </div>`;
-    document.getElementById('rf-phone')?.addEventListener('input', function() { this.value=fmtPhone(this.value); });
-    document.getElementById('cancel-roster-form')?.addEventListener('click', () => { area.innerHTML=''; });
-    document.getElementById('save-roster')?.addEventListener('click', async () => {
-      const g = id => document.getElementById(id)?.value||'';
-      const name=g('rf-name'), phone=fmtPhone(g('rf-phone')), birth=g('rf-birth'), cellId=g('rf-cell');
-      if (!name||!phone) return showToast('이름과 전화번호를 입력해주세요.');
-      const rid = uid();
-      const roster = { id:rid, name, phone, birth, cellId, linkedUid:null };
-      await window.FDB.setDoc('rosters', rid, roster);
-      state.cache.rosters.push(roster);
-      showToast('명부 추가 완료!'); render();
-    });
-  });
+  // 명부 추가 버튼 제거됨
 
   // Cell management
   document.querySelector('[data-action="show-cell-form"]')?.addEventListener('click', () => {
@@ -2815,7 +3013,7 @@ function bindEvents() {
   if (bulletinFormEl) {
     bulletinFormEl._handler = () => {
       const rosters=state.cache.rosters; const area=document.getElementById('admin-form-area'); if(!area) return;
-      const rOpts=`<option value="">미정</option>${rosters.map(r=>`<option value="${r.name}">${r.name}</option>`).join('')}`;
+      const rOpts=`<option value="">미정</option>${sortByName(rosters).map(r=>`<option value="${r.name}">${r.name}</option>`).join('')}`;
       area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
         ${adminInput('bf-title','제목','2026년 3월 1일 주보')}
         ${adminInput('bf-date','날짜',today())}
