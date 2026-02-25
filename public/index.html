@@ -40,7 +40,20 @@
   const storage = getStorage(app);
   const auth = getAuth(app);
   try { getAnalytics(app); } catch(e) {}
-  window.FAUTH = auth; // 전역 접근용
+  window.FAUTH = auth;
+  window.FB_createUser = (email, pw) => createUserWithEmailAndPassword(auth, email, pw);
+  window.FB_signIn     = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
+  window.FB_signOut    = () => signOut(auth);
+  window.FB_reauth     = (email, pw) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error('not-logged-in');
+    return reauthenticateWithCredential(user, EmailAuthProvider.credential(email, pw));
+  };
+  window.FB_updatePw   = (newPw) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error('not-logged-in');
+    return fbUpdatePassword(user, newPw);
+  };
 
   // ============================================================
   // FIREBASE DB LAYER
@@ -582,8 +595,20 @@ function renderRegister() {
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">전화번호</label><input id="reg-phone" inputmode="numeric" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="010-1234-5678"/></div>
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">생년월일</label><input id="reg-birth" inputmode="numeric" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="1995.03.15"/></div>
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">아이디</label><input id="reg-id" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="사용할 아이디"/></div>
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">비밀번호</label><input id="reg-pw" type="password" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="영문+숫자 혼합 8자 이상"/></div>
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">비밀번호 확인</label><input id="reg-pw2" type="password" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="비밀번호 재입력"/></div>
+        <div>
+          <label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">비밀번호</label>
+          <input id="reg-pw" type="password" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="비밀번호 입력"/>
+          <div id="pw-strength" class="mt-2 px-1 space-y-1">
+            <div class="flex items-center gap-1.5"><span id="pwc-len" class="w-3.5 h-3.5 rounded-full bg-zinc-200 flex-none"></span><span class="text-[11px] text-zinc-400">8자 이상</span></div>
+            <div class="flex items-center gap-1.5"><span id="pwc-eng" class="w-3.5 h-3.5 rounded-full bg-zinc-200 flex-none"></span><span class="text-[11px] text-zinc-400">영문 포함</span></div>
+            <div class="flex items-center gap-1.5"><span id="pwc-num" class="w-3.5 h-3.5 rounded-full bg-zinc-200 flex-none"></span><span class="text-[11px] text-zinc-400">숫자 포함</span></div>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">비밀번호 확인</label>
+          <input id="reg-pw2" type="password" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="비밀번호 재입력"/>
+          <p id="pw-match-hint" class="mt-1 px-1 text-[11px] text-zinc-400 hidden"></p>
+        </div>
         <label class="flex items-start gap-3 pt-2">
           <input id="reg-agree" type="checkbox" class="mt-0.5 w-5 h-5 rounded border-zinc-300 accent-black"/>
           <span class="text-xs text-zinc-500 leading-relaxed">개인정보(이름, 전화번호, 생년월일) 수집·이용에 동의합니다.</span>
@@ -1700,13 +1725,13 @@ function bindEvents() {
       // 2) Firebase Auth로 실제 인증 (ID@promisedland.com)
       const email = id + '@promisedland.com';
       try {
-        await signInWithEmailAndPassword(window.FAUTH, email, pw);
+        await window.FB_signIn(email, pw);
       } catch(authErr) {
         // Auth 계정 없거나 비번 틀림 → 레거시 pw 필드 폴백 (마이그레이션 기간)
         if (u.pw && u.pw === pw) {
           // 최초 로그인 시 Auth 계정 생성 (마이그레이션)
           try {
-            await createUserWithEmailAndPassword(window.FAUTH, email, pw);
+            await window.FB_createUser(email, pw);
             // pw 필드 제거 (보안)
             await window.FDB.setDoc('users', u.uid, { pw: null });
             u.pw = null;
@@ -1739,6 +1764,35 @@ function bindEvents() {
   document.getElementById('btn-go-register')?.addEventListener('click', () => { state.page='register'; render(); });
   document.getElementById('btn-back-login')?.addEventListener('click', () => { state.page='login'; render(); });
   document.getElementById('reg-phone')?.addEventListener('input', function() { this.value = fmtPhone(this.value); });
+
+  // 비밀번호 실시간 유효성 체크
+  document.getElementById('reg-pw')?.addEventListener('input', function() {
+    const v = this.value;
+    const ok = (id, pass) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.style.background = pass ? '#22c55e' : '#e4e4e7';
+    };
+    ok('pwc-len', v.length >= 8);
+    ok('pwc-eng', /[a-zA-Z]/.test(v));
+    ok('pwc-num', /[0-9]/.test(v));
+    // 확인란도 같이 체크
+    const pw2 = document.getElementById('reg-pw2')?.value;
+    const hint = document.getElementById('pw-match-hint');
+    if (hint && pw2) {
+      hint.classList.remove('hidden');
+      if (v === pw2) { hint.textContent = '✓ 비밀번호가 일치합니다'; hint.style.color = '#22c55e'; }
+      else { hint.textContent = '비밀번호가 일치하지 않습니다'; hint.style.color = '#ef4444'; }
+    }
+  });
+  document.getElementById('reg-pw2')?.addEventListener('input', function() {
+    const pw = document.getElementById('reg-pw')?.value;
+    const hint = document.getElementById('pw-match-hint');
+    if (!hint) return;
+    hint.classList.remove('hidden');
+    if (this.value === pw) { hint.textContent = '✓ 비밀번호가 일치합니다'; hint.style.color = '#22c55e'; }
+    else { hint.textContent = '비밀번호가 일치하지 않습니다'; hint.style.color = '#ef4444'; }
+  });
   document.getElementById('reg-birth')?.addEventListener('input', function() {
     const d = this.value.replace(/\D/g,'');
     if(d.length<=4) this.value=d;
@@ -1772,14 +1826,22 @@ function bindEvents() {
     // Firebase Auth 계정 생성 (ID@promisedland.com 형식)
     const email = id + '@promisedland.com';
     let authUid;
+    const fbErrMsg = code => {
+      const map = {
+        'auth/email-already-in-use': '이미 사용 중인 아이디입니다.',
+        'auth/weak-password': '비밀번호가 너무 짧습니다. 6자 이상 입력해주세요.',
+        'auth/invalid-email': '아이디 형식이 올바르지 않습니다.',
+        'auth/network-request-failed': '네트워크 오류가 발생했습니다. 다시 시도해주세요.',
+        'auth/too-many-requests': '잠시 후 다시 시도해주세요.',
+      };
+      return map[code] || '계정 생성 중 오류가 발생했습니다. 다시 시도해주세요.';
+    };
     try {
-      const cred = await createUserWithEmailAndPassword(window.FAUTH, email, pw);
+      const cred = await window.FB_createUser(email, pw);
       authUid = cred.user.uid; // Firebase Auth UID 사용
     } catch(authErr) {
-      if (authErr.code === 'auth/email-already-in-use') return showErr('이미 사용 중인 아이디입니다.');
-      if (authErr.code === 'auth/weak-password') return showErr('비밀번호가 너무 약합니다.');
       console.error('auth register', authErr);
-      return showErr('계정 생성 오류: ' + authErr.message);
+      return showErr(fbErrMsg(authErr.code));
     }
 
     const cellId = matchedRoster ? matchedRoster.cellId : '';
@@ -1796,7 +1858,7 @@ function bindEvents() {
     }
 
     // 가입 후 로그아웃 (pending 상태이므로 앱 접근 불가)
-    await signOut(window.FAUTH);
+    await window.FB_signOut();
 
     const matchMsg = matchedRoster ? ' 명부에서 확인되었습니다.' : ' (명부 미확인 — 관리자가 수동 확인합니다.)';
     showToast('가입 신청 완료!' + matchMsg + ' 관리자 승인 후 로그인 가능합니다.');
@@ -1812,7 +1874,7 @@ function bindEvents() {
   document.querySelector('[data-action="open-profile"]')?.addEventListener('click', () => { state.profileOpen=true; render(); });
   document.querySelector('[data-action="close-profile"]')?.addEventListener('click', () => { state.profileOpen=false; render(); });
   document.querySelector('[data-action="logout"]')?.addEventListener('click', async () => {
-    await signOut(window.FAUTH).catch(()=>{});
+    await window.FB_signOut().catch(()=>{});
     state.user=null; state.page='login'; state.profileOpen=false; SESSION.clear(); render();
   });
   document.querySelector('[data-action="go-admin"]')?.addEventListener('click', () => {
@@ -2414,8 +2476,7 @@ function bindEvents() {
           const authUser = window.FAUTH.currentUser;
           if (authUser) {
             const email = u.id + '@promisedland.com';
-            const cred = EmailAuthProvider.credential(email, pw);
-            await reauthenticateWithCredential(authUser, cred);
+            await window.FB_reauth(email, pw);
           } else if (u.pw !== pw) {
             showToast('비밀번호가 틀렸습니다.'); return;
           }
@@ -2423,7 +2484,7 @@ function bindEvents() {
           showToast('비밀번호가 틀렸습니다.'); return;
         }
         await window.FDB.setDoc('users', u.uid, { status:'withdraw_pending', withdrawAt:today() });
-        await signOut(window.FAUTH).catch(()=>{});
+        await window.FB_signOut().catch(()=>{});
         SESSION.clear();
         state.user=null; state.page='login'; state.profilePage=null;
         showToast('탈퇴 신청이 접수되었습니다. 관리자 승인 후 처리됩니다.');
