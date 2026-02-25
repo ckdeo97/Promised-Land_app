@@ -271,50 +271,33 @@ tailwind.config = {
   /* 전체화면: 오른쪽에서 슬라이드 - 네이티브 push 느낌 */
   /* 시트/모달: 아래서 슬라이드업 */
 
-  @keyframes _pushIn {
-    from { transform: translateX(40px); opacity: 0; }
+
     to   { transform: translateX(0);    opacity: 1; }
   }
-  @keyframes _riseIn {
-    from { transform: translateY(10px); opacity: 0; }
+
     to   { transform: translateY(0);    opacity: 1; }
   }
-  @keyframes _sheetUp {
-    from { transform: translateY(100%); }
+
     to   { transform: translateY(0); }
   }
-  @keyframes _overlayIn {
-    from { opacity: 0; }
+
     to   { opacity: 1; }
   }
-  @keyframes _toastUp {
-    from { transform: translateY(8px) translateX(-50%); opacity:0; }
+
     to   { transform: translateY(0)   translateX(-50%); opacity:1; }
   }
 
   /* 전체화면 전환 (admin, profile 페이지) */
-  .slide-in-right { animation: _pushIn 0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
-  .slide-in-left  { animation: _pushIn 0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
 
   /* 상세 페이지 (notice/bulletin/worship detail) */
-  .detail-page { animation: _pushIn 0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
 
   /* 콘텐츠 영역 (탭 전환 - 매우 가볍게) */
-  .tab-content { animation: _riseIn 0.16s ease both; }
 
   /* 메인/로그인 등 첫 진입 */
-  .fade-in   { animation: _riseIn 0.2s ease both; }
-  .scale-in  { animation: _riseIn 0.2s ease both; }
-  .pop-in    { animation: _riseIn 0.2s ease both; }
 
   /* 시트/모달 */
-  .slide-up     { animation: _sheetUp 0.32s cubic-bezier(0.32,0.72,0,1) both; }
-  .modal-sheet  { animation: _sheetUp 0.32s cubic-bezier(0.32,0.72,0,1) both; }
-  .modal-overlay{ animation: _overlayIn 0.18s ease both; }
-  .login-page   { animation: _riseIn 0.22s ease both; }
 
   /* 토스트 */
-  .toast-anim { animation: _toastUp 0.22s cubic-bezier(0.32,0.72,0,1) both; }
 
   .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   input, textarea, select { font-family: 'Inter', sans-serif; }
@@ -360,7 +343,6 @@ let state = {
   _calMonth: null,
   _attDate: null,
   _offDate: null,
-  _confirmModal: null,
   _cropModal: null,
   // Firestore 캐시
   cache: {
@@ -411,25 +393,27 @@ async function loadAll() {
 // CONFIRM MODAL
 // ============================================================
 function showConfirm(msg, onYes, yesLabel='삭제', yesClass='bg-red-500 text-white') {
-  state._confirmModal = { msg, onYes, yesLabel, yesClass };
-  render();
-}
-
-function renderConfirmModal() {
-  if (!state._confirmModal) return '';
-  const { msg, yesLabel, yesClass } = state._confirmModal;
-  return `
-  <div id="confirm-overlay" class="fixed inset-0 z-[300] bg-black/50 backdrop-blur-sm modal-overlay flex items-center justify-center px-6">
-    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl fade-in">
-      <p class="text-base font-bold text-center mb-2">확인</p>
-      <p class="text-sm text-zinc-500 text-center leading-relaxed mb-6">${msg}</p>
-      <div class="flex gap-3">
-        <button id="confirm-no" class="flex-1 py-3 border border-zinc-200 rounded-2xl text-sm font-bold">취소</button>
-        <button id="confirm-yes" class="flex-1 py-3 ${yesClass} rounded-2xl text-sm font-bold">${yesLabel}</button>
-      </div>
+  // DOM에 직접 삽입 → render() 없이 모달 표시
+  let overlay = document.getElementById('confirm-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'confirm-overlay';
+    document.body.appendChild(overlay);
+  }
+  overlay.className = 'fixed inset-0 z-[300] bg-black/50 flex items-center justify-center px-6';
+  overlay.innerHTML = `<div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+    <p class="text-base font-bold text-center mb-2">확인</p>
+    <p class="text-sm text-zinc-500 text-center leading-relaxed mb-6">${msg}</p>
+    <div class="flex gap-3">
+      <button id="confirm-no" class="flex-1 py-3 border border-zinc-200 rounded-2xl text-sm font-bold">취소</button>
+      <button id="confirm-yes" class="flex-1 py-3 ${yesClass} rounded-2xl text-sm font-bold">${yesLabel}</button>
     </div>
   </div>`;
+  document.getElementById('confirm-no').onclick = () => overlay.remove();
+  document.getElementById('confirm-yes').onclick = () => { overlay.remove(); onYes && onYes(); };
 }
+
+function renderConfirmModal() { return ''; } // DOM direct
 
 // ============================================================
 // CROP MODAL
@@ -437,50 +421,35 @@ function renderConfirmModal() {
 function renderCropModal() {
   if (!state._cropModal) return '';
   const src = state._cropModal.src;
-  const scaleVal = Math.round((state._cropModal.w / state._cropModal.origW) * 100);
   const SIZE = 240;
+  // 슬라이더 값: origW 기준 배율 (100~350%)
+  const scaleVal = Math.max(100, Math.min(350, Math.round((state._cropModal.w / state._cropModal.origW) * 100)));
   return `
-  <div id="crop-modal" class="fixed inset-0 z-[310] bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center">
-    <div class="bg-white w-full sm:rounded-3xl sm:max-w-sm sm:mx-6 rounded-t-3xl shadow-2xl" style="animation:_sheetUp 0.3s cubic-bezier(0.32,0.72,0,1) both">
-      <!-- 헤더 -->
+  <div id="crop-modal" class="fixed inset-0 z-[310] bg-black/75 flex items-center justify-center px-4">
+    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden">
       <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
-        <button id="crop-cancel" class="text-sm text-zinc-500 font-medium px-1 py-1">취소</button>
-        <p class="text-sm font-bold">프로필 사진</p>
-        <button id="crop-confirm" class="text-sm font-bold text-black px-1 py-1">완료</button>
+        <button id="crop-cancel" class="text-sm text-zinc-500 font-medium py-1 px-2">취소</button>
+        <p class="text-sm font-bold">프로필 사진 설정</p>
+        <button id="crop-confirm" class="text-sm font-bold text-black py-1 px-2">완료</button>
       </div>
-      <!-- 크롭 영역 -->
-      <div class="relative bg-zinc-900 flex items-center justify-center select-none" style="height:300px;">
-        <!-- 배경 (오버레이) -->
-        <div id="crop-overlay" style="position:absolute;inset:0;pointer-events:none;">
-          <svg width="100%" height="100%" style="position:absolute;inset:0;">
-            <defs>
-              <mask id="circleMask">
-                <rect width="100%" height="100%" fill="white"/>
-                <circle cx="50%" cy="50%" r="${SIZE/2}" fill="black"/>
-              </mask>
-            </defs>
-            <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#circleMask)"/>
-            <circle cx="50%" cy="50%" r="${SIZE/2 - 1}" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"/>
+      <div id="crop-stage" class="relative bg-zinc-900 select-none" style="height:300px;overflow:hidden;touch-action:none;">
+        <img id="crop-img" src="${src}" draggable="false"
+          style="position:absolute;user-select:none;-webkit-user-drag:none;pointer-events:none;will-change:transform;"/>
+        <div style="position:absolute;inset:0;pointer-events:none;">
+          <svg width="100%" height="100%">
+            <defs><mask id="cm"><rect width="100%" height="100%" fill="white"/><circle cx="50%" cy="150" r="${SIZE/2}" fill="black"/></mask></defs>
+            <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#cm)"/>
+            <circle cx="50%" cy="150" r="${SIZE/2-1}" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>
           </svg>
         </div>
-        <!-- 이미지 드래그 영역 (전체 영역) -->
-        <div id="crop-drag-area" style="position:absolute;inset:0;touch-action:none;cursor:grab;overflow:hidden;">
-          <img id="crop-img" src="${src}"
-            style="position:absolute;width:${state._cropModal.w}px;height:${state._cropModal.h}px;left:${state._cropModal.ox}px;top:${state._cropModal.oy}px;user-select:none;-webkit-user-drag:none;pointer-events:none;"
-            draggable="false"/>
-        </div>
       </div>
-      <!-- 컨트롤 -->
-      <div class="px-5 pt-4 pb-6 space-y-2">
+      <div class="px-5 py-4 space-y-1">
         <div class="flex items-center gap-3">
-          <span class="text-zinc-400 text-xs w-6 text-center">−</span>
-          <input id="crop-scale" type="range" min="100" max="350" value="${scaleVal}" class="flex-1 accent-black h-1.5" style="cursor:pointer"/>
-          <span class="text-zinc-600 text-xs w-6 text-center">+</span>
+          <span class="text-zinc-400 text-sm select-none">−</span>
+          <input id="crop-scale" type="range" min="100" max="350" value="${scaleVal}" class="flex-1 accent-black" style="cursor:pointer"/>
+          <span class="text-zinc-600 text-sm select-none">+</span>
         </div>
-        <p class="text-[11px] text-zinc-400 text-center" id="crop-hint">
-          <span class="hidden sm:inline">마우스로 드래그해서 위치 조정</span>
-          <span class="sm:hidden">한 손가락으로 이동 · 두 손가락으로 확대축소</span>
-        </p>
+        <p class="text-[11px] text-zinc-400 text-center">드래그로 이동 · 슬라이더로 크기 조절</p>
       </div>
     </div>
   </div>`;
@@ -1403,17 +1372,17 @@ function renderProfilePage() {
 function renderAdmin() {
   const pendingCount = state.cache.users.filter(u=>u.status==='pending'||u.status==='withdraw_pending').length;
   const menu = [
-    { k:'bulletin', i:'menu_book', l:'주보 관리' },
-    { k:'service_schedule', i:'assignment_ind', l:'임사 관리' },
-    { k:'worship', i:'music_note', l:'찬양 관리' },
-    { k:'notice', i:'campaign', l:'공지 관리' },
-    { k:'event', i:'calendar_month', l:'일정 관리' },
-    { k:'attendance', i:'fact_check', l:'출석 관리' },
-    { k:'offering', i:'volunteer_activism', l:'헌금 기록' },
-    { k:'roster', i:'people', l:'명부 관리', dot: pendingCount > 0 },
-    { k:'cellmeet', i:'groups', l:'목장 모임 자료' },
-    { k:'cells', i:'dashboard', l:'목장 관리' },
-    { k:'noti', i:'notifications', l:'알림 발송' },
+    { k:'roster', i:'people', l:'명부', dot: pendingCount > 0 },
+    { k:'bulletin', i:'menu_book', l:'주보' },
+    { k:'service_schedule', i:'assignment_ind', l:'임사' },
+    { k:'worship', i:'music_note', l:'찬양' },
+    { k:'notice', i:'campaign', l:'공지' },
+    { k:'event', i:'calendar_month', l:'일정' },
+    { k:'attendance', i:'fact_check', l:'출석' },
+    { k:'offering', i:'volunteer_activism', l:'헌금' },
+    { k:'cellmeet', i:'groups', l:'목장 모임' },
+    { k:'cells', i:'dashboard', l:'목장' },
+    { k:'noti', i:'notifications', l:'알림' },
   ];
 
   let content = '';
@@ -1518,9 +1487,6 @@ function getSvcForDate(date) {
 
 function renderAdminServiceSchedule() {
   const sundays = getUpcomingSundays(8);
-  const rosters = state.cache.rosters;
-  const allNames = [...new Set(rosters.filter(r=>r.name).map(r=>r.name))].sort((a,b)=>koSort(a,b));
-  const nameOpts = `<option value="">-미정-</option>` + allNames.map(n=>`<option value="${n}">${n}</option>`).join('');
 
   const rows = sundays.map(date => {
     const s = getSvcForDate(date);
@@ -1528,30 +1494,26 @@ function renderAdminServiceSchedule() {
     const label = `${d.getMonth()+1}월 ${d.getDate()}일`;
     return `
     <div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden mb-3">
-      <div class="px-4 py-3 bg-zinc-50 border-b border-zinc-100 flex items-center justify-between">
-        <div>
-          <span class="text-sm font-bold">${label} 주일</span>
-          <span class="text-xs text-zinc-400 ml-2">${date}</span>
-        </div>
-        <button data-svc-save="${date}" class="text-xs font-bold text-white bg-black px-3 py-1.5 rounded-full active:opacity-70">저장</button>
+      <div class="px-4 py-3 bg-zinc-50 border-b border-zinc-100">
+        <span class="text-sm font-bold">${label} 주일</span>
+        <span class="text-xs text-zinc-400 ml-2">${date}</span>
       </div>
       <div class="p-4 grid grid-cols-2 gap-3">
         ${SVC_COLS.map(col=>`
         <div>
           <label class="block text-[10px] font-bold text-zinc-500 mb-1.5">${SVC_COL_LABELS[col]}</label>
-          <select id="svc-${date}-${col}" data-svc-date="${date}" data-svc-col="${col}"
-            class="w-full px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black">
-            ${nameOpts}
-          </select>
+          <input id="svc-${date}-${col}" value="${s[col]||''}" placeholder="이름"
+            class="w-full px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black"/>
         </div>`).join('')}
       </div>
     </div>`;
   }).join('');
 
   return `
-  <h2 class="text-lg font-bold mb-1">임사 관리</h2>
-  <p class="text-xs text-zinc-400 mb-4">저장하면 해당 주 주보에 자동 반영됩니다.</p>
-  <div id="svc-list">${rows}</div>`;
+  <h2 class="text-lg font-bold mb-1">임사</h2>
+  <p class="text-xs text-zinc-400 mb-4">저장하면 주보에 자동 반영됩니다.</p>
+  <div id="svc-list">${rows}</div>
+  <button id="svc-save-all" class="w-full py-3 bg-black text-white rounded-2xl text-sm font-bold mt-2">저장</button>`;
 }
 
 function renderAdminBulletin() {
@@ -1924,13 +1886,7 @@ function bindEvents() {
     });
   })();
 
-  // ── Confirm modal ──
-  document.getElementById('confirm-no')?.addEventListener('click', () => { state._confirmModal = null; render(); });
-  document.getElementById('confirm-yes')?.addEventListener('click', () => {
-    const cb = state._confirmModal?.onYes;
-    state._confirmModal = null;
-    if (cb) cb();
-  });
+  // confirm handled by showConfirm DOM direct
 
   // ── Login ──
   const doLogin = async () => {
@@ -2685,38 +2641,29 @@ function bindEvents() {
   });
   document.getElementById('withdraw-btn')?.addEventListener('click', () => {
     // 비밀번호 입력 모달
-    state._confirmModal = {
-      msg: `<div class="space-y-3">
-        <p>탈퇴 신청 후 관리자 승인이 필요합니다.<br/>현재 비밀번호를 입력해주세요.</p>
-        <input id="withdraw-pw-input" type="password" placeholder="비밀번호" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black mt-2"/>
-      </div>`,
-      yesLabel: '탈퇴 신청',
-      yesClass: 'bg-red-500 text-white',
-      onYes: async () => {
-        const pw = document.getElementById('withdraw-pw-input')?.value;
-        const u = state.cache.users.find(x=>x.uid===state.user.uid);
-        if (!u) { showToast('사용자 정보를 찾을 수 없습니다.'); return; }
-        // Firebase Auth 비밀번호 확인
-        try {
-          const authUser = window.FAUTH.currentUser;
-          if (authUser) {
-            const email = u.id + '@promisedland.com';
-            await window.FB_reauth(email, pw);
-          } else if (u.pw !== pw) {
-            showToast('비밀번호가 틀렸습니다.'); return;
-          }
-        } catch(e) {
+    showConfirm(`<div class="space-y-3">
+      <p>탈퇴 신청 후 관리자 승인이 필요합니다.<br/>현재 비밀번호를 입력해주세요.</p>
+      <input id="withdraw-pw-input" type="password" placeholder="비밀번호" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black mt-2"/>
+    </div>`, async () => {
+      const pw = document.getElementById('withdraw-pw-input')?.value;
+      const u = state.cache.users.find(x=>x.uid===state.user.uid);
+      if (!u) { showToast('사용자 정보를 찾을 수 없습니다.'); return; }
+      try {
+        const authUser = window.FAUTH.currentUser;
+        if (authUser) {
+          const email = u.id + '@promisedland.com';
+          await window.FB_reauth(email, pw);
+        } else if (u.pw !== pw) {
           showToast('비밀번호가 틀렸습니다.'); return;
         }
-        await window.FDB.setDoc('users', u.uid, { status:'withdraw_pending', withdrawAt:today() });
-        await window.FB_signOut().catch(()=>{});
-        SESSION.clear();
-        state.user=null; state.page='login'; state.profilePage=null;
-        showToast('탈퇴 신청이 접수되었습니다. 관리자 승인 후 처리됩니다.');
-        render();
-      }
-    };
-    render();
+      } catch(e) { showToast('비밀번호가 틀렸습니다.'); return; }
+      await window.FDB.setDoc('users', u.uid, { status:'withdraw_pending', withdrawAt:today() });
+      await window.FB_signOut().catch(()=>{});
+      SESSION.clear();
+      state.user=null; state.page='login'; state.profilePage=null;
+      showToast('탈퇴 신청이 접수되었습니다. 관리자 승인 후 처리됩니다.');
+      render();
+    }, '탈퇴 신청', 'bg-red-500 text-white');
   });
 
   // ── Profile edit: image upload → crop modal ──
@@ -2727,11 +2674,18 @@ function bindEvents() {
       const img = new Image();
       img.onload = () => {
         const origW = img.naturalWidth; const origH = img.naturalHeight;
-        const size = 240;
-        const aspect = origW/origH;
-        let w,h;
-        if (aspect>1) { w=size; h=size/aspect; } else { h=size; w=size*aspect; }
-        state._cropModal = { src:e.target.result, origW, origH, w, h, ox:(size-w)/2, oy:(size-h)/2 };
+        const SIZE = 240; // 원 지름
+        const STAGE_H = 300; // stage 높이
+        const STAGE_W = Math.min(window.innerWidth - 32, 384); // max-w-sm ≈384px, padding 32px
+        // 이미지를 원(240px)보다 크게 초기화 (짧은 변 기준)
+        const aspect = origW / origH;
+        let w, h;
+        if (aspect >= 1) { h = SIZE; w = SIZE * aspect; }
+        else             { w = SIZE; h = SIZE / aspect; }
+        // 중앙 배치: stage 중심 = 원 중심 (cx=STAGE_W/2, cy=150)
+        const ox = STAGE_W/2 - w/2;
+        const oy = 150 - h/2;
+        state._cropModal = { src:e.target.result, origW, origH, w, h, ox, oy };
         state._pendingProfileFile = file;
         render();
       };
@@ -3009,39 +2963,183 @@ function bindEvents() {
   }
 
   // Bulletin form
-  const bulletinFormEl = document.querySelector('[data-action="show-bulletin-form"]');
-  if (bulletinFormEl) {
-    bulletinFormEl._handler = () => {
-      const rosters=state.cache.rosters; const area=document.getElementById('admin-form-area'); if(!area) return;
-      const rOpts=`<option value="">미정</option>${sortByName(rosters).map(r=>`<option value="${r.name}">${r.name}</option>`).join('')}`;
-      area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
-        ${adminInput('bf-title','제목','2026년 3월 1일 주보')}
-        ${adminInput('bf-date','날짜',today())}
-        ${adminTextarea('bf-order','예배순서','1. 예배의 부름\n2. 경배와 찬양...',6)}
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">대표기도 담당</label><select id="bf-prayer" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm">${rOpts}</select></div>
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">성경봉독 담당</label><select id="bf-bible" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm">${rOpts}</select></div>
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">성도의 교제 담당</label><select id="bf-announce" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm">${rOpts}</select></div>
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">봉헌 담당</label><select id="bf-offering" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm">${rOpts}</select></div>
-        ${adminTextarea('bf-songs','찬양곡 목록','1. 곡명 (Key: G)',4)}
-        ${adminTextarea('bf-announce-text','광고 내용','• 수련회 안내',4)}
-        <div class="flex gap-2">
-          <button onclick="state.adminSub='bulletin';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
-          <button id="save-bulletin" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
-        </div>
-      </div>`;
-      document.getElementById('save-bulletin')?.addEventListener('click', async () => {
-        const g = id => document.getElementById(id)?.value||'';
-        const title=g('bf-title'),date=g('bf-date'); if(!title||!date) return;
-        const bid=uid();
-        const b={id:bid,title,date,order:g('bf-order'),prayer_duty:g('bf-prayer'),bible_reading:g('bf-bible'),announcement_duty:g('bf-announce'),offering_duty:g('bf-offering'),songs:g('bf-songs'),announce:g('bf-announce-text'),by:state.user.uid,at:today()};
-        await window.FDB.setDoc('bulletins', bid, b);
-        state.cache.bulletins.push(b); state.cache.bulletins.sort((a,b)=>a.date.localeCompare(b.date));
-        showToast('주보 저장 완료!'); render();
+  document.querySelector('[data-action="show-bulletin-form"]')?.addEventListener('click', () => openBulletinForm(null));
+
+  // 임사 전체 저장
+  document.getElementById('svc-save-all')?.addEventListener('click', async () => {
+    const sundays = getUpcomingSundays(8);
+    for (const date of sundays) {
+      const row = {};
+      SVC_COLS.forEach(col => { row[col] = document.getElementById(`svc-${date}-${col}`)?.value || ''; });
+      const existing = getSvcForDate(date);
+      const id = existing.id || date;
+      const data = { id, date, ...row };
+      await window.FDB.setDoc('serviceSchedules', id, data);
+      const idx = state.cache.serviceSchedules.findIndex(s=>s.date===date);
+      if (idx>=0) state.cache.serviceSchedules[idx] = data;
+      else state.cache.serviceSchedules.push(data);
+    }
+    showToast('임사 저장 완료!');
+  });
+}
+
+// ============================================================
+// 주보 폼 (신규 + 수정 공용)
+// ============================================================
+function openBulletinForm(existing) {
+  const area = document.getElementById('admin-form-area'); if (!area) return;
+  const isEdit = !!existing;
+  const bid = isEdit ? existing.id : uid();
+
+  // 기본 예배 순서 항목
+  const DEFAULT_ORDER_ITEMS = [
+    {name:'예배의 부름', participant:''},
+    {name:'경배와 찬양', participant:''},
+    {name:'오늘의 기도', participant:''},
+    {name:'성경봉독', participant:'', scripture:''},
+    {name:'찬양', participant:''},
+    {name:'말씀', participant:'', scripture:''},
+    {name:'헌금', participant:''},
+    {name:'성도의 교제', participant:''},
+    {name:'광고', participant:''},
+    {name:'파송', participant:''},
+  ];
+
+  let orderItems = isEdit && existing.orderItems?.length
+    ? existing.orderItems.map(it=>({...it}))
+    : DEFAULT_ORDER_ITEMS.map(it=>({...it}));
+  let announcements = isEdit ? (existing.announcements||[]).map(a=>({...a})) : [];
+  const offering = isEdit ? (existing.offering||{}) : {};
+
+  const renderOrderRows = () => orderItems.map((item,i) => `
+    <div class="flex items-center gap-2 py-2 border-b border-zinc-50">
+      <span class="text-xs text-zinc-400 w-16 flex-none truncate">${item.name}</span>
+      <input data-oi="${i}" data-field="participant" value="${item.participant||''}" placeholder="담당자"
+        class="flex-1 px-2.5 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>
+      ${item.scripture !== undefined ? `<input data-oi="${i}" data-field="scripture" value="${item.scripture||''}" placeholder="성경"
+        class="w-20 px-2.5 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>` : ''}
+    </div>`).join('');
+
+  const renderAnnRows = () => announcements.map((a,i) => `
+    <div class="bg-zinc-50 rounded-xl p-3 space-y-2 mb-2">
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-bold text-zinc-400 w-4">${i+1}</span>
+        <input data-ai="${i}" data-field="title" value="${(a.title||'').replace(/"/g,'&quot;')}" placeholder="제목"
+          class="flex-1 px-2.5 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>
+        <button data-del-ann="${i}" class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-red-50 text-zinc-300 flex-none">✕</button>
+      </div>
+      <textarea data-ai="${i}" data-field="body" placeholder="내용 (선택)"
+        class="w-full px-2.5 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black resize-none" rows="2">${a.body||''}</textarea>
+    </div>`).join('');
+
+  const render_form = () => {
+    const formEl = document.getElementById('bf-inner');
+    if (!formEl) return;
+    document.getElementById('bf-order-rows').innerHTML = renderOrderRows();
+    document.getElementById('bf-ann-rows').innerHTML = renderAnnRows();
+    bindFormEvents();
+  };
+
+  area.innerHTML = `<div id="bf-inner" class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4">
+    ${adminInput('bf-date','날짜', isEdit?existing.date:today())}
+    ${adminInput('bf-verse','말씀 구절 (선택)', isEdit?existing.verse||'':'')}
+
+    <div>
+      <p class="text-xs font-bold text-zinc-600 mb-2 ml-1">예배순서</p>
+      <div id="bf-order-rows">${renderOrderRows()}</div>
+    </div>
+
+    <div>
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs font-bold text-zinc-600 ml-1">광고</p>
+        <button id="bf-add-ann" class="text-xs font-bold text-black px-3 py-1 bg-zinc-100 rounded-full">+ 광고 추가</button>
+      </div>
+      <div id="bf-ann-rows">${renderAnnRows()}</div>
+    </div>
+
+    <div>
+      <p class="text-xs font-bold text-zinc-600 mb-2 ml-1">헌금</p>
+      <div class="space-y-2">
+        <input id="bf-off-account" value="${offering.account||'1005-003-875918 우리은행'}" placeholder="계좌번호"
+          class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+        <input id="bf-off-prayer" value="${offering.prayerDuty||''}" placeholder="주정헌금 담당"
+          class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+        <input id="bf-off-thanks" value="${offering.thanksDuty||''}" placeholder="감사헌금 담당"
+          class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+      </div>
+    </div>
+
+    <div class="flex gap-2 pt-2">
+      <button id="bf-cancel" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
+      <button id="bf-save" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">${isEdit?'수정':'저장'}</button>
+    </div>
+  </div>`;
+
+  const bindFormEvents = () => {
+    // 예배순서 input 변경 반영
+    document.querySelectorAll('[data-oi]').forEach(el => {
+      el.addEventListener('input', () => {
+        const i = parseInt(el.dataset.oi);
+        const field = el.dataset.field;
+        orderItems[i][field] = el.value;
       });
+    });
+    // 광고 input 변경 반영
+    document.querySelectorAll('[data-ai]').forEach(el => {
+      el.addEventListener('input', () => {
+        const i = parseInt(el.dataset.ai);
+        const field = el.dataset.field;
+        if (!announcements[i]) return;
+        announcements[i][field] = el.value;
+      });
+    });
+    // 광고 삭제
+    document.querySelectorAll('[data-del-ann]').forEach(el => {
+      el.addEventListener('click', () => {
+        announcements.splice(parseInt(el.dataset.delAnn), 1);
+        document.getElementById('bf-ann-rows').innerHTML = renderAnnRows();
+        bindFormEvents();
+      });
+    });
+  };
+  bindFormEvents();
+
+  // 광고 추가
+  document.getElementById('bf-add-ann')?.addEventListener('click', () => {
+    announcements.push({title:'', body:''});
+    document.getElementById('bf-ann-rows').innerHTML = renderAnnRows();
+    bindFormEvents();
+  });
+
+  // 취소
+  document.getElementById('bf-cancel')?.addEventListener('click', () => {
+    area.innerHTML = `<button data-action="show-bulletin-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-4">+ 새 주보 작성</button>`;
+    bindEvents();
+  });
+
+  // 저장
+  document.getElementById('bf-save')?.addEventListener('click', async () => {
+    const date = document.getElementById('bf-date')?.value;
+    if (!date) { showToast('날짜를 입력해주세요.'); return; }
+    const title = date + ' 주보';
+    const verse = document.getElementById('bf-verse')?.value || '';
+    const offeringData = {
+      account: document.getElementById('bf-off-account')?.value || '',
+      prayerDuty: document.getElementById('bf-off-prayer')?.value || '',
+      thanksDuty: document.getElementById('bf-off-thanks')?.value || '',
     };
-    bulletinFormEl.removeEventListener('click', bulletinFormEl._handler);
-    bulletinFormEl.addEventListener('click', bulletinFormEl._handler);
-  }
+    const b = { id:bid, title, date, verse, orderItems, announcements, offering:offeringData, by:state.user.uid, at:today() };
+    await window.FDB.setDoc('bulletins', bid, b);
+    if (isEdit) {
+      const idx = state.cache.bulletins.findIndex(x=>x.id===bid);
+      if (idx>=0) state.cache.bulletins[idx] = b;
+    } else {
+      state.cache.bulletins.push(b);
+      state.cache.bulletins.sort((a,b)=>a.date.localeCompare(b.date));
+    }
+    showToast(isEdit?'주보 수정 완료!':'주보 저장 완료!');
+    render();
+  });
 }
 
 // ============================================================
@@ -3049,178 +3147,152 @@ function bindEvents() {
 // ============================================================
 function bindCropModal() {
   if (!state._cropModal) return;
-  const dragArea = document.getElementById('crop-drag-area');
-  const imgEl    = document.getElementById('crop-img');
+  const stage = document.getElementById('crop-stage');
+  const imgEl = document.getElementById('crop-img');
   const scaleInput = document.getElementById('crop-scale');
-  if (!dragArea || !imgEl) return;
+  if (!stage || !imgEl) return;
 
-  const SIZE = 240; // 원형 크롭 지름
-  // 드래그 영역 중심 = 이미지 표시 기준점
-  const areaRect = dragArea.getBoundingClientRect();
-  const areaW = areaRect.width || 360;
-  const areaH = areaRect.height || 300;
-  // 원의 중심 (drag area 기준)
-  const cx = areaW / 2;
-  const cy = areaH / 2;
+  const SIZE = 240;  // 원 지름
+  const STAGE_H = 300;
 
-  // state._cropModal.ox/oy 는 이미지 left/top (drag area 기준)
+  // stage 실제 너비 (렌더 후 정확히 알 수 있음)
+  const stageRect = stage.getBoundingClientRect();
+  const SW = stageRect.width || 360;
+  // 원 중심 좌표 (stage 기준)
+  const CX = SW / 2;
+  const CY = 150; // stage height=300 → cy=150
+
+  // 이미지 최소 크기: 원을 완전히 덮어야 함 (짧은 변 >= SIZE)
+  const ensureMinSize = (c) => {
+    const minScale = SIZE / Math.min(c.origW, c.origH);
+    if (c.w < c.origW * minScale) {
+      const s = minScale;
+      c.w = c.origW * s;
+      c.h = c.origH * s;
+    }
+  };
+
   // 이미지가 원을 완전히 덮도록 클램프
-  const clamp = () => {
-    const c = state._cropModal;
-    // 이미지 오른쪽 끝이 원의 오른쪽보다 오른쪽이어야 함
-    const minOx = cx + SIZE/2 - c.w; // 이미지 최소 left
-    const maxOx = cx - SIZE/2;       // 이미지 최대 left
-    const minOy = cy + SIZE/2 - c.h;
-    const maxOy = cy - SIZE/2;
-    c.ox = Math.min(maxOx, Math.max(minOx, c.ox));
-    c.oy = Math.min(maxOy, Math.max(minOy, c.oy));
+  const clamp = (c) => {
+    ensureMinSize(c);
+    c.ox = Math.min(CX - SIZE/2, Math.max(CX + SIZE/2 - c.w, c.ox));
+    c.oy = Math.min(CY - SIZE/2, Math.max(CY + SIZE/2 - c.h, c.oy));
   };
 
   const applyImg = () => {
-    clamp();
     const c = state._cropModal;
-    imgEl.style.left  = c.ox + 'px';
-    imgEl.style.top   = c.oy + 'px';
-    imgEl.style.width = c.w  + 'px';
-    imgEl.style.height= c.h  + 'px';
+    clamp(c);
+    imgEl.style.width  = c.w + 'px';
+    imgEl.style.height = c.h + 'px';
+    imgEl.style.left   = c.ox + 'px';
+    imgEl.style.top    = c.oy + 'px';
   };
+
+  // 초기 위치 설정 (처음 열릴 때 ox/oy가 state에 저장됨)
+  // 이미 initApp 시 중앙 계산했지만 SW가 실제 달라질 수 있으므로 재계산
+  const c0 = state._cropModal;
+  ensureMinSize(c0);
+  c0.ox = CX - c0.w / 2;
+  c0.oy = CY - c0.h / 2;
   applyImg();
 
-  // ── 슬라이더 ──
-  const applyScale = (scale) => {
-    const c = state._cropModal;
-    const newW = c.origW * scale;
-    const newH = c.origH * scale;
-    // 원 중심 기준으로 스케일
-    const pivotX = cx; const pivotY = cy;
-    const ratioX = (pivotX - c.ox) / c.w;
-    const ratioY = (pivotY - c.oy) / c.h;
-    c.ox = pivotX - ratioX * newW;
-    c.oy = pivotY - ratioY * newH;
-    c.w  = newW; c.h = newH;
-    applyImg();
-  };
-
+  // 슬라이더
   scaleInput?.addEventListener('input', function() {
-    applyScale(parseInt(this.value) / 100);
+    const c = state._cropModal;
+    const newScale = parseInt(this.value) / 100;
+    const newW = c.origW * newScale;
+    const newH = c.origH * newScale;
+    const ratioX = (CX - c.ox) / c.w;
+    const ratioY = (CY - c.oy) / c.h;
+    c.ox = CX - ratioX * newW;
+    c.oy = CY - ratioY * newH;
+    c.w = newW; c.h = newH;
+    applyImg();
   });
 
-  // ── PC: 마우스 드래그 ──
-  let dragging = false, mStartX, mStartY, mStartOX, mStartOY;
-  dragArea.addEventListener('mousedown', e => {
+  // PC 드래그
+  let dragging = false, mX, mY, mOX, mOY;
+  stage.addEventListener('mousedown', e => {
     dragging = true;
-    mStartX = e.clientX; mStartY = e.clientY;
-    mStartOX = state._cropModal.ox; mStartOY = state._cropModal.oy;
-    dragArea.style.cursor = 'grabbing';
+    mX = e.clientX; mY = e.clientY;
+    mOX = state._cropModal.ox; mOY = state._cropModal.oy;
+    stage.style.cursor = 'grabbing';
     e.preventDefault();
   });
   document.addEventListener('mousemove', e => {
     if (!dragging) return;
-    state._cropModal.ox = mStartOX + (e.clientX - mStartX);
-    state._cropModal.oy = mStartOY + (e.clientY - mStartY);
+    state._cropModal.ox = mOX + (e.clientX - mX);
+    state._cropModal.oy = mOY + (e.clientY - mY);
     applyImg();
   });
   document.addEventListener('mouseup', () => {
     dragging = false;
-    if (dragArea) dragArea.style.cursor = 'grab';
+    if (stage) stage.style.cursor = 'grab';
   });
+  stage.style.cursor = 'grab';
 
-  // ── 모바일: 한손가락 이동 + 두손가락 핀치줌 ──
-  let tStartOX, tStartOY, tStartX, tStartY;
-  let pinchStartDist = 0, pinchStartW = 0, pinchStartH = 0;
-  let pinchStartOX = 0, pinchStartOY = 0;
+  // 모바일 터치
+  let tOX, tOY, tX, tY;
+  let pinchD0 = 0, pinchW0 = 0, pinchH0 = 0, pinchOX0 = 0, pinchOY0 = 0;
 
-  const getTouchDist = (t) => {
-    const dx = t[1].clientX - t[0].clientX;
-    const dy = t[1].clientY - t[0].clientY;
-    return Math.sqrt(dx*dx + dy*dy);
-  };
-  const getTouchCenter = (t) => ({
-    x: (t[0].clientX + t[1].clientX) / 2,
-    y: (t[0].clientY + t[1].clientY) / 2,
-  });
-
-  dragArea.addEventListener('touchstart', e => {
+  stage.addEventListener('touchstart', e => {
+    const c = state._cropModal;
     if (e.touches.length === 1) {
-      tStartX = e.touches[0].clientX; tStartY = e.touches[0].clientY;
-      tStartOX = state._cropModal.ox; tStartOY = state._cropModal.oy;
+      tX = e.touches[0].clientX; tY = e.touches[0].clientY;
+      tOX = c.ox; tOY = c.oy;
     } else if (e.touches.length === 2) {
-      pinchStartDist = getTouchDist(e.touches);
-      pinchStartW = state._cropModal.w;
-      pinchStartH = state._cropModal.h;
-      pinchStartOX = state._cropModal.ox;
-      pinchStartOY = state._cropModal.oy;
+      const t = e.touches;
+      pinchD0 = Math.hypot(t[1].clientX-t[0].clientX, t[1].clientY-t[0].clientY);
+      pinchW0 = c.w; pinchH0 = c.h; pinchOX0 = c.ox; pinchOY0 = c.oy;
     }
     e.preventDefault();
   }, { passive: false });
 
-  dragArea.addEventListener('touchmove', e => {
+  stage.addEventListener('touchmove', e => {
+    const c = state._cropModal;
     if (e.touches.length === 1) {
-      // 한손가락 이동
-      state._cropModal.ox = tStartOX + (e.touches[0].clientX - tStartX);
-      state._cropModal.oy = tStartOY + (e.touches[0].clientY - tStartY);
+      c.ox = tOX + (e.touches[0].clientX - tX);
+      c.oy = tOY + (e.touches[0].clientY - tY);
       applyImg();
     } else if (e.touches.length === 2) {
-      // 두손가락 핀치줌
-      const dist  = getTouchDist(e.touches);
-      const ratio = dist / pinchStartDist;
-      const newW  = pinchStartW * ratio;
-      const newH  = pinchStartH * ratio;
-      // 핀치 중심 기준으로 이미지 이동
-      const center = getTouchCenter(e.touches);
-      const startCenter = { x: (pinchStartOX + pinchStartW/2), y: (pinchStartOY + pinchStartH/2) };
-      // 핀치 센터 기준 스케일
-      const rect2 = dragArea.getBoundingClientRect();
-      const lcx = center.x - rect2.left;
-      const lcy = center.y - rect2.top;
-      const ratioX2 = (lcx - pinchStartOX) / pinchStartW;
-      const ratioY2 = (lcy - pinchStartOY) / pinchStartH;
-      state._cropModal.ox = lcx - ratioX2 * newW;
-      state._cropModal.oy = lcy - ratioY2 * newH;
-      state._cropModal.w  = newW; state._cropModal.h = newH;
-      // 슬라이더 동기화
-      if (scaleInput) scaleInput.value = Math.round(newW / state._cropModal.origW * 100);
+      const t = e.touches;
+      const dist = Math.hypot(t[1].clientX-t[0].clientX, t[1].clientY-t[0].clientY);
+      const ratio = dist / pinchD0;
+      const nw = pinchW0 * ratio; const nh = pinchH0 * ratio;
+      const pcx = (t[0].clientX + t[1].clientX) / 2 - stage.getBoundingClientRect().left;
+      const pcy = (t[0].clientY + t[1].clientY) / 2 - stage.getBoundingClientRect().top;
+      c.ox = pcx - (pcx - pinchOX0) / pinchW0 * nw;
+      c.oy = pcy - (pcy - pinchOY0) / pinchH0 * nh;
+      c.w = nw; c.h = nh;
+      if (scaleInput) scaleInput.value = Math.round(nw / c.origW * 100);
       applyImg();
     }
     e.preventDefault();
   }, { passive: false });
 
-  dragArea.addEventListener('touchend', e => {}, { passive: true });
-
-  // ── 완료 버튼: 원형 크롭 캔버스 ──
+  // 완료
   document.getElementById('crop-confirm')?.addEventListener('click', () => {
-    const c   = state._cropModal;
-    const OUT = 400; // 출력 해상도
+    const c = state._cropModal;
+    const OUT = 400;
     const canvas = document.createElement('canvas');
     canvas.width = OUT; canvas.height = OUT;
     const ctx = canvas.getContext('2d');
-
-    // 원형 클리핑
     ctx.beginPath();
     ctx.arc(OUT/2, OUT/2, OUT/2, 0, Math.PI*2);
     ctx.clip();
-
-    // drag area 기준 원 위치
-    const rect3 = dragArea.getBoundingClientRect();
-    const aw = rect3.width || areaW;
-    const ah = rect3.height || areaH;
-    const circleCX = aw / 2;
-    const circleCY = ah / 2;
-    // 이미지에서 원이 차지하는 소스 영역
-    const srcX = (circleCX - SIZE/2 - c.ox) * (c.origW / c.w);
-    const srcY = (circleCY - SIZE/2 - c.oy) * (c.origH / c.h);
+    // 원 안의 이미지 소스 영역 계산
+    const srcX = (CX - SIZE/2 - c.ox) * (c.origW / c.w);
+    const srcY = (CY - SIZE/2 - c.oy) * (c.origH / c.h);
     const srcW = SIZE * (c.origW / c.w);
     const srcH = SIZE * (c.origH / c.h);
-
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, OUT, OUT);
+    const imgObj = new Image();
+    imgObj.onload = () => {
+      ctx.drawImage(imgObj, srcX, srcY, srcW, srcH, 0, 0, OUT, OUT);
       state._pendingProfileImg = canvas.toDataURL('image/jpeg', 0.9);
       state._cropModal = null;
       render();
     };
-    img.src = c.src;
+    imgObj.src = c.src;
   });
 
   document.getElementById('crop-cancel')?.addEventListener('click', () => {
