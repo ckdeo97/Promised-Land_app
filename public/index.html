@@ -306,8 +306,6 @@ tailwind.config = {
   .fixed-layout { position: fixed; inset: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   .cal-sun { color: #ef4444; }
   .cal-sat { color: #3b82f6; }
-  .page-slide-in { animation: pageSlideIn 0.28s cubic-bezier(0.25,0.46,0.45,0.94) both; }
-  @keyframes pageSlideIn { from { transform: translateX(100%); opacity:0.85; } to { transform: translateX(0); opacity:1; } }
   .profile-img-clip { overflow: hidden; cursor: grab; }
   .profile-img-clip:active { cursor: grabbing; }
   /* 크롭 모달 */
@@ -602,7 +600,7 @@ function renderLogin() {
 // ============================================================
 function renderRegister() {
   return `
-  <div class="fixed-layout bg-white overflow-y-auto slide-in-right" style="position:fixed;inset:0;overflow-y:auto;display:block;">
+  <div class="fixed-layout bg-white overflow-y-auto" style="position:fixed;inset:0;overflow-y:auto;display:block;">
     <div class="px-6 py-8 max-w-sm mx-auto">
       <button id="btn-back-login" class="flex items-center gap-1 text-sm text-zinc-500 mb-6">${icon('arrow_back','',20)} 뒤로</button>
       <h1 class="text-2xl font-bold mb-1">회원가입</h1>
@@ -913,32 +911,12 @@ function renderBulletinDetail() {
   const b = state.cache.bulletins.find(x => x.id === state.detail.id);
   if (!b) return '';
 
-  // 임사 정보 (해당 날짜 serviceSchedules에서 가져옴)
-  const svc = state.cache.serviceSchedules.find(s=>s.date===b.date) || {};
-
-  // 예배순서 items: [{name, scripture, participant, remark}]
   const orderItems = b.orderItems || [];
-
-  // 광고 items: [{title, body}]
   const announcements = b.announcements || [];
-
-  // 헌금 정보
-  const offering = b.offering || {};
-
-  // 임사 표 (4주치 = 이번주 다음주부터)
-  const nextSundays = getUpcomingSundays(4, true); // 다음주부터 4주
-  const svcRows = nextSundays.map(date => {
-    const sv = state.cache.serviceSchedules.find(s=>s.date===date) || {};
-    const d = new Date(date);
-    const label = `${d.getMonth()+1}/${d.getDate()}`;
-    return `<tr class="border-b border-zinc-100 last:border-0">
-      <td class="py-2 px-3 text-xs font-bold text-zinc-600 whitespace-nowrap">${label}</td>
-      ${SVC_COLS.map(col=>`<td class="py-2 px-3 text-xs text-zinc-700 text-center">${sv[col]||'-'}</td>`).join('')}
-    </tr>`;
-  }).join('');
+  const dream = b.dream || {};
 
   return `
-  <div class="min-h-screen bg-zinc-50 page-slide-in">
+  <div class="min-h-screen bg-zinc-50">
     <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">주보</h1>
@@ -949,8 +927,7 @@ function renderBulletinDetail() {
       <div class="bg-black text-white rounded-3xl p-8 text-center relative overflow-hidden dot-pattern">
         <div class="relative z-10">
           <p class="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 mb-2">약속의 땅 청년부 · 주일예배</p>
-          <h2 class="text-xl font-bold">${b.date}</h2>
-          ${b.verse ? `<p class="text-white/70 text-sm mt-2">${b.verse}</p>` : ''}
+          <h2 class="text-xl font-bold">${b.title||b.date}</h2>
         </div>
       </div>
 
@@ -963,13 +940,12 @@ function renderBulletinDetail() {
         </div>
         <div class="divide-y divide-zinc-50">
           ${orderItems.map(item=>`
-          <div class="flex items-center px-5 py-3 gap-3 ${item.star?'bg-amber-50/50':''}">
-            <span class="text-zinc-300 text-xs w-3">${item.star?'*':''}</span>
+          <div class="flex items-center px-5 py-3 gap-3">
             <div class="flex-1 min-w-0">
               <span class="text-sm font-medium text-zinc-800">${item.name}</span>
               ${item.scripture?`<span class="text-xs text-zinc-400 ml-2">${item.scripture}</span>`:''}
             </div>
-            <span class="text-xs text-zinc-500 text-right">${item.participant||''}</span>
+            <span class="text-xs text-zinc-500 text-right flex-none">${item.participant||''}</span>
           </div>`).join('')}
         </div>
       </div>` : ''}
@@ -995,36 +971,22 @@ function renderBulletinDetail() {
         </div>
       </div>` : ''}
 
-      <!-- 헌금 -->
-      ${(offering.account||offering.prayerDuty||offering.thanksDuty) ? `
+      <!-- 우리의 드림 -->
+      ${(dream.weekly||dream.tithe||dream.thanks) ? `
       <div class="bg-white rounded-3xl overflow-hidden border border-zinc-100">
         <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
           ${icon('volunteer_activism','text-zinc-400',16)}
-          <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">헌금</h3>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">우리의 드림</h3>
         </div>
         <div class="p-5 space-y-2">
-          ${offering.account?`<div class="flex justify-between text-sm"><span class="text-zinc-400">온라인 계좌</span><span class="font-bold">${offering.account}</span></div>`:''}
-          ${offering.prayerDuty?`<div class="flex justify-between text-sm"><span class="text-zinc-400">주정헌금</span><span class="font-medium">${offering.prayerDuty}</span></div>`:''}
-          ${offering.thanksDuty?`<div class="flex justify-between text-sm"><span class="text-zinc-400">감사헌금</span><span class="font-medium">${offering.thanksDuty}</span></div>`:''}
+          ${dream.weekly?`<div class="flex justify-between text-sm"><span class="text-zinc-400">주정헌금</span><span class="font-medium">${dream.weekly}</span></div>`:''}
+          ${dream.tithe?`<div class="flex justify-between text-sm"><span class="text-zinc-400">십일조</span><span class="font-medium">${dream.tithe}</span></div>`:''}
+          ${dream.thanks?`<div class="flex justify-between text-sm"><span class="text-zinc-400">감사헌금</span><span class="font-medium">${dream.thanks}</span></div>`:''}
+          <div class="pt-1 border-t border-zinc-50">
+            <p class="text-xs text-zinc-400">온라인 헌금: 우리은행 1005-003-875918</p>
+          </div>
         </div>
       </div>` : ''}
-
-      <!-- 임사 4주치 -->
-      <div class="bg-white rounded-3xl overflow-hidden border border-zinc-100">
-        <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
-          ${icon('assignment_ind','text-zinc-400',16)}
-          <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">우리의 섬김 (4주)</h3>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-max">
-            <thead><tr class="bg-zinc-50 border-b border-zinc-100">
-              <th class="py-2 px-3 text-[10px] font-bold text-zinc-400 text-left">날짜</th>
-              ${SVC_COLS.map(c=>`<th class="py-2 px-3 text-[10px] font-bold text-zinc-400 text-center">${SVC_COL_LABELS[c]}</th>`).join('')}
-            </tr></thead>
-            <tbody>${svcRows}</tbody>
-          </table>
-        </div>
-      </div>
 
       <div class="text-center py-4">
         <p class="text-[10px] text-zinc-300 font-bold uppercase tracking-[0.2em]">약속의 땅 청년부</p>
@@ -1066,7 +1028,7 @@ function renderNoticeDetail() {
   if (!n) return '';
   const comments = state.cache.comments[n.id] || [];
   return `
-  <div class="min-h-screen bg-zinc-50 page-slide-in">
+  <div class="min-h-screen bg-zinc-50">
     <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">공지사항</h1>
@@ -1167,7 +1129,7 @@ function renderWorshipDetail() {
   const w = worships[worships.length - 1];
   if (!w) return '';
   return `
-  <div class="min-h-screen bg-zinc-50 page-slide-in">
+  <div class="min-h-screen bg-zinc-50">
     <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">이번주 찬양</h1>
@@ -1254,7 +1216,7 @@ function renderProfilePage() {
   </div>`;
 
   if (pg === 'edit') {
-    return `<div class="min-h-screen bg-zinc-50 page-slide-in">
+    return `<div class="min-h-screen bg-zinc-50">
       ${header('프로필 수정')}
       <div class="px-5 py-4 space-y-4">
         <div class="flex flex-col items-center gap-4">
@@ -1273,9 +1235,9 @@ function renderProfilePage() {
           <label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">이름</label>
           <div class="flex gap-2">
             <input id="edit-name" value="${u.name}" class="flex-1 px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-            <select id="edit-minister" class="px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
-              ${['직분없음','목자','전도사','간사','청년부장','집사','권사','장로'].map(r=>`<option value="${r==='직분없음'?'':r}" ${(linkedRoster?.minister||'')===(r==='직분없음'?'':r)?'selected':''}>${r}</option>`).join('')}
-            </select>
+            ${linkedRoster ? `<select id="edit-minister" class="px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
+              ${['직분없음','목사','전도사','간사'].map(r=>`<option value="${r==='직분없음'?'':r}" ${(linkedRoster?.minister||'')===(r==='직분없음'?'':r)?'selected':''}>${r}</option>`).join('')}
+            </select>` : ''}
           </div>
         </div>
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">전화번호</label>
@@ -1303,7 +1265,7 @@ function renderProfilePage() {
       {k:'schedule',l:'새 일정',d:'새 일정 등록 시'},
       {k:'duty',l:'담당자 지정',d:'예배 담당 배정 시'},
     ];
-    return `<div class="min-h-screen bg-zinc-50 page-slide-in">
+    return `<div class="min-h-screen bg-zinc-50">
       ${header('알림 설정')}
       <div class="px-5 py-6">
         <div class="bg-white rounded-2xl border border-zinc-100 divide-y divide-zinc-50">
@@ -1324,7 +1286,7 @@ function renderProfilePage() {
 
   if (pg === 'settings') {
     const canChangeId = !u.idChangedAt;
-    return `<div class="min-h-screen bg-zinc-50 page-slide-in">
+    return `<div class="min-h-screen bg-zinc-50">
       ${header('설정')}
       <div class="px-5 py-6 space-y-4">
         <!-- 비밀번호 변경 -->
@@ -1420,7 +1382,7 @@ function renderAdmin() {
   }
 
   return `
-  <div class="min-h-screen bg-zinc-50 page-slide-in">
+  <div class="min-h-screen bg-zinc-50">
     <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back-admin" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">${state.adminSub==='dashboard'?'관리자':menu.find(m=>m.k===state.adminSub)?.l||'관리자'}</h1>
@@ -1746,28 +1708,30 @@ function renderAdminRoster() {
     const linkedUser = r.linkedUid ? users.find(u=>u.uid===r.linkedUid) : null;
     const isAdminR = linkedUser?.role === 'admin';
     return `
-    <div id="roster-card-${r.id}" class="relative bg-white p-4 rounded-2xl border border-zinc-100 flex items-center gap-3">
+    <div id="roster-card-${r.id}" class="bg-white p-4 rounded-2xl border border-zinc-100 flex items-center gap-3">
       <div class="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center flex-none">
         <span class="text-white font-bold text-sm">${(r.name||'?')[0]}</span>
       </div>
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-1.5 flex-wrap">
-          <p class="font-bold text-sm">${r.name}</p>
-          ${isAdminR?`<span class="text-[9px] font-bold bg-black text-white px-1.5 py-0.5 rounded">관리자</span>`:''}
-          ${r.minister?`<span class="text-[9px] font-bold bg-blue-500 text-white px-1.5 py-0.5 rounded">${r.minister}</span>`:''}
-          ${r.joined?`<span class="text-[9px] font-bold bg-emerald-500 text-white px-1.5 py-0.5 rounded">앱 가입</span>`
-            :`<span class="text-[9px] font-bold bg-zinc-200 text-zinc-500 px-1.5 py-0.5 rounded">미가입</span>`}
+      <div class="flex-1 min-w-0 overflow-hidden">
+        <div class="flex items-center gap-1.5 flex-nowrap overflow-hidden">
+          <p class="font-bold text-sm truncate">${r.name}</p>
+          ${isAdminR?`<span class="text-[9px] font-bold bg-black text-white px-1.5 py-0.5 rounded flex-none">관리자</span>`:''}
+          ${r.minister?`<span class="text-[9px] font-bold bg-blue-500 text-white px-1.5 py-0.5 rounded flex-none">${r.minister}</span>`:''}
+          ${r.joined?`<span class="text-[9px] font-bold bg-emerald-500 text-white px-1.5 py-0.5 rounded flex-none">앱 가입</span>`
+            :`<span class="text-[9px] font-bold bg-zinc-200 text-zinc-500 px-1.5 py-0.5 rounded flex-none">미가입</span>`}
         </div>
-        <p class="text-xs text-zinc-400">${fmtPhone(r.phone||'')} · ${cell?.name||'미배정'}</p>
+        <p class="text-xs text-zinc-400 truncate">${fmtPhone(r.phone||'')} · ${cell?.name||'미배정'}</p>
       </div>
-      <button data-action="roster-menu" data-rid="${r.id}" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 active:bg-zinc-100 flex-none">
-        ${icon('more_vert','text-zinc-400',20)}
-      </button>
-      <div id="roster-dd-${r.id}" class="hidden absolute right-2 top-12 z-50 bg-white border border-zinc-200 rounded-2xl shadow-lg overflow-hidden w-44">
-        <button data-action="roster-edit" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium hover:bg-zinc-50 text-left">${icon('edit','text-zinc-500',16)} 정보 변경</button>
-        <button data-action="roster-grant" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium hover:bg-zinc-50 text-left">${icon('shield','text-zinc-500',16)} ${isAdminR?'관리자 해제':'관리자 부여'}</button>
-        <button data-action="roster-minister" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium hover:bg-zinc-50 text-left">${icon('badge','text-zinc-500',16)} ${r.minister?'직분 변경 ('+r.minister+')':'직분 지정'}</button>
-        <button data-action="roster-delete" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 text-left">${icon('delete','text-red-500',16)} 탈퇴 처리</button>
+      <div class="relative flex-none">
+        <button data-action="roster-menu" data-rid="${r.id}" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 active:bg-zinc-100">
+          ${icon('more_vert','text-zinc-400',20)}
+        </button>
+        <div id="roster-dd-${r.id}" class="hidden absolute right-0 top-9 z-50 bg-white border border-zinc-200 rounded-2xl shadow-xl overflow-hidden w-44">
+          <button data-action="roster-edit" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium hover:bg-zinc-50 active:bg-zinc-50 text-left">${icon('edit','text-zinc-500',16)} 정보 변경</button>
+          <button data-action="roster-grant" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium hover:bg-zinc-50 active:bg-zinc-50 text-left">${icon('shield','text-zinc-500',16)} ${isAdminR?'관리자 해제':'관리자 부여'}</button>
+          <button data-action="roster-minister" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium hover:bg-zinc-50 active:bg-zinc-50 text-left">${icon('badge','text-zinc-500',16)} ${r.minister?'직분 변경 ('+r.minister+')':'직분 지정'}</button>
+          <button data-action="roster-delete" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 active:bg-red-50 text-left">${icon('delete','text-red-500',16)} 탈퇴 처리</button>
+        </div>
       </div>
     </div>`;
   };
@@ -2379,6 +2343,16 @@ function bindEvents() {
       dd?.classList.toggle('hidden');
     });
   });
+  // 외부 클릭/터치 시 드롭다운 모두 닫기
+  const closeAllDd = (e) => {
+    if (!e.target.closest('[data-action="roster-menu"]') && !e.target.closest('[id^="roster-dd-"]')) {
+      document.querySelectorAll('[id^="roster-dd-"]').forEach(d=>d.classList.add('hidden'));
+    }
+  };
+  document.removeEventListener('click', window._closeAllDd);
+  window._closeAllDd = closeAllDd;
+  document.addEventListener('click', closeAllDd);
+
   document.querySelectorAll('[data-action="roster-edit"]').forEach(el => {
     el.addEventListener('click', e => {
       e.stopPropagation();
@@ -2387,6 +2361,10 @@ function bindEvents() {
       const cells = state.cache.cells;
       const dd = document.getElementById('roster-dd-'+rid); dd?.classList.add('hidden');
       const card = document.getElementById('roster-card-'+rid); if (!card) return;
+      // 다른 열린 인라인 편집 모두 닫기
+      document.querySelectorAll('[id^="roster-inline-edit-"]').forEach(el2 => {
+        if (el2.id !== 'roster-inline-edit-'+rid) el2.remove();
+      });
       const existing = document.getElementById('roster-inline-edit-'+rid);
       if (existing) { existing.remove(); return; }
       const editDiv = document.createElement('div');
@@ -2395,16 +2373,23 @@ function bindEvents() {
       editDiv.innerHTML = `
         <input id="re-name-${rid}" value="${r.name}" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
         <input id="re-phone-${rid}" value="${fmtPhone(r.phone)}" inputmode="numeric" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-        <input id="re-birth-${rid}" value="${r.birth}" inputmode="numeric" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+        <input id="re-birth-${rid}" value="${fmtDate(r.birth)}" inputmode="numeric" placeholder="YYYY.MM.DD" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
         <select id="re-cell-${rid}" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
           <option value="">미배정</option>${cells.map(c=>`<option value="${c.id}"${c.id===r.cellId?' selected':''}>${c.name}</option>`).join('')}
         </select>
         <button id="re-save-${rid}" class="w-full py-2 bg-black text-white rounded-xl text-xs font-bold">저장</button>`;
       card.appendChild(editDiv);
       document.getElementById('re-phone-'+rid)?.addEventListener('input', function() { this.value=fmtPhone(this.value); });
+      document.getElementById('re-birth-'+rid)?.addEventListener('input', function() {
+        const d=this.value.replace(/\D/g,'');
+        if(d.length<=4) this.value=d;
+        else if(d.length<=6) this.value=d.slice(0,4)+'.'+d.slice(4);
+        else this.value=d.slice(0,4)+'.'+d.slice(4,6)+'.'+d.slice(6,8);
+      });
       document.getElementById('re-save-'+rid)?.addEventListener('click', async () => {
         const g = id => document.getElementById(id)?.value||'';
-        const updated = { ...r, name:g('re-name-'+rid)||r.name, phone:fmtPhone(g('re-phone-'+rid)||r.phone), birth:g('re-birth-'+rid)||r.birth, cellId:g('re-cell-'+rid)||r.cellId };
+        const rawBirth = g('re-birth-'+rid).replace(/\D/g,'');
+        const updated = { ...r, name:g('re-name-'+rid)||r.name, phone:fmtPhone(g('re-phone-'+rid)||r.phone), birth:rawBirth||r.birth, cellId:g('re-cell-'+rid)||r.cellId };
         await window.FDB.setDoc('rosters', rid, updated);
         const idx = state.cache.rosters.findIndex(x=>x.id===rid);
         if (idx>=0) state.cache.rosters[idx]=updated;
@@ -2443,7 +2428,7 @@ function bindEvents() {
       e.stopPropagation();
       const rid = el.dataset.rid;
       const r = state.cache.rosters.find(x=>x.id===rid); if (!r) return;
-      const roles = ['없음','목자','전도사','간사','청년부장','집사','권사','장로'];
+      const roles = ['없음','목사','전도사','간사'];
       let overlay = document.getElementById('minister-overlay');
       if (!overlay) { overlay = document.createElement('div'); overlay.id='minister-overlay'; document.body.appendChild(overlay); }
       overlay.className = 'fixed inset-0 z-[400] bg-black/50 flex items-center justify-center px-6';
@@ -3032,7 +3017,10 @@ function openBulletinForm(existing) {
   const isEdit = !!existing;
   const bid = isEdit ? existing.id : uid();
 
-  // 다가오는 일요일 계산
+  // 전도사/목사 찾기
+  const ministerPerson = state.cache.rosters.find(r => r.minister === '목사' || r.minister === '전도사');
+  const ministerName = ministerPerson?.name || '';
+
   function getNextSunday() {
     const d = new Date(); const day = d.getDay();
     const sun = new Date(d); sun.setDate(d.getDate() + (day===0?0:7-day)); return sun;
@@ -3052,7 +3040,6 @@ function openBulletinForm(existing) {
   const defMo = defDate.getMonth()+1;
   const defWk = weekOfMonth(defDate);
 
-  // 임사 데이터 조회
   function getSvc(yr, mo, wk) {
     const day = String(sundayFromYMW(yr,mo,wk)).padStart(2,'0');
     const dateStr = `${yr}-${String(mo).padStart(2,'0')}-${day}`;
@@ -3060,9 +3047,9 @@ function openBulletinForm(existing) {
   }
   let svc = getSvc(defYr, defMo, defWk);
 
-  // 기존 orderItems에서 값 꺼내기
   const oi = existing?.orderItems || [];
   const findOI = (name) => oi.find(x=>x.name===name) || {};
+  const existingDream = existing?.dream || {};
 
   let announcements = isEdit ? (existing.announcements||[]).map(a=>({...a})) : [];
 
@@ -3071,20 +3058,27 @@ function openBulletinForm(existing) {
       <div class="flex items-center gap-2">
         <span class="text-xs font-bold text-zinc-400 w-4 flex-none">${i+1}</span>
         <input data-ai="${i}" data-afield="title" value="${(a.title||'').replace(/"/g,'&quot;')}" placeholder="제목"
-          class="flex-1 px-2.5 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>
-        <button data-delann="${i}" class="w-5 h-5 flex items-center justify-center text-zinc-300 flex-none text-xs leading-none">✕</button>
+          class="flex-1 px-2.5 py-2 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>
+        <button data-delann="${i}" class="w-5 h-5 flex items-center justify-center text-zinc-300 flex-none text-xs">✕</button>
       </div>
       <textarea data-ai="${i}" data-afield="body" placeholder="내용 (선택)"
         class="w-full px-2.5 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black resize-none" rows="2">${a.body||''}</textarea>
     </div>`).join('');
 
-  const fixed = (txt) => `<span class="flex-1 px-2.5 py-2 text-center bg-zinc-100 rounded-lg text-[11px] text-zinc-500 font-medium">${txt}</span>`;
-  const inp = (id, val, ph, cls='flex-1') =>
+  // 입력 헬퍼: 담당자 30% / 내용 70% 통일
+  const inp = (id, val, ph, wCls='flex-[7]') =>
     `<input id="${id}" value="${(val||'').replace(/"/g,'&quot;')}" placeholder="${ph}"
-      class="${cls} px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>`;
+      class="${wCls} min-w-0 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>`;
+  const inpPerson = (id, val, ph='담당자') =>
+    `<input id="${id}" value="${(val||'').replace(/"/g,'&quot;')}" placeholder="${ph}"
+      class="flex-[3] min-w-0 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>`;
+  const fixed = (txt) =>
+    `<span class="flex-[7] min-w-0 px-2.5 py-2 text-center bg-zinc-100 rounded-lg text-[11px] text-zinc-500 font-medium">${txt}</span>`;
+  const fixedPerson = (txt) =>
+    `<span class="flex-[3] min-w-0 px-2.5 py-2 text-center bg-zinc-100 rounded-lg text-[11px] text-zinc-500 font-medium">${txt}</span>`;
   const rowWrap = (label, content) =>
     `<div class="flex items-center gap-2 py-2 border-b border-zinc-50">
-      <span class="text-[11px] text-zinc-400 w-[4.5rem] flex-none leading-tight">${label}</span>
+      <span class="text-[11px] text-zinc-400 w-16 flex-none leading-tight">${label}</span>
       ${content}
     </div>`;
 
@@ -3094,8 +3088,25 @@ function openBulletinForm(existing) {
   const moOpts = Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}"${m===defMo?' selected':''}>${m}월</option>`).join('');
   const wkOpts = [1,2,3,4,5].map(w=>`<option value="${w}"${w===defWk?' selected':''}>${w}째주</option>`).join('');
 
-  area.innerHTML = `<div id="bf-inner" class="space-y-3 bg-white p-5 rounded-2xl border border-zinc-100 mb-4">
+  // 최근 4주치 주보 불러오기 옵션
+  const recentBulletins = [...state.cache.bulletins].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4);
+  const loadOpts = recentBulletins.length
+    ? `<select id="bf-load" class="flex-1 px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
+        <option value="">주보 선택...</option>
+        ${recentBulletins.map(b=>`<option value="${b.id}">${b.title||b.date}</option>`).join('')}
+      </select>
+      <button id="bf-load-btn" class="px-4 py-2.5 bg-black text-white rounded-xl text-xs font-bold flex-none">불러오기</button>`
+    : `<span class="text-xs text-zinc-400">저장된 주보가 없습니다</span>`;
 
+  area.innerHTML = `<div id="bf-inner" class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4">
+
+    <!-- 불러오기 -->
+    <div>
+      <p class="text-xs font-bold text-zinc-600 mb-2 ml-0.5">이전 주보 불러오기</p>
+      <div class="flex gap-2">${loadOpts}</div>
+    </div>
+
+    <!-- 날짜 -->
     <div>
       <p class="text-xs font-bold text-zinc-600 mb-2 ml-0.5">날짜</p>
       <div class="flex gap-2">
@@ -3105,36 +3116,42 @@ function openBulletinForm(existing) {
       </div>
     </div>
 
+    <!-- 예배순서 (담당자30 / 내용70 통일) -->
     <div>
       <p class="text-xs font-bold text-zinc-600 mb-1.5 ml-0.5">예배순서</p>
       <div class="rounded-xl border border-zinc-100 overflow-hidden px-3">
         ${rowWrap('예배의 부름',
-          inp('bf-call-p', findOI('예배의 부름').participant||svc.bible||'', '담당자','w-2/5') +
+          fixedPerson(ministerName||'전도사/목사') +
           inp('bf-call-s', findOI('예배의 부름').scripture||'', '말씀구절')
         )}
-        ${rowWrap('경배와 찬양', fixed('드림찬양단'))}
-        ${rowWrap('오늘의 기도', `<span id="bf-svc-prayer" class="flex-1 px-2.5 py-2 bg-blue-50 rounded-lg text-[11px] text-blue-600 font-medium">${svc.prayer||'임사 미등록'}</span>`)}
-        ${rowWrap('성도의 교제', `<span id="bf-svc-fellow" class="flex-1 px-2.5 py-2 bg-blue-50 rounded-lg text-[11px] text-blue-600 font-medium">${svc.fellowship||'임사 미등록'}</span>`)}
+        ${rowWrap('경배와 찬양', fixedPerson('드림찬양단') + fixed('드림찬양단'))}
+        ${rowWrap('오늘의 기도',
+          inpPerson('bf-prayer-p', findOI('오늘의 기도').participant||svc.prayer||'') +
+          `<span class="flex-[7]"></span>`
+        )}
+        ${rowWrap('성도의 교제',
+          inpPerson('bf-fellow-p', findOI('성도의 교제').participant||svc.fellowship||'') +
+          `<span class="flex-[7]"></span>`
+        )}
         ${rowWrap('성경봉독',
-          inp('bf-bible-p', findOI('성경봉독').participant||svc.bible||'', '담당자','w-[38%]') +
+          inpPerson('bf-bible-p', findOI('성경봉독').participant||svc.bible||'') +
           inp('bf-bible-s', findOI('성경봉독').scripture||'', '성경구절')
         )}
-        ${rowWrap('봉헌과 찬양', fixed('주님 말씀 앞에서') + fixed('다같이'))}
+        ${rowWrap('봉헌과 찬양', fixedPerson('다같이') + fixed('주님 말씀 앞에선'))}
         ${rowWrap('메시지',
-          inp('bf-msg-p', findOI('메시지').participant||findOI('말씀').participant||'', '담당자','w-2/5') +
+          fixedPerson(ministerName||'전도사/목사') +
           inp('bf-msg-s', findOI('메시지').scripture||findOI('말씀').scripture||'', '말씀제목')
         )}
-        ${rowWrap('결단의 찬양',
-          inp('bf-resolve-s', findOI('결단의 찬양').scripture||'', '찬양 제목') +
-          fixed('다같이')
-        )}
+        ${rowWrap('결단의 찬양', fixedPerson('다같이') + inp('bf-resolve-s', findOI('결단의 찬양').scripture||'주님 말씀 앞에선', '찬양 제목'))}
         <div class="flex items-center gap-2 py-2">
-          <span class="text-[11px] text-zinc-400 w-[4.5rem] flex-none">축도</span>
-          ${inp('bf-bene', findOI('축도').participant||'', '담당자')}
+          <span class="text-[11px] text-zinc-400 w-16 flex-none">축도</span>
+          ${fixedPerson(ministerName||'전도사/목사')}
+          <span class="flex-[7]"></span>
         </div>
       </div>
     </div>
 
+    <!-- 광고 -->
     <div>
       <div class="flex items-center justify-between mb-1.5">
         <p class="text-xs font-bold text-zinc-600 ml-0.5">광고</p>
@@ -3143,19 +3160,51 @@ function openBulletinForm(existing) {
       <div id="bf-ann-rows">${renderAnnRows()}</div>
     </div>
 
+    <!-- 우리의 드림 -->
+    <div>
+      <p class="text-xs font-bold text-zinc-600 mb-2 ml-0.5">우리의 드림</p>
+      <div class="space-y-2">
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-zinc-400 w-16 flex-none">주정헌금</span>
+          <input id="bf-dream-weekly" value="${(existingDream.weekly||'').replace(/"/g,'&quot;')}" placeholder="담당자 이름"
+            class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black"/>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-zinc-400 w-16 flex-none">십일조</span>
+          <input id="bf-dream-tithe" value="${(existingDream.tithe||'').replace(/"/g,'&quot;')}" placeholder="담당자 이름"
+            class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black"/>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-zinc-400 w-16 flex-none">감사헌금</span>
+          <input id="bf-dream-thanks" value="${(existingDream.thanks||'').replace(/"/g,'&quot;')}" placeholder="담당자 이름"
+            class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black"/>
+        </div>
+        <p class="text-[11px] text-zinc-400 pl-1">온라인 헌금: 우리은행 1005-003-875918</p>
+      </div>
+    </div>
+
     <div class="flex gap-2 pt-1">
       <button id="bf-cancel" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
       <button id="bf-save" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">${isEdit?'수정':'저장'}</button>
     </div>
   </div>`;
 
+  // 불러오기 버튼
+  document.getElementById('bf-load-btn')?.addEventListener('click', () => {
+    const selId = document.getElementById('bf-load')?.value;
+    if (!selId) return;
+    const loaded = state.cache.bulletins.find(b=>b.id===selId);
+    if (!loaded) return;
+    openBulletinForm({...loaded, id: bid}); // 내용 불러오기 (id는 새로 유지)
+  });
+
   // 날짜 변경 시 임사 갱신
   const updateSvc = () => {
     const yr=+document.getElementById('bf-yr').value, mo=+document.getElementById('bf-mo').value, wk=+document.getElementById('bf-wk').value;
     svc = getSvc(yr,mo,wk);
-    const p=document.getElementById('bf-svc-prayer'), f=document.getElementById('bf-svc-fellow');
-    if(p) p.textContent = svc.prayer||'임사 미등록';
-    if(f) f.textContent = svc.fellowship||'임사 미등록';
+    const pp=document.getElementById('bf-prayer-p'), fp=document.getElementById('bf-fellow-p');
+    if(pp && !pp.value) pp.placeholder = svc.prayer||'담당자';
+    if(fp && !fp.value) fp.placeholder = svc.fellowship||'담당자';
   };
   ['bf-yr','bf-mo','bf-wk'].forEach(id=>document.getElementById(id)?.addEventListener('change',updateSvc));
 
@@ -3195,18 +3244,24 @@ function openBulletinForm(existing) {
     const title = `${yr}년 ${mo}월 ${wk}째주 주보`;
     const svcNow = getSvc(yr,mo,wk);
     const g = id => document.getElementById(id)?.value||'';
+    const mp = ministerPerson?.name || '';
     const orderItems = [
-      {name:'예배의 부름',  participant:g('bf-call-p'),    scripture:g('bf-call-s')},
+      {name:'예배의 부름',  participant:mp,               scripture:g('bf-call-s')},
       {name:'경배와 찬양',  participant:'드림찬양단',       fixed:true},
-      {name:'오늘의 기도',  participant:svcNow.prayer||'',  fromSvc:true},
-      {name:'성도의 교제',  participant:svcNow.fellowship||'', fromSvc:true},
+      {name:'오늘의 기도',  participant:g('bf-prayer-p')||svcNow.prayer||''},
+      {name:'성도의 교제',  participant:g('bf-fellow-p')||svcNow.fellowship||''},
       {name:'성경봉독',     participant:g('bf-bible-p'),   scripture:g('bf-bible-s')},
-      {name:'봉헌과 찬양',  participant:'다같이',           scripture:'주님 말씀 앞에서', fixed:true},
-      {name:'메시지',       participant:g('bf-msg-p'),     scripture:g('bf-msg-s')},
-      {name:'결단의 찬양',  participant:'다같이',           scripture:g('bf-resolve-s'), fixed:true},
-      {name:'축도',         participant:g('bf-bene')},
+      {name:'봉헌과 찬양',  participant:'다같이',           scripture:'주님 말씀 앞에선', fixed:true},
+      {name:'메시지',       participant:mp,                scripture:g('bf-msg-s')},
+      {name:'결단의 찬양',  participant:'다같이',           scripture:g('bf-resolve-s')||'주님 말씀 앞에선', fixed:true},
+      {name:'축도',         participant:mp},
     ];
-    const b = {id:bid,title,date,orderItems,announcements,by:state.user.uid,at:today()};
+    const dream = {
+      weekly: g('bf-dream-weekly'),
+      tithe:  g('bf-dream-tithe'),
+      thanks: g('bf-dream-thanks'),
+    };
+    const b = {id:bid,title,date,orderItems,announcements,dream,by:state.user.uid,at:today()};
     await window.FDB.setDoc('bulletins',bid,b);
     if(isEdit){const idx=state.cache.bulletins.findIndex(x=>x.id===bid);if(idx>=0)state.cache.bulletins[idx]=b;}
     else{state.cache.bulletins.push(b);state.cache.bulletins.sort((a,b)=>a.date.localeCompare(b.date));}
