@@ -255,8 +255,9 @@ tailwind.config = {
 <style>
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
   html { overflow-y: scroll; scrollbar-gutter: stable; }
-  body { font-family: 'Inter', sans-serif; overscroll-behavior: none; background: #fafafa; }
-  #app { background: #fafafa; min-height: 100vh; }
+  body { font-family: 'Inter', sans-serif; overscroll-behavior: none; background: #f4f4f5; }
+  html { background: #f4f4f5; }
+  #app { background: #f4f4f5; min-height: 100vh; }
   body.no-scroll { overflow: hidden; position: fixed; width: 100%; height: 100%; }
   .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
   .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
@@ -305,13 +306,15 @@ tailwind.config = {
   .fixed-layout { position: fixed; inset: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   .cal-sun { color: #ef4444; }
   .cal-sat { color: #3b82f6; }
+  .page-slide-in { animation: pageSlideIn 0.28s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+  @keyframes pageSlideIn { from { transform: translateX(100%); opacity:0.85; } to { transform: translateX(0); opacity:1; } }
   .profile-img-clip { overflow: hidden; cursor: grab; }
   .profile-img-clip:active { cursor: grabbing; }
   /* 크롭 모달 */
   #crop-modal canvas { touch-action: none; }
 </style>
 </head>
-<body class="bg-zinc-50 text-black min-h-screen">
+<body class="text-black min-h-screen" style="background:#f4f4f5">
 <div id="app" style="background:#f4f4f5;min-height:100vh;"><div class="fixed-layout"><div class="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin"></div></div></div>
 
 <script>
@@ -521,6 +524,7 @@ function render() {
     document.body.classList.add('no-scroll');
   } else {
     document.body.classList.remove('no-scroll');
+    if (state.profileOpen) document.body.classList.add('no-scroll');
     if (state.page === 'admin') html = renderAdmin();
     else if (state.profilePage) html = renderProfilePage();
     else if (state.detail) {
@@ -655,7 +659,7 @@ function renderMain() {
   ];
 
   return `
-  <div class="min-h-screen bg-zinc-100/60 pb-36 fade-in">
+  <div class="min-h-screen pb-36" style="background:#f4f4f5">
     <!-- Header -->
     <header class="sticky top-0 z-50 px-5 pt-3 pb-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100">
       <div class="flex justify-between items-center">
@@ -676,7 +680,7 @@ function renderMain() {
       </div>
     </header>
 
-    <main class="px-5 mt-5 pb-8"><div class="tab-content space-y-10">${content}</div></main>
+    <main class="px-5 mt-3 pb-8"><div class="tab-content space-y-4">${content}</div></main>
 
     <!-- Bottom Nav -->
     <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white/90 backdrop-blur-xl border-t border-zinc-100">
@@ -757,7 +761,7 @@ function renderHomeTab() {
 
   const dutySection = lb ? `
   <section>
-    <h2 class="text-lg font-bold tracking-tight mb-5">금주 예배 담당</h2>
+    <h2 class="text-base font-bold tracking-tight mb-3">금주 예배 담당</h2>
     <div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
       <div class="bg-black px-5 py-3 flex items-center gap-2">
         ${icon('church','text-white',18)}
@@ -796,11 +800,10 @@ function renderHomeTab() {
       <div class="absolute -right-4 top-4 opacity-[0.06]">${icon('menu_book','text-white',120)}</div>
     </div>
   </section>
-  <div class="h-3"></div>
   ${dutySection}
   ${latest ? `
-  <div class="h-3"></div><section>
-    <div class="flex justify-between items-center mb-5">
+  <section>
+    <div class="flex justify-between items-center mb-3">
       <h3 class="text-base font-bold flex items-center gap-1.5">${icon('music_note','',18)} 이번주 찬양</h3>
       <button data-action="go-worship" class="text-zinc-400 text-xs font-bold">전체보기</button>
     </div>
@@ -824,9 +827,8 @@ function renderHomeTab() {
       }).join('')}
     </div>
   </section>` : ''}
-  <div class="h-3"></div>
   <section>
-    <div class="flex justify-between items-center mb-5">
+    <div class="flex justify-between items-center mb-3">
       <h3 class="text-base font-bold flex items-center gap-1.5">${icon('campaign','',18)} 공지사항</h3>
       <button data-tab="notice" class="text-zinc-400 text-xs font-bold">전체보기</button>
     </div>
@@ -845,9 +847,8 @@ function renderHomeTab() {
       `).join('')}
     </div>
   </section>
-  <div class="h-3"></div>
   <section class="pb-8">
-    <div class="flex justify-between items-center mb-5">
+    <div class="flex justify-between items-center mb-3">
       <h3 class="text-base font-bold flex items-center gap-1.5">${icon('calendar_month','',18)} 다가오는 일정</h3>
       <button data-tab="calendar" class="text-zinc-400 text-xs font-bold">전체보기</button>
     </div>
@@ -937,7 +938,7 @@ function renderBulletinDetail() {
   }).join('');
 
   return `
-  <div class="min-h-screen bg-zinc-50 detail-page">
+  <div class="min-h-screen bg-zinc-50 page-slide-in">
     <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">주보</h1>
@@ -1065,7 +1066,7 @@ function renderNoticeDetail() {
   if (!n) return '';
   const comments = state.cache.comments[n.id] || [];
   return `
-  <div class="min-h-screen bg-zinc-50 detail-page">
+  <div class="min-h-screen bg-zinc-50 page-slide-in">
     <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">공지사항</h1>
@@ -1166,7 +1167,7 @@ function renderWorshipDetail() {
   const w = worships[worships.length - 1];
   if (!w) return '';
   return `
-  <div class="min-h-screen bg-zinc-50 detail-page">
+  <div class="min-h-screen bg-zinc-50 page-slide-in">
     <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">이번주 찬양</h1>
@@ -1243,6 +1244,7 @@ function renderCellTab() {
 function renderProfilePage() {
   const u = state.user;
   const cells = state.cache.cells;
+  const linkedRoster = state.cache.rosters.find(r=>r.linkedUid===u?.uid);
   const pg = state.profilePage;
   const noti = u._noti || {worship:true,notice:true,verse:true,schedule:true,duty:true};
 
@@ -1252,7 +1254,7 @@ function renderProfilePage() {
   </div>`;
 
   if (pg === 'edit') {
-    return `<div class="min-h-screen bg-zinc-50 slide-in-right">
+    return `<div class="min-h-screen bg-zinc-50 page-slide-in">
       ${header('프로필 수정')}
       <div class="px-5 py-4 space-y-4">
         <div class="flex flex-col items-center gap-4">
@@ -1267,8 +1269,14 @@ function renderProfilePage() {
           </div>
           <p class="text-xs text-zinc-400">사진을 탭하여 변경</p>
         </div>
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">이름</label>
-          <input id="edit-name" value="${u.name}" class="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+        <div>
+          <label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">이름</label>
+          <div class="flex gap-2">
+            <input id="edit-name" value="${u.name}" class="flex-1 px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+            <select id="edit-minister" class="px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
+              ${['직분없음','목자','전도사','간사','청년부장','집사','권사','장로'].map(r=>`<option value="${r==='직분없음'?'':r}" ${(linkedRoster?.minister||'')===(r==='직분없음'?'':r)?'selected':''}>${r}</option>`).join('')}
+            </select>
+          </div>
         </div>
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">전화번호</label>
           <input id="edit-phone" value="${fmtPhone(u.phone||'')}" placeholder="010-0000-0000" inputmode="numeric" class="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
@@ -1295,7 +1303,7 @@ function renderProfilePage() {
       {k:'schedule',l:'새 일정',d:'새 일정 등록 시'},
       {k:'duty',l:'담당자 지정',d:'예배 담당 배정 시'},
     ];
-    return `<div class="min-h-screen bg-zinc-50 slide-in-right">
+    return `<div class="min-h-screen bg-zinc-50 page-slide-in">
       ${header('알림 설정')}
       <div class="px-5 py-6">
         <div class="bg-white rounded-2xl border border-zinc-100 divide-y divide-zinc-50">
@@ -1316,7 +1324,7 @@ function renderProfilePage() {
 
   if (pg === 'settings') {
     const canChangeId = !u.idChangedAt;
-    return `<div class="min-h-screen bg-zinc-50 slide-in-right">
+    return `<div class="min-h-screen bg-zinc-50 page-slide-in">
       ${header('설정')}
       <div class="px-5 py-6 space-y-4">
         <!-- 비밀번호 변경 -->
@@ -1397,7 +1405,7 @@ function renderAdmin() {
       </button>
     `).join('')}</div>`;
   } else {
-    content = `<button data-admin="dashboard" class="flex items-center gap-1 text-xs text-zinc-400 font-bold mb-5">${icon('arrow_back','',16)} 메뉴로</button>`;
+    content = '';
     if (state.adminSub === 'bulletin') content += renderAdminBulletin();
     else if (state.adminSub === 'worship') content += renderAdminWorship();
     else if (state.adminSub === 'notice') content += renderAdminNotice();
@@ -1412,10 +1420,10 @@ function renderAdmin() {
   }
 
   return `
-  <div class="min-h-screen bg-zinc-50 slide-in-right">
+  <div class="min-h-screen bg-zinc-50 page-slide-in">
     <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
-      <button data-action="back-main" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
-      <h1 class="font-bold text-sm flex-1">관리자</h1>
+      <button data-action="back-admin" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
+      <h1 class="font-bold text-sm flex-1">${state.adminSub==='dashboard'?'관리자':menu.find(m=>m.k===state.adminSub)?.l||'관리자'}</h1>
     </header>
     <div class="p-5">${content}</div>
   </div>`;
@@ -1697,7 +1705,7 @@ function renderAdminRoster() {
           <div><p class="font-bold text-sm">${u.name}</p><p class="text-xs text-zinc-400">${fmtPhone(u.phone)} · ${fmtDate(u.birth)}</p></div>
           <button data-action="approve" data-uid="${u.uid}" class="px-4 py-2 bg-black text-white rounded-xl text-xs font-bold">승인</button>
         </div>
-        ${match?`<p class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg inline-block">📋 명부 매칭: ${match.name}</p>`:`<p class="text-[10px] text-amber-600 bg-amber-50 px-2 py-1 rounded-lg inline-block">🆕 명부 미등록 — 승인 시 새신자로 추가</p>`}
+        ${match?`<p class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg inline-block">📋 명부 매칭: ${match.name}</p>`:`<p class="text-[10px] text-zinc-400 bg-zinc-50 px-2 py-1 rounded-lg inline-block">명부 미등록</p>`}
       </div>`;
     }).join('') : '<p class="text-sm text-zinc-400 text-center py-10">대기 중인 가입 신청이 없습니다.</p>'}</div>`;
   }
@@ -1738,16 +1746,16 @@ function renderAdminRoster() {
     const linkedUser = r.linkedUid ? users.find(u=>u.uid===r.linkedUid) : null;
     const isAdminR = linkedUser?.role === 'admin';
     return `
-    <div id="roster-card-${r.id}" class="relative bg-white p-4 rounded-2xl border ${isNew?'border-amber-200 bg-amber-50/30':'border-zinc-100'} flex items-center gap-3">
-      <div class="w-10 h-10 rounded-full ${isNew?'bg-amber-400':'bg-zinc-900'} flex items-center justify-center flex-none">
+    <div id="roster-card-${r.id}" class="relative bg-white p-4 rounded-2xl border border-zinc-100 flex items-center gap-3">
+      <div class="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center flex-none">
         <span class="text-white font-bold text-sm">${(r.name||'?')[0]}</span>
       </div>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-1.5 flex-wrap">
           <p class="font-bold text-sm">${r.name}</p>
           ${isAdminR?`<span class="text-[9px] font-bold bg-black text-white px-1.5 py-0.5 rounded">관리자</span>`:''}
-          ${isNew?`<span class="text-[9px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded">새신자</span>`
-            :r.joined?`<span class="text-[9px] font-bold bg-emerald-500 text-white px-1.5 py-0.5 rounded">앱 가입</span>`
+          ${r.minister?`<span class="text-[9px] font-bold bg-blue-500 text-white px-1.5 py-0.5 rounded">${r.minister}</span>`:''}
+          ${r.joined?`<span class="text-[9px] font-bold bg-emerald-500 text-white px-1.5 py-0.5 rounded">앱 가입</span>`
             :`<span class="text-[9px] font-bold bg-zinc-200 text-zinc-500 px-1.5 py-0.5 rounded">미가입</span>`}
         </div>
         <p class="text-xs text-zinc-400">${fmtPhone(r.phone||'')} · ${cell?.name||'미배정'}</p>
@@ -1758,6 +1766,7 @@ function renderAdminRoster() {
       <div id="roster-dd-${r.id}" class="hidden absolute right-2 top-12 z-50 bg-white border border-zinc-200 rounded-2xl shadow-lg overflow-hidden w-44">
         <button data-action="roster-edit" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium hover:bg-zinc-50 text-left">${icon('edit','text-zinc-500',16)} 정보 변경</button>
         <button data-action="roster-grant" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium hover:bg-zinc-50 text-left">${icon('shield','text-zinc-500',16)} ${isAdminR?'관리자 해제':'관리자 부여'}</button>
+        <button data-action="roster-minister" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium hover:bg-zinc-50 text-left">${icon('badge','text-zinc-500',16)} ${r.minister?'직분 변경 ('+r.minister+')':'직분 지정'}</button>
         <button data-action="roster-delete" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 text-left">${icon('delete','text-red-500',16)} 탈퇴 처리</button>
       </div>
     </div>`;
@@ -2072,8 +2081,8 @@ function bindEvents() {
   document.querySelectorAll('[data-action="back"]').forEach(el => {
     el.addEventListener('click', () => { state.detail=null; render(); });
   });
-  document.querySelector('[data-action="back-main"]')?.addEventListener('click', () => {
-    if (state.page === 'admin' && state.adminSub !== 'dashboard') {
+  document.querySelector('[data-action="back-admin"]')?.addEventListener('click', () => {
+    if (state.adminSub !== 'dashboard') {
       state.adminSub = 'dashboard'; render();
     } else {
       state.page='main'; state.tab='home'; render();
@@ -2428,6 +2437,34 @@ function bindEvents() {
     });
   });
 
+  // 사역자 직분 지정
+  document.querySelectorAll('[data-action="roster-minister"]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const rid = el.dataset.rid;
+      const r = state.cache.rosters.find(x=>x.id===rid); if (!r) return;
+      const roles = ['없음','목자','전도사','간사','청년부장','집사','권사','장로'];
+      let overlay = document.getElementById('minister-overlay');
+      if (!overlay) { overlay = document.createElement('div'); overlay.id='minister-overlay'; document.body.appendChild(overlay); }
+      overlay.className = 'fixed inset-0 z-[400] bg-black/50 flex items-center justify-center px-6';
+      overlay.innerHTML = `<div class="bg-white rounded-3xl p-5 w-full max-w-xs shadow-2xl">
+        <p class="text-sm font-bold mb-3">${r.name} 직분 설정</p>
+        <div class="space-y-1.5">
+          ${roles.map(role=>`<button data-mrole="${role}" class="w-full py-2.5 px-4 rounded-xl text-sm text-left font-medium ${(r.minister||'')===(role==='없음'?'':role)?'bg-black text-white':'bg-zinc-50 hover:bg-zinc-100'}">${role}</button>`).join('')}
+        </div>
+        <button id="minister-cancel" class="w-full mt-3 py-2.5 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
+      </div>`;
+      document.getElementById('minister-cancel').onclick = () => overlay.remove();
+      overlay.querySelectorAll('[data-mrole]').forEach(btn => {
+        btn.onclick = async () => {
+          r.minister = btn.dataset.mrole === '없음' ? '' : btn.dataset.mrole;
+          await window.FDB.setDoc('rosters', rid, r);
+          overlay.remove(); render();
+        };
+      });
+    });
+  });
+
   // ── Admin: Edit notice ──
   document.querySelectorAll('[data-action="edit-notice"]').forEach(el => {
     el.addEventListener('click', () => {
@@ -2710,6 +2747,10 @@ function bindEvents() {
     if (name) updated.name=name;
     updated.phone=phone; updated.birth=birth; updated.cellId=cellId; updated.profileImg=profileImg;
     await window.FDB.setDoc('users', state.user.uid, updated);
+    // 직분 저장
+    const minister = document.getElementById('edit-minister')?.value || '';
+    const rosterForMinister = state.cache.rosters.find(r=>r.linkedUid===state.user.uid);
+    if (rosterForMinister) { rosterForMinister.minister = minister; await window.FDB.setDoc('rosters', rosterForMinister.id, rosterForMinister); }
     const idx = state.cache.users.findIndex(u=>u.uid===state.user.uid);
     if (idx>=0) state.cache.users[idx]=updated;
     state.user=updated; SESSION.set(updated);
@@ -2991,156 +3032,188 @@ function openBulletinForm(existing) {
   const isEdit = !!existing;
   const bid = isEdit ? existing.id : uid();
 
-  // 기본 예배 순서 항목
-  const DEFAULT_ORDER_ITEMS = [
-    {name:'예배의 부름', participant:''},
-    {name:'경배와 찬양', participant:''},
-    {name:'오늘의 기도', participant:''},
-    {name:'성경봉독', participant:'', scripture:''},
-    {name:'찬양', participant:''},
-    {name:'말씀', participant:'', scripture:''},
-    {name:'헌금', participant:''},
-    {name:'성도의 교제', participant:''},
-    {name:'광고', participant:''},
-    {name:'파송', participant:''},
-  ];
+  // 다가오는 일요일 계산
+  function getNextSunday() {
+    const d = new Date(); const day = d.getDay();
+    const sun = new Date(d); sun.setDate(d.getDate() + (day===0?0:7-day)); return sun;
+  }
+  function weekOfMonth(d) {
+    const first = new Date(d.getFullYear(), d.getMonth(), 1);
+    return Math.ceil((d.getDate() + first.getDay()) / 7);
+  }
+  function sundayFromYMW(yr, mo, wk) {
+    const first = new Date(yr, mo-1, 1);
+    const firstSun = first.getDay()===0 ? 1 : 8 - first.getDay();
+    return firstSun + (wk-1)*7;
+  }
 
-  let orderItems = isEdit && existing.orderItems?.length
-    ? existing.orderItems.map(it=>({...it}))
-    : DEFAULT_ORDER_ITEMS.map(it=>({...it}));
+  const defDate = isEdit && existing.date ? new Date(existing.date + 'T00:00:00') : getNextSunday();
+  const defYr = defDate.getFullYear();
+  const defMo = defDate.getMonth()+1;
+  const defWk = weekOfMonth(defDate);
+
+  // 임사 데이터 조회
+  function getSvc(yr, mo, wk) {
+    const day = String(sundayFromYMW(yr,mo,wk)).padStart(2,'0');
+    const dateStr = `${yr}-${String(mo).padStart(2,'0')}-${day}`;
+    return state.cache.serviceSchedules.find(s=>s.date===dateStr) || {};
+  }
+  let svc = getSvc(defYr, defMo, defWk);
+
+  // 기존 orderItems에서 값 꺼내기
+  const oi = existing?.orderItems || [];
+  const findOI = (name) => oi.find(x=>x.name===name) || {};
+
   let announcements = isEdit ? (existing.announcements||[]).map(a=>({...a})) : [];
-  const offering = isEdit ? (existing.offering||{}) : {};
-
-  const renderOrderRows = () => orderItems.map((item,i) => `
-    <div class="flex items-center gap-2 py-2 border-b border-zinc-50">
-      <span class="text-xs text-zinc-400 w-16 flex-none truncate">${item.name}</span>
-      <input data-oi="${i}" data-field="participant" value="${item.participant||''}" placeholder="담당자"
-        class="flex-1 px-2.5 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>
-      ${item.scripture !== undefined ? `<input data-oi="${i}" data-field="scripture" value="${item.scripture||''}" placeholder="성경"
-        class="w-20 px-2.5 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>` : ''}
-    </div>`).join('');
 
   const renderAnnRows = () => announcements.map((a,i) => `
-    <div class="bg-zinc-50 rounded-xl p-3 space-y-2 mb-2">
+    <div class="bg-zinc-50 rounded-xl p-3 space-y-1.5 mb-2">
       <div class="flex items-center gap-2">
-        <span class="text-xs font-bold text-zinc-400 w-4">${i+1}</span>
-        <input data-ai="${i}" data-field="title" value="${(a.title||'').replace(/"/g,'&quot;')}" placeholder="제목"
+        <span class="text-xs font-bold text-zinc-400 w-4 flex-none">${i+1}</span>
+        <input data-ai="${i}" data-afield="title" value="${(a.title||'').replace(/"/g,'&quot;')}" placeholder="제목"
           class="flex-1 px-2.5 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>
-        <button data-del-ann="${i}" class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-red-50 text-zinc-300 flex-none">✕</button>
+        <button data-delann="${i}" class="w-5 h-5 flex items-center justify-center text-zinc-300 flex-none text-xs leading-none">✕</button>
       </div>
-      <textarea data-ai="${i}" data-field="body" placeholder="내용 (선택)"
+      <textarea data-ai="${i}" data-afield="body" placeholder="내용 (선택)"
         class="w-full px-2.5 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black resize-none" rows="2">${a.body||''}</textarea>
     </div>`).join('');
 
-  const render_form = () => {
-    const formEl = document.getElementById('bf-inner');
-    if (!formEl) return;
-    document.getElementById('bf-order-rows').innerHTML = renderOrderRows();
-    document.getElementById('bf-ann-rows').innerHTML = renderAnnRows();
-    bindFormEvents();
-  };
+  const fixed = (txt) => `<span class="flex-1 px-2.5 py-2 text-center bg-zinc-100 rounded-lg text-[11px] text-zinc-500 font-medium">${txt}</span>`;
+  const inp = (id, val, ph, cls='flex-1') =>
+    `<input id="${id}" value="${(val||'').replace(/"/g,'&quot;')}" placeholder="${ph}"
+      class="${cls} px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>`;
+  const rowWrap = (label, content) =>
+    `<div class="flex items-center gap-2 py-2 border-b border-zinc-50">
+      <span class="text-[11px] text-zinc-400 w-[4.5rem] flex-none leading-tight">${label}</span>
+      ${content}
+    </div>`;
 
-  area.innerHTML = `<div id="bf-inner" class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4">
-    ${adminInput('bf-date','날짜', isEdit?existing.date:today())}
-    ${adminInput('bf-verse','말씀 구절 (선택)', isEdit?existing.verse||'':'')}
+  // 년/월/주 드롭다운
+  const curYr = new Date().getFullYear();
+  const yrOpts = [curYr-1,curYr,curYr+1].map(y=>`<option value="${y}"${y===defYr?' selected':''}>${y}년</option>`).join('');
+  const moOpts = Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}"${m===defMo?' selected':''}>${m}월</option>`).join('');
+  const wkOpts = [1,2,3,4,5].map(w=>`<option value="${w}"${w===defWk?' selected':''}>${w}째주</option>`).join('');
+
+  area.innerHTML = `<div id="bf-inner" class="space-y-3 bg-white p-5 rounded-2xl border border-zinc-100 mb-4">
 
     <div>
-      <p class="text-xs font-bold text-zinc-600 mb-2 ml-1">예배순서</p>
-      <div id="bf-order-rows">${renderOrderRows()}</div>
+      <p class="text-xs font-bold text-zinc-600 mb-2 ml-0.5">날짜</p>
+      <div class="flex gap-2">
+        <select id="bf-yr" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">${yrOpts}</select>
+        <select id="bf-mo" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">${moOpts}</select>
+        <select id="bf-wk" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">${wkOpts}</select>
+      </div>
     </div>
 
     <div>
-      <div class="flex items-center justify-between mb-2">
-        <p class="text-xs font-bold text-zinc-600 ml-1">광고</p>
-        <button id="bf-add-ann" class="text-xs font-bold text-black px-3 py-1 bg-zinc-100 rounded-full">+ 광고 추가</button>
+      <p class="text-xs font-bold text-zinc-600 mb-1.5 ml-0.5">예배순서</p>
+      <div class="rounded-xl border border-zinc-100 overflow-hidden px-3">
+        ${rowWrap('예배의 부름',
+          inp('bf-call-p', findOI('예배의 부름').participant||svc.bible||'', '담당자','w-2/5') +
+          inp('bf-call-s', findOI('예배의 부름').scripture||'', '말씀구절')
+        )}
+        ${rowWrap('경배와 찬양', fixed('드림찬양단'))}
+        ${rowWrap('오늘의 기도', `<span id="bf-svc-prayer" class="flex-1 px-2.5 py-2 bg-blue-50 rounded-lg text-[11px] text-blue-600 font-medium">${svc.prayer||'임사 미등록'}</span>`)}
+        ${rowWrap('성도의 교제', `<span id="bf-svc-fellow" class="flex-1 px-2.5 py-2 bg-blue-50 rounded-lg text-[11px] text-blue-600 font-medium">${svc.fellowship||'임사 미등록'}</span>`)}
+        ${rowWrap('성경봉독',
+          inp('bf-bible-p', findOI('성경봉독').participant||svc.bible||'', '담당자','w-[38%]') +
+          inp('bf-bible-s', findOI('성경봉독').scripture||'', '성경구절')
+        )}
+        ${rowWrap('봉헌과 찬양', fixed('주님 말씀 앞에서') + fixed('다같이'))}
+        ${rowWrap('메시지',
+          inp('bf-msg-p', findOI('메시지').participant||findOI('말씀').participant||'', '담당자','w-2/5') +
+          inp('bf-msg-s', findOI('메시지').scripture||findOI('말씀').scripture||'', '말씀제목')
+        )}
+        ${rowWrap('결단의 찬양',
+          inp('bf-resolve-s', findOI('결단의 찬양').scripture||'', '찬양 제목') +
+          fixed('다같이')
+        )}
+        <div class="flex items-center gap-2 py-2">
+          <span class="text-[11px] text-zinc-400 w-[4.5rem] flex-none">축도</span>
+          ${inp('bf-bene', findOI('축도').participant||'', '담당자')}
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="flex items-center justify-between mb-1.5">
+        <p class="text-xs font-bold text-zinc-600 ml-0.5">광고</p>
+        <button id="bf-add-ann" class="text-xs font-bold text-black px-3 py-1 bg-zinc-100 rounded-full">+ 추가</button>
       </div>
       <div id="bf-ann-rows">${renderAnnRows()}</div>
     </div>
 
-    <div>
-      <p class="text-xs font-bold text-zinc-600 mb-2 ml-1">헌금</p>
-      <div class="space-y-2">
-        <input id="bf-off-account" value="${offering.account||'1005-003-875918 우리은행'}" placeholder="계좌번호"
-          class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-        <input id="bf-off-prayer" value="${offering.prayerDuty||''}" placeholder="주정헌금 담당"
-          class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-        <input id="bf-off-thanks" value="${offering.thanksDuty||''}" placeholder="감사헌금 담당"
-          class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-      </div>
-    </div>
-
-    <div class="flex gap-2 pt-2">
+    <div class="flex gap-2 pt-1">
       <button id="bf-cancel" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
       <button id="bf-save" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">${isEdit?'수정':'저장'}</button>
     </div>
   </div>`;
 
-  const bindFormEvents = () => {
-    // 예배순서 input 변경 반영
-    document.querySelectorAll('[data-oi]').forEach(el => {
-      el.addEventListener('input', () => {
-        const i = parseInt(el.dataset.oi);
-        const field = el.dataset.field;
-        orderItems[i][field] = el.value;
-      });
-    });
-    // 광고 input 변경 반영
+  // 날짜 변경 시 임사 갱신
+  const updateSvc = () => {
+    const yr=+document.getElementById('bf-yr').value, mo=+document.getElementById('bf-mo').value, wk=+document.getElementById('bf-wk').value;
+    svc = getSvc(yr,mo,wk);
+    const p=document.getElementById('bf-svc-prayer'), f=document.getElementById('bf-svc-fellow');
+    if(p) p.textContent = svc.prayer||'임사 미등록';
+    if(f) f.textContent = svc.fellowship||'임사 미등록';
+  };
+  ['bf-yr','bf-mo','bf-wk'].forEach(id=>document.getElementById(id)?.addEventListener('change',updateSvc));
+
+  // 광고 이벤트
+  const bindAnn = () => {
     document.querySelectorAll('[data-ai]').forEach(el => {
       el.addEventListener('input', () => {
-        const i = parseInt(el.dataset.ai);
-        const field = el.dataset.field;
-        if (!announcements[i]) return;
-        announcements[i][field] = el.value;
+        const i=+el.dataset.ai, f=el.dataset.afield;
+        if(announcements[i]) announcements[i][f]=el.value;
       });
     });
-    // 광고 삭제
-    document.querySelectorAll('[data-del-ann]').forEach(el => {
+    document.querySelectorAll('[data-delann]').forEach(el => {
       el.addEventListener('click', () => {
-        announcements.splice(parseInt(el.dataset.delAnn), 1);
-        document.getElementById('bf-ann-rows').innerHTML = renderAnnRows();
-        bindFormEvents();
+        announcements.splice(+el.dataset.delann,1);
+        document.getElementById('bf-ann-rows').innerHTML=renderAnnRows(); bindAnn();
       });
     });
   };
-  bindFormEvents();
+  bindAnn();
 
-  // 광고 추가
   document.getElementById('bf-add-ann')?.addEventListener('click', () => {
-    announcements.push({title:'', body:''});
-    document.getElementById('bf-ann-rows').innerHTML = renderAnnRows();
-    bindFormEvents();
+    announcements.push({title:'',body:''});
+    document.getElementById('bf-ann-rows').innerHTML=renderAnnRows(); bindAnn();
   });
 
-  // 취소
   document.getElementById('bf-cancel')?.addEventListener('click', () => {
-    area.innerHTML = `<button data-action="show-bulletin-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-4">+ 새 주보 작성</button>`;
+    area.innerHTML=`<button data-action="show-bulletin-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-4">+ 새 주보 작성</button>`;
     bindEvents();
   });
 
-  // 저장
   document.getElementById('bf-save')?.addEventListener('click', async () => {
-    const date = document.getElementById('bf-date')?.value;
-    if (!date) { showToast('날짜를 입력해주세요.'); return; }
-    const title = date + ' 주보';
-    const verse = document.getElementById('bf-verse')?.value || '';
-    const offeringData = {
-      account: document.getElementById('bf-off-account')?.value || '',
-      prayerDuty: document.getElementById('bf-off-prayer')?.value || '',
-      thanksDuty: document.getElementById('bf-off-thanks')?.value || '',
-    };
-    const b = { id:bid, title, date, verse, orderItems, announcements, offering:offeringData, by:state.user.uid, at:today() };
-    await window.FDB.setDoc('bulletins', bid, b);
-    if (isEdit) {
-      const idx = state.cache.bulletins.findIndex(x=>x.id===bid);
-      if (idx>=0) state.cache.bulletins[idx] = b;
-    } else {
-      state.cache.bulletins.push(b);
-      state.cache.bulletins.sort((a,b)=>a.date.localeCompare(b.date));
-    }
-    showToast(isEdit?'주보 수정 완료!':'주보 저장 완료!');
-    render();
+    const yr=+document.getElementById('bf-yr').value;
+    const mo=+document.getElementById('bf-mo').value;
+    const wk=+document.getElementById('bf-wk').value;
+    const day = String(sundayFromYMW(yr,mo,wk)).padStart(2,'0');
+    const date = `${yr}-${String(mo).padStart(2,'0')}-${day}`;
+    const title = `${yr}년 ${mo}월 ${wk}째주 주보`;
+    const svcNow = getSvc(yr,mo,wk);
+    const g = id => document.getElementById(id)?.value||'';
+    const orderItems = [
+      {name:'예배의 부름',  participant:g('bf-call-p'),    scripture:g('bf-call-s')},
+      {name:'경배와 찬양',  participant:'드림찬양단',       fixed:true},
+      {name:'오늘의 기도',  participant:svcNow.prayer||'',  fromSvc:true},
+      {name:'성도의 교제',  participant:svcNow.fellowship||'', fromSvc:true},
+      {name:'성경봉독',     participant:g('bf-bible-p'),   scripture:g('bf-bible-s')},
+      {name:'봉헌과 찬양',  participant:'다같이',           scripture:'주님 말씀 앞에서', fixed:true},
+      {name:'메시지',       participant:g('bf-msg-p'),     scripture:g('bf-msg-s')},
+      {name:'결단의 찬양',  participant:'다같이',           scripture:g('bf-resolve-s'), fixed:true},
+      {name:'축도',         participant:g('bf-bene')},
+    ];
+    const b = {id:bid,title,date,orderItems,announcements,by:state.user.uid,at:today()};
+    await window.FDB.setDoc('bulletins',bid,b);
+    if(isEdit){const idx=state.cache.bulletins.findIndex(x=>x.id===bid);if(idx>=0)state.cache.bulletins[idx]=b;}
+    else{state.cache.bulletins.push(b);state.cache.bulletins.sort((a,b)=>a.date.localeCompare(b.date));}
+    showToast(isEdit?'주보 수정 완료!':'주보 저장 완료!'); render();
   });
 }
+
 
 // ============================================================
 // CROP MODAL BINDING
