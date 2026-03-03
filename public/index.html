@@ -15,8 +15,9 @@
 <meta name="apple-mobile-web-app-title" content="약속의 땅"/>
 <meta name="theme-color" content="#ffffff"/>
 <script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -267,68 +268,10 @@
 </script>
 <script>
 tailwind.config = {
-  theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } }
+  theme: { extend: { fontFamily: { sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'Apple SD Gothic Neo', 'sans-serif'] } } }
 }
 </script>
-<style>
-  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-  html { overflow-y: scroll; scrollbar-gutter: stable; }
-  body { font-family: 'Inter', sans-serif; overscroll-behavior: none; background: #ffffff; }
-  html { background: #ffffff; }
-  #app { background: #ffffff; min-height: 100vh; }
-  body.no-scroll { overflow: hidden; position: fixed; width: 100%; height: 100%; }
-  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
-  .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
-  ::-webkit-scrollbar { display: none; }
-  * { -ms-overflow-style: none; scrollbar-width: none; }
-  .hide-scrollbar::-webkit-scrollbar { display: none; }
-  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-  /* ── 모션: 탑앱 스타일 (iOS/Android 네이티브 패턴) ── */
-  /* 탭전환: 즉시(모션 없음) - 카카오/인스타/유튜브 모두 탭은 즉시 */
-  /* 상세진입: 아래서 살짝 올라오며 페이드 - 자연스럽고 가벼움 */
-  /* 전체화면: 오른쪽에서 슬라이드 - 네이티브 push 느낌 */
-  /* 시트/모달: 아래서 슬라이드업 */
-
-
-    to   { transform: translateX(0);    opacity: 1; }
-  }
-
-    to   { transform: translateY(0);    opacity: 1; }
-  }
-
-    to   { transform: translateY(0); }
-  }
-
-    to   { opacity: 1; }
-  }
-
-    to   { transform: translateY(0)   translateX(-50%); opacity:1; }
-  }
-
-  /* 전체화면 전환 (admin, profile 페이지) */
-
-  /* 상세 페이지 (notice/bulletin/worship detail) */
-
-  /* 콘텐츠 영역 (탭 전환 - 매우 가볍게) */
-
-  /* 메인/로그인 등 첫 진입 */
-
-  /* 시트/모달 */
-
-  /* 토스트 */
-
-  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  input, textarea, select { font-family: 'Inter', sans-serif; }
-  .dot-pattern { background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0); background-size: 20px 20px; }
-  .fixed-layout { position: fixed; inset: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  .cal-sun { color: #ef4444; }
-  .cal-sat { color: #3b82f6; }
-  .profile-img-clip { overflow: hidden; cursor: grab; }
-  .profile-img-clip:active { cursor: grabbing; }
-  /* 크롭 모달 */
-  #crop-modal canvas { touch-action: none; }
-</style>
 </head>
 <body class="text-black min-h-screen" style="background:#ffffff">
 <div id="app" style="background:#ffffff;min-height:100vh;"><div class="fixed-layout"><div class="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin"></div></div></div>
@@ -1482,6 +1425,10 @@ function renderAdminWithdrawApprove() {
 function adminInput(id, label, ph, type='text') {
   return `<div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">${label}</label><input id="${id}" type="${type}" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="${ph}"/></div>`;
 }
+function adminDateInput(id, label, defaultVal) {
+  const val = defaultVal || new Date().toISOString().split('T')[0];
+  return `<div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">${label}</label><div class="date-picker-wrap"><input id="${id}" type="date" value="${val}" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/><span class="date-icon material-symbols-outlined">calendar_month</span></div></div>`;
+}
 function adminTextarea(id, label, ph, rows=4) {
   return `<div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">${label}</label><textarea id="${id}" rows="${rows}" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black resize-none" placeholder="${ph}"></textarea></div>`;
 }
@@ -2414,11 +2361,44 @@ function bindEvents() {
   document.querySelectorAll('[data-action="approve-withdraw"]').forEach(el => {
     el.addEventListener('click', () => {
       const targetUid = el.dataset.uid;
-      showConfirm('정말 탈퇴 처리하시겠습니까?', async () => {
+      const targetUser = state.cache.users.find(u => u.uid === targetUid);
+      showConfirm(`${targetUser?.name||'해당 회원'}의 탈퇴를 처리합니다.\n관련된 모든 데이터가 삭제됩니다.`, async () => {
+        showToast('처리 중...');
+        // 1) users 문서 삭제
         await window.FDB.deleteDoc('users', targetUid);
-        state.cache.users = state.cache.users.filter(u=>u.uid!==targetUid);
+        // 2) rosters에서 linkedUid 연결 해제 (명부에서는 인원 유지, 연결만 끊기)
+        const linkedRoster = state.cache.rosters.find(r => r.linkedUid === targetUid);
+        if (linkedRoster) {
+          await window.FDB.setDoc('rosters', linkedRoster.id, { linkedUid: null, joined: false });
+          linkedRoster.linkedUid = null;
+          linkedRoster.joined = false;
+        }
+        // 3) 출석 기록에서 해당 인원 marks 삭제
+        if (linkedRoster) {
+          for (const dk of Object.keys(state.cache.attendance)) {
+            const att = state.cache.attendance[dk];
+            if (att?.marks?.[linkedRoster.id] !== undefined) {
+              delete att.marks[linkedRoster.id];
+              await window.FDB.setDoc('attendance', dk, att);
+            }
+          }
+        }
+        // 4) 헌금 기록에서 해당 인원 항목 삭제
+        for (const dk of Object.keys(state.cache.offerings)) {
+          const off = state.cache.offerings[dk];
+          if (off?.items) {
+            const filtered = off.items.filter(it =>
+              it.personId !== targetUid && it.name !== (linkedRoster?.name)
+            );
+            if (filtered.length !== off.items.length) {
+              off.items = filtered;
+              await window.FDB.setDoc('offering', dk, off);
+            }
+          }
+        }
+        state.cache.users = state.cache.users.filter(u => u.uid !== targetUid);
         showToast('탈퇴 처리 완료!'); render();
-      }, '탈퇴 처리');
+      }, '탈퇴 처리', 'bg-red-500 text-white');
     });
   });
 
@@ -2691,12 +2671,37 @@ function bindEvents() {
   document.querySelectorAll('[data-action="roster-delete"]').forEach(el => {
     el.addEventListener('click', e => {
       e.stopPropagation();
-      showConfirm('탈퇴 처리하시겠습니까?', async () => {
-        const rid = el.dataset.rid;
+      const rid = el.dataset.rid;
+      const roster = state.cache.rosters.find(r => r.id === rid);
+      showConfirm((roster?.name||'해당 인원') + '을 명부에서 삭제합니다. 관련된 모든 데이터(계정, 출석, 헌금)가 함께 삭제됩니다.', async () => {
+        showToast('처리 중...');
         await window.FDB.deleteDoc('rosters', rid);
-        state.cache.rosters = state.cache.rosters.filter(r=>r.id!==rid);
-        render();
-      });
+        if (roster?.linkedUid) {
+          await window.FDB.deleteDoc('users', roster.linkedUid);
+          state.cache.users = state.cache.users.filter(u => u.uid !== roster.linkedUid);
+        }
+        for (const dk of Object.keys(state.cache.attendance)) {
+          const att = state.cache.attendance[dk];
+          if (att?.marks?.[rid] !== undefined) {
+            delete att.marks[rid];
+            await window.FDB.setDoc('attendance', dk, att);
+          }
+        }
+        if (roster?.name) {
+          for (const dk of Object.keys(state.cache.offerings)) {
+            const off = state.cache.offerings[dk];
+            if (off?.items) {
+              const filtered = off.items.filter(it => it.name !== roster.name);
+              if (filtered.length !== off.items.length) {
+                off.items = filtered;
+                await window.FDB.setDoc('offering', dk, off);
+              }
+            }
+          }
+        }
+        state.cache.rosters = state.cache.rosters.filter(r => r.id !== rid);
+        showToast('삭제 완료!'); render();
+      }, '삭제', 'bg-red-500 text-white');
     });
   });
 
@@ -2764,7 +2769,7 @@ function bindEvents() {
       const area = document.getElementById('admin-form-area'); if (!area) return;
       area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
         ${adminInput('ef-title','제목','')}
-        ${adminInput('ef-date','날짜','')}
+        ${adminDateInput('ef-date','날짜', ev.date||'')}
         ${adminInput('ef-time','시간','')}
         ${adminInput('ef-loc','장소','')}
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">카테고리</label>
@@ -3092,7 +3097,7 @@ function bindEvents() {
     const area = document.getElementById('admin-form-area'); if (!area) return;
     area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
       ${adminInput('ef-title','제목','주일 청년 예배')}
-      ${adminInput('ef-date','날짜',today())}
+      ${adminDateInput('ef-date','날짜',today())}
       ${adminInput('ef-time','시간','14:00')}
       ${adminInput('ef-loc','장소','본당')}
       <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">카테고리</label>

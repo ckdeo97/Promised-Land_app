@@ -1,0 +1,332 @@
+/* ============================================================
+   약속의 땅 — Global Stylesheet
+   Font: Pretendard (한글 최적화)
+   ============================================================ */
+
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css');
+
+/* ── CSS Variables ── */
+:root {
+  --font: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+
+  /* Colors */
+  --c-bg:        #ffffff;
+  --c-surface:   #ffffff;
+  --c-surface-2: #f8f8f8;
+  --c-border:    #ebebeb;
+  --c-border-2:  #f0f0f0;
+  --c-text:      #0a0a0a;
+  --c-text-2:    #555555;
+  --c-text-3:    #aaaaaa;
+  --c-black:     #0a0a0a;
+  --c-white:     #ffffff;
+
+  /* Accent */
+  --c-accent:    #0a0a0a;
+  --c-emerald:   #10b981;
+  --c-red:       #ef4444;
+  --c-amber:     #f59e0b;
+
+  /* Radius */
+  --r-sm:  10px;
+  --r-md:  16px;
+  --r-lg:  20px;
+  --r-xl:  24px;
+  --r-2xl: 28px;
+  --r-full: 9999px;
+
+  /* Shadow */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-elevated: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+  --shadow-sheet: 0 -4px 32px rgba(0,0,0,0.10), 0 -1px 8px rgba(0,0,0,0.04);
+
+  /* Typography scale */
+  --text-xs:   11px;
+  --text-sm:   13px;
+  --text-base: 15px;
+  --text-md:   16px;
+  --text-lg:   18px;
+  --text-xl:   22px;
+  --text-2xl:  26px;
+
+  /* Spacing */
+  --page-px: 20px;
+}
+
+/* ── Reset & Base ── */
+*, *::before, *::after {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  background: var(--c-bg);
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  color: var(--c-text);
+  background: var(--c-bg);
+  overscroll-behavior: none;
+}
+
+#app {
+  background: var(--c-bg);
+  min-height: 100vh;
+}
+
+body.no-scroll {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { display: none; }
+* { -ms-overflow-style: none; scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Typography ── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font);
+  letter-spacing: -0.025em;
+  line-height: 1.3;
+}
+
+/* 한글 폰트 적용 범위 */
+input, textarea, select, button {
+  font-family: var(--font);
+  letter-spacing: -0.01em;
+}
+
+/* ── Material Icons ── */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 280, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+}
+.material-symbols-outlined.filled {
+  font-variation-settings: 'FILL' 1, 'wght' 280, 'GRAD' 0, 'opsz' 24;
+}
+
+/* ── Layout ── */
+.fixed-layout {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-card);
+}
+
+/* ── Buttons ── */
+.btn {
+  font-family: var(--font);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  border-radius: var(--r-lg);
+  transition: opacity 0.15s, transform 0.1s;
+}
+.btn:active { opacity: 0.7; transform: scale(0.98); }
+
+/* ── Form inputs ── */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+input[type="tel"],
+input[type="date"],
+textarea,
+select {
+  font-family: var(--font);
+  font-size: var(--text-base);
+  letter-spacing: -0.01em;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--c-border);
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  transition: border-color 0.15s;
+  width: 100%;
+  padding: 12px 16px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: var(--c-black);
+  background: var(--c-white);
+}
+input::placeholder, textarea::placeholder {
+  color: var(--c-text-3);
+}
+
+/* Date input 달력 아이콘 */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.5;
+  cursor: pointer;
+}
+
+/* ── Patterns ── */
+.dot-pattern {
+  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+/* ── Calendar ── */
+.cal-sun { color: var(--c-red); }
+.cal-sat { color: #3b82f6; }
+
+/* ── Profile image ── */
+.profile-img-clip { overflow: hidden; cursor: grab; }
+.profile-img-clip:active { cursor: grabbing; }
+#crop-modal canvas { touch-action: none; }
+
+/* ── Utility ── */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Date Picker (네이티브 달력 커스텀) ── */
+.date-picker-wrap {
+  position: relative;
+}
+.date-picker-wrap input[type="date"] {
+  padding-right: 44px;
+}
+.date-picker-wrap .date-icon {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--c-text-3);
+  font-size: 18px;
+}
+
+/* ── Animations ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px) translateX(-50%); }
+  to   { opacity: 1; transform: translateY(0) translateX(-50%); }
+}
+
+.fade-in     { animation: fadeInUp 0.2s ease both; }
+.fade-in-fast { animation: fadeIn 0.15s ease both; }
+.slide-up    { animation: slideUp 0.28s cubic-bezier(0.32,0.72,0,1) both; }
+
+/* ── Loading spinner ── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid var(--c-border);
+  border-top-color: var(--c-black);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Toast ── */
+.toast {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--c-black);
+  color: var(--c-white);
+  padding: 10px 20px;
+  border-radius: var(--r-full);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  z-index: 9999;
+  animation: toastIn 0.25s ease both;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+/* ── Badge ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  border-radius: var(--r-full);
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  letter-spacing: 0;
+}
+
+/* ── Chip / Tag ── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  border: 1.5px solid transparent;
+}
+
+/* ── 모달 overlay ── */
+.modal-overlay {
+  animation: fadeIn 0.18s ease both;
+}
+
+/* ── Login page ── */
+.login-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px var(--page-px);
+}
+
+/* ── Admin sub-header ── */
+.admin-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 12px 16px;
+  background: var(--c-white);
+  border-bottom: 1px solid var(--c-border-2);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
