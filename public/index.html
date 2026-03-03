@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <meta name="apple-mobile-web-app-title" content="약속의 땅"/>
-<meta name="theme-color" content="#000000"/>
+<meta name="theme-color" content="#ffffff"/>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -241,9 +241,27 @@
   // ============================================================
   // INIT APP AFTER FIREBASE READY
   // ============================================================
-  // FDB 준비 완료 → 즉시 앱 시작
-  window._fbReady = true;
-  if (window._appInit) window._appInit();
+  // Firebase Auth 상태 변화 감지 → 세션을 Firebase가 직접 관리
+  // (IndexedDB 기반이라 캐시 삭제에 영향받지 않음)
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  onAuthStateChanged(auth, async (firebaseUser) => {
+    if (!window._authListenerReady) {
+      window._authListenerReady = true;
+      window._fbReady = true;
+      if (window._appInit) window._appInit(firebaseUser);
+    }
+  });
+
+  // 5초 이상 Firebase Auth 응답 없으면 로그인 페이지로 폴백
+  setTimeout(() => {
+    if (!window._authListenerReady) {
+      window._authListenerReady = true;
+      window._fbReady = true;
+      if (window._appInit) window._appInit(null);
+    }
+  }, 5000);
+
   // seed는 백그라운드 (앱 시작 블로킹 안 함)
   seedIfNeeded().catch(e => console.warn('seed:', e));
 </script>
@@ -255,9 +273,9 @@ tailwind.config = {
 <style>
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
   html { overflow-y: scroll; scrollbar-gutter: stable; }
-  body { font-family: 'Inter', sans-serif; overscroll-behavior: none; background: #f4f4f5; }
-  html { background: #f4f4f5; }
-  #app { background: #f4f4f5; min-height: 100vh; }
+  body { font-family: 'Inter', sans-serif; overscroll-behavior: none; background: #ffffff; }
+  html { background: #ffffff; }
+  #app { background: #ffffff; min-height: 100vh; }
   body.no-scroll { overflow: hidden; position: fixed; width: 100%; height: 100%; }
   .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
   .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
@@ -312,8 +330,8 @@ tailwind.config = {
   #crop-modal canvas { touch-action: none; }
 </style>
 </head>
-<body class="text-black min-h-screen" style="background:#f4f4f5">
-<div id="app" style="background:#f4f4f5;min-height:100vh;"><div class="fixed-layout"><div class="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin"></div></div></div>
+<body class="text-black min-h-screen" style="background:#ffffff">
+<div id="app" style="background:#ffffff;min-height:100vh;"><div class="fixed-layout"><div class="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin"></div></div></div>
 
 <script>
 // ============================================================
@@ -674,9 +692,9 @@ function renderMain() {
   ];
 
   return `
-  <div class="min-h-screen pb-36" style="background:#f4f4f5">
+  <div class="min-h-screen pb-36" style="background:#ffffff">
     <!-- Header -->
-    <header class="sticky top-0 z-50 px-5 pt-3 pb-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100">
+    <header class="sticky top-0 z-50 px-5 pt-3 pb-3 bg-white border-b border-zinc-100">
       <div class="flex justify-between items-center">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl overflow-hidden bg-black flex items-center justify-center">
@@ -698,7 +716,7 @@ function renderMain() {
     <main class="px-5 mt-3 pb-8"><div class="tab-content space-y-4">${content}</div></main>
 
     <!-- Bottom Nav -->
-    <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white/90 backdrop-blur-xl border-t border-zinc-100">
+    <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white border-t border-zinc-100">
       <div class="flex justify-around items-center max-w-md mx-auto">
         ${tabs.map(t => `
           <button data-tab="${t.key}" class="flex flex-col items-center gap-0.5 px-4 py-1 transition-colors ${state.tab===t.key?'text-black':'text-zinc-400'}">
@@ -894,46 +912,55 @@ function renderHomeTab() {
 function renderBulletinTab() {
   const bulletins = [...state.cache.bulletins].sort((a,b)=>b.date.localeCompare(a.date));
   if (!bulletins.length) return `<section><h2 class="text-xl font-bold tracking-tight mb-6">주보</h2><p class="text-zinc-400 text-sm text-center py-10">등록된 주보가 없습니다.</p></section>`;
-
-  const listOpen = state._bulletinListOpen;
-  const latest = bulletins[0];
-  const rest = bulletins.slice(1);
-
-  return `
-  <section>
-    <div class="flex items-center justify-between mb-5">
-      <h2 class="text-xl font-bold tracking-tight">주보</h2>
-      ${rest.length ? `<button data-action="toggle-bulletin-list" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 rounded-full text-xs font-bold text-zinc-600 active:bg-zinc-200">
-        ${icon('list','text-zinc-500',14)} 목록 (${rest.length+1}개)
-      </button>` : ''}
+  const b = bulletins[0];
+  const orderItems = b.orderItems || [];
+  const announcements = b.announcements || [];
+  const dream = b.dream || {};
+  return `<section class="space-y-4 pb-4">
+    <div class="bg-black text-white rounded-3xl p-8 text-center relative overflow-hidden dot-pattern">
+      <div class="relative z-10">
+        <p class="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 mb-2">약속의 땅 청년부 · 주일예배</p>
+        <h2 class="text-xl font-bold">${b.title||b.date}</h2>
+      </div>
     </div>
-    <!-- 최신 주보 -->
-    <button data-detail="bulletin:${latest.id}" class="w-full text-left bg-white rounded-3xl border border-zinc-200 overflow-hidden active:bg-zinc-50 mb-4">
-      <div class="bg-gradient-to-br from-zinc-900 to-black p-6 text-white relative overflow-hidden dot-pattern">
-        <div class="relative z-10">
-          <div class="flex items-center gap-2 mb-3">
-            <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">${icon('menu_book','text-white',18)}</div>
-            <span class="text-[10px] font-bold uppercase tracking-wider text-white/60">최신 주보</span>
-          </div>
-          <h3 class="text-lg font-bold">${latest.title}</h3>
-          <p class="text-white/50 text-xs mt-1">${latest.date}</p>
-        </div>
+    ${orderItems.length ? `<div class="bg-white rounded-3xl overflow-hidden border border-zinc-100">
+      <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
+        ${icon('format_list_numbered','text-zinc-400',16)}
+        <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">예배순서</h3>
       </div>
-      <div class="p-4 flex items-center gap-1 text-zinc-400">
-        ${icon('chevron_right','',16)}<span class="text-xs font-bold">자세히 보기</span>
+      <div class="divide-y divide-zinc-50">
+        ${orderItems.map(item=>`<div class="flex items-center px-4 py-3 gap-2">
+          <span class="text-sm font-medium text-zinc-800 w-[6.5rem] flex-none">${item.name}</span>
+          <span class="flex-1 text-xs text-zinc-400 text-center">${item.scripture||''}</span>
+          <span class="text-xs text-zinc-500 text-right w-[5rem] flex-none">${item.participant||''}</span>
+        </div>`).join('')}
       </div>
-    </button>
-    <!-- 이전 주보 목록 -->
-    ${listOpen && rest.length ? `<div class="space-y-2">
-      ${rest.map(b=>`<button data-detail="bulletin:${b.id}" class="w-full text-left bg-white rounded-2xl border border-zinc-100 p-4 flex items-center gap-3 active:bg-zinc-50">
-        <div class="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center flex-none">${icon('menu_book','text-white',16)}</div>
-        <div class="flex-1 min-w-0">
-          <p class="font-bold text-sm truncate">${b.title}</p>
-          <p class="text-xs text-zinc-400">${b.date}</p>
-        </div>
-        ${icon('chevron_right','text-zinc-300',18)}
-      </button>`).join('')}
     </div>` : ''}
+    ${announcements.length ? `<div class="bg-white rounded-3xl overflow-hidden border border-zinc-100">
+      <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
+        ${icon('campaign','text-zinc-400',16)}
+        <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">광고</h3>
+      </div>
+      <div class="divide-y divide-zinc-50">
+        ${announcements.map((a,i)=>`<div class="px-5 py-4"><div class="flex items-start gap-2.5">
+          <span class="w-5 h-5 bg-zinc-900 text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-none mt-0.5">${i+1}</span>
+          <div><p class="text-sm font-bold">${a.title}</p>${a.body?`<p class="text-xs text-zinc-500 mt-1 leading-relaxed whitespace-pre-line">${a.body}</p>`:''}</div>
+        </div></div>`).join('')}
+      </div>
+    </div>` : ''}
+    ${(dream.weekly||dream.tithe||dream.thanks) ? `<div class="bg-white rounded-3xl overflow-hidden border border-zinc-100">
+      <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
+        ${icon('volunteer_activism','text-zinc-400',16)}
+        <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">우리의 드림</h3>
+      </div>
+      <div class="p-5 space-y-2">
+        ${dream.weekly?`<div class="flex justify-between text-sm"><span class="text-zinc-400">주정헌금</span><span class="font-medium">${dream.weekly}</span></div>`:''}
+        ${dream.tithe?`<div class="flex justify-between text-sm"><span class="text-zinc-400">십일조</span><span class="font-medium">${dream.tithe}</span></div>`:''}
+        ${dream.thanks?`<div class="flex justify-between text-sm"><span class="text-zinc-400">감사헌금</span><span class="font-medium">${dream.thanks}</span></div>`:''}
+        <div class="pt-1 border-t border-zinc-50"><p class="text-xs text-zinc-400">온라인 헌금: 우리은행 1005-003-875918</p></div>
+      </div>
+    </div>` : ''}
+    <div class="text-center py-2"><p class="text-[10px] text-zinc-300 font-bold uppercase tracking-[0.2em]">약속의 땅 청년부</p></div>
   </section>`;
 }
 
@@ -949,8 +976,8 @@ function renderBulletinDetail() {
   const dream = b.dream || {};
 
   return `
-  <div class="min-h-screen bg-zinc-50">
-    <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
+  <div class="min-h-screen bg-white">
+    <header class="sticky top-0 z-50 px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">주보</h1>
     </header>
@@ -1059,8 +1086,8 @@ function renderNoticeDetail() {
   if (!n) return '';
   const comments = state.cache.comments[n.id] || [];
   return `
-  <div class="min-h-screen bg-zinc-50">
-    <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
+  <div class="min-h-screen bg-white">
+    <header class="sticky top-0 z-50 px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">공지사항</h1>
     </header>
@@ -1160,8 +1187,8 @@ function renderWorshipDetail() {
   const w = worships[worships.length - 1];
   if (!w) return '';
   return `
-  <div class="min-h-screen bg-zinc-50">
-    <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
+  <div class="min-h-screen bg-white">
+    <header class="sticky top-0 z-50 px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">이번주 찬양</h1>
     </header>
@@ -1412,8 +1439,8 @@ function renderAdmin() {
   }
 
   return `
-  <div class="min-h-screen bg-zinc-50">
-    <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
+  <div class="min-h-screen bg-white">
+    <header class="sticky top-0 z-50 px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back-admin" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">${state.adminSub==='dashboard'?'관리자':menu.find(m=>m.k===state.adminSub)?.l||'관리자'}</h1>
     </header>
@@ -3699,28 +3726,47 @@ function bindCropModal() {
 // ============================================================
 // APP INIT
 // ============================================================
-async function initApp() {
+async function initApp(firebaseUser) {
+  // Firebase Auth가 로그인된 유저를 알고 있으면 → 세션 복원
+  // (localStorage가 날아가도 Firebase Auth IndexedDB는 살아있음)
   const session = SESSION.get();
-  if (session) {
-    state.user = session;
+  const hasAuth = !!firebaseUser;
+  const hasSession = !!(session && session.uid);
+
+  if (hasAuth || hasSession) {
     // 로컬 캐시로 즉시 렌더링 (Firebase 로드 전)
-    try {
-      const lc = localStorage.getItem('jmc_cache');
-      if (lc) {
-        const parsed = JSON.parse(lc);
-        if (parsed.users) state.cache.users = parsed.users;
-        if (parsed.cells) state.cache.cells = parsed.cells;
-        if (parsed.rosters) state.cache.rosters = parsed.rosters;
-        if (parsed.bulletins) state.cache.bulletins = parsed.bulletins;
-        if (parsed.notices) state.cache.notices = parsed.notices;
-        state.page = 'main';
-        render(); // 캐시 데이터로 즉시 표시
-      }
-    } catch(e) {}
+    if (hasSession) {
+      state.user = session;
+      try {
+        const lc = localStorage.getItem('jmc_cache');
+        if (lc) {
+          const parsed = JSON.parse(lc);
+          if (parsed.users) state.cache.users = parsed.users;
+          if (parsed.cells) state.cache.cells = parsed.cells;
+          if (parsed.rosters) state.cache.rosters = parsed.rosters;
+          if (parsed.bulletins) state.cache.bulletins = parsed.bulletins;
+          if (parsed.notices) state.cache.notices = parsed.notices;
+          state.page = 'main';
+          render(); // 캐시 데이터로 즉시 표시
+        }
+      } catch(e) {}
+    }
+
     await loadAll();
-    // refresh user from DB
-    const freshUser = state.cache.users.find(u=>u.uid===session.uid);
-    if (freshUser) { state.user=freshUser; SESSION.set(freshUser); }
+
+    // Firebase Auth UID로 유저 찾기 (localStorage session 날아간 경우 복원)
+    const lookupUid = firebaseUser?.uid || session?.uid;
+    const freshUser = state.cache.users.find(u => u.uid === lookupUid);
+    if (freshUser) {
+      state.user = freshUser;
+      SESSION.set(freshUser); // localStorage에 다시 저장
+    } else if (!hasSession && hasAuth) {
+      // Firebase Auth는 있지만 앱 유저 데이터 없음 → 재가입 필요 안 내보내고 로그인 페이지
+      state.page = 'login';
+      render();
+      return;
+    }
+
     state.page = 'main';
   } else {
     state.page = 'login';
