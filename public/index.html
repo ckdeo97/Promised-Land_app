@@ -13,11 +13,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <meta name="apple-mobile-web-app-title" content="약속의 땅"/>
-<meta name="theme-color" content="#ffffff"/>
+<meta name="theme-color" content="#000000"/>
 <script src="https://cdn.tailwindcss.com"></script>
-
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="style.css"/>
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -268,13 +267,71 @@
 </script>
 <script>
 tailwind.config = {
-  theme: { extend: { fontFamily: { sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'Apple SD Gothic Neo', 'sans-serif'] } } }
+  theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } }
 }
 </script>
+<style>
+  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+  html { overflow-y: scroll; scrollbar-gutter: stable; }
+  body { font-family: 'Inter', sans-serif; overscroll-behavior: none; background: #f4f4f5; }
+  html { background: #f4f4f5; }
+  #app { background: #f4f4f5; min-height: 100vh; }
+  body.no-scroll { overflow: hidden; position: fixed; width: 100%; height: 100%; }
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+  .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+  ::-webkit-scrollbar { display: none; }
+  * { -ms-overflow-style: none; scrollbar-width: none; }
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+  /* ── 모션: 탑앱 스타일 (iOS/Android 네이티브 패턴) ── */
+  /* 탭전환: 즉시(모션 없음) - 카카오/인스타/유튜브 모두 탭은 즉시 */
+  /* 상세진입: 아래서 살짝 올라오며 페이드 - 자연스럽고 가벼움 */
+  /* 전체화면: 오른쪽에서 슬라이드 - 네이티브 push 느낌 */
+  /* 시트/모달: 아래서 슬라이드업 */
+
+
+    to   { transform: translateX(0);    opacity: 1; }
+  }
+
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+
+    to   { transform: translateY(0); }
+  }
+
+    to   { opacity: 1; }
+  }
+
+    to   { transform: translateY(0)   translateX(-50%); opacity:1; }
+  }
+
+  /* 전체화면 전환 (admin, profile 페이지) */
+
+  /* 상세 페이지 (notice/bulletin/worship detail) */
+
+  /* 콘텐츠 영역 (탭 전환 - 매우 가볍게) */
+
+  /* 메인/로그인 등 첫 진입 */
+
+  /* 시트/모달 */
+
+  /* 토스트 */
+
+  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  input, textarea, select { font-family: 'Inter', sans-serif; }
+  .dot-pattern { background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0); background-size: 20px 20px; }
+  .fixed-layout { position: fixed; inset: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .cal-sun { color: #ef4444; }
+  .cal-sat { color: #3b82f6; }
+  .profile-img-clip { overflow: hidden; cursor: grab; }
+  .profile-img-clip:active { cursor: grabbing; }
+  /* 크롭 모달 */
+  #crop-modal canvas { touch-action: none; }
+</style>
 </head>
-<body class="text-black min-h-screen" style="background:#ffffff">
-<div id="app" style="background:#ffffff;min-height:100vh;"><div class="fixed-layout"><div class="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin"></div></div></div>
+<body class="text-black min-h-screen" style="background:#f4f4f5">
+<div id="app" style="background:#f4f4f5;min-height:100vh;"><div class="fixed-layout"><div class="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin"></div></div></div>
 
 <script>
 // ============================================================
@@ -342,10 +399,11 @@ const SESSION = {
 // ============================================================
 async function loadAll() {
   const FDB = window.FDB;
-  const [users, cells, rosters, notices, bulletins, worshipSets, events, cellMeetings, serviceSchedules] = await Promise.all([
+  const [users, cells, rosters, notices, bulletins, worshipSets, events, cellMeetings, serviceSchedules, offeringDocs, attendanceDocs] = await Promise.all([
     FDB.getCol('users'), FDB.getCol('cells'), FDB.getCol('rosters'),
     FDB.getCol('notices'), FDB.getCol('bulletins'), FDB.getCol('worshipSets'),
-    FDB.getCol('events'), FDB.getCol('cellMeetings'), FDB.getCol('serviceSchedules')
+    FDB.getCol('events'), FDB.getCol('cellMeetings'), FDB.getCol('serviceSchedules'),
+    FDB.getCol('offering'), FDB.getCol('attendance')
   ]);
   state.cache.users = users;
   state.cache.cells = cells.sort((a,b)=>(a.order||0)-(b.order||0));
@@ -356,6 +414,18 @@ async function loadAll() {
   state.cache.events = events.sort((a,b)=>a.date.localeCompare(b.date));
   state.cache.serviceSchedules = serviceSchedules.sort((a,b)=>a.date.localeCompare(b.date));
   state.cache.cellMeetings = cellMeetings.sort((a,b)=>b.date.localeCompare(a.date));
+  // offerings: { [date]: { items: [...] } } 형태로 변환
+  state.cache.offerings = {};
+  offeringDocs.forEach(doc => {
+    const { id, ...data } = doc;
+    state.cache.offerings[id] = data;
+  });
+  // attendance: { [date]: { marks: {...} } } 형태로 변환
+  state.cache.attendance = {};
+  attendanceDocs.forEach(doc => {
+    const { id, ...data } = doc;
+    state.cache.attendance[id] = data;
+  });
   // 주요 데이터 localStorage 캐시 저장
   try {
     localStorage.setItem('jmc_cache', JSON.stringify({
@@ -635,9 +705,9 @@ function renderMain() {
   ];
 
   return `
-  <div class="min-h-screen pb-36" style="background:#ffffff">
+  <div class="min-h-screen pb-36" style="background:#f4f4f5">
     <!-- Header -->
-    <header class="sticky top-0 z-50 px-5 pt-3 pb-3 bg-white border-b border-zinc-100">
+    <header class="sticky top-0 z-50 px-5 pt-3 pb-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100">
       <div class="flex justify-between items-center">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl overflow-hidden bg-black flex items-center justify-center">
@@ -659,7 +729,7 @@ function renderMain() {
     <main class="px-5 mt-3 pb-8"><div class="tab-content space-y-4">${content}</div></main>
 
     <!-- Bottom Nav -->
-    <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white border-t border-zinc-100">
+    <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white/90 backdrop-blur-xl border-t border-zinc-100">
       <div class="flex justify-around items-center max-w-md mx-auto">
         ${tabs.map(t => `
           <button data-tab="${t.key}" class="flex flex-col items-center gap-0.5 px-4 py-1 transition-colors ${state.tab===t.key?'text-black':'text-zinc-400'}">
@@ -855,55 +925,46 @@ function renderHomeTab() {
 function renderBulletinTab() {
   const bulletins = [...state.cache.bulletins].sort((a,b)=>b.date.localeCompare(a.date));
   if (!bulletins.length) return `<section><h2 class="text-xl font-bold tracking-tight mb-6">주보</h2><p class="text-zinc-400 text-sm text-center py-10">등록된 주보가 없습니다.</p></section>`;
-  const b = bulletins[0];
-  const orderItems = b.orderItems || [];
-  const announcements = b.announcements || [];
-  const dream = b.dream || {};
-  return `<section class="space-y-4 pb-4">
-    <div class="bg-black text-white rounded-3xl p-8 text-center relative overflow-hidden dot-pattern">
-      <div class="relative z-10">
-        <p class="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 mb-2">약속의 땅 청년부 · 주일예배</p>
-        <h2 class="text-xl font-bold">${b.title||b.date}</h2>
-      </div>
+
+  const listOpen = state._bulletinListOpen;
+  const latest = bulletins[0];
+  const rest = bulletins.slice(1);
+
+  return `
+  <section>
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-xl font-bold tracking-tight">주보</h2>
+      ${rest.length ? `<button data-action="toggle-bulletin-list" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 rounded-full text-xs font-bold text-zinc-600 active:bg-zinc-200">
+        ${icon('list','text-zinc-500',14)} 목록 (${rest.length+1}개)
+      </button>` : ''}
     </div>
-    ${orderItems.length ? `<div class="bg-white rounded-3xl overflow-hidden border border-zinc-100">
-      <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
-        ${icon('format_list_numbered','text-zinc-400',16)}
-        <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">예배순서</h3>
+    <!-- 최신 주보 -->
+    <button data-detail="bulletin:${latest.id}" class="w-full text-left bg-white rounded-3xl border border-zinc-200 overflow-hidden active:bg-zinc-50 mb-4">
+      <div class="bg-gradient-to-br from-zinc-900 to-black p-6 text-white relative overflow-hidden dot-pattern">
+        <div class="relative z-10">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">${icon('menu_book','text-white',18)}</div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-white/60">최신 주보</span>
+          </div>
+          <h3 class="text-lg font-bold">${latest.title}</h3>
+          <p class="text-white/50 text-xs mt-1">${latest.date}</p>
+        </div>
       </div>
-      <div class="divide-y divide-zinc-50">
-        ${orderItems.map(item=>`<div class="flex items-center px-4 py-3 gap-2">
-          <span class="text-sm font-medium text-zinc-800 w-[6.5rem] flex-none">${item.name}</span>
-          <span class="flex-1 text-xs text-zinc-400 text-center">${item.scripture||''}</span>
-          <span class="text-xs text-zinc-500 text-right w-[5rem] flex-none">${item.participant||''}</span>
-        </div>`).join('')}
+      <div class="p-4 flex items-center gap-1 text-zinc-400">
+        ${icon('chevron_right','',16)}<span class="text-xs font-bold">자세히 보기</span>
       </div>
+    </button>
+    <!-- 이전 주보 목록 -->
+    ${listOpen && rest.length ? `<div class="space-y-2">
+      ${rest.map(b=>`<button data-detail="bulletin:${b.id}" class="w-full text-left bg-white rounded-2xl border border-zinc-100 p-4 flex items-center gap-3 active:bg-zinc-50">
+        <div class="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center flex-none">${icon('menu_book','text-white',16)}</div>
+        <div class="flex-1 min-w-0">
+          <p class="font-bold text-sm truncate">${b.title}</p>
+          <p class="text-xs text-zinc-400">${b.date}</p>
+        </div>
+        ${icon('chevron_right','text-zinc-300',18)}
+      </button>`).join('')}
     </div>` : ''}
-    ${announcements.length ? `<div class="bg-white rounded-3xl overflow-hidden border border-zinc-100">
-      <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
-        ${icon('campaign','text-zinc-400',16)}
-        <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">광고</h3>
-      </div>
-      <div class="divide-y divide-zinc-50">
-        ${announcements.map((a,i)=>`<div class="px-5 py-4"><div class="flex items-start gap-2.5">
-          <span class="w-5 h-5 bg-zinc-900 text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-none mt-0.5">${i+1}</span>
-          <div><p class="text-sm font-bold">${a.title}</p>${a.body?`<p class="text-xs text-zinc-500 mt-1 leading-relaxed whitespace-pre-line">${a.body}</p>`:''}</div>
-        </div></div>`).join('')}
-      </div>
-    </div>` : ''}
-    ${(dream.weekly||dream.tithe||dream.thanks) ? `<div class="bg-white rounded-3xl overflow-hidden border border-zinc-100">
-      <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
-        ${icon('volunteer_activism','text-zinc-400',16)}
-        <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">우리의 드림</h3>
-      </div>
-      <div class="p-5 space-y-2">
-        ${dream.weekly?`<div class="flex justify-between text-sm"><span class="text-zinc-400">주정헌금</span><span class="font-medium">${dream.weekly}</span></div>`:''}
-        ${dream.tithe?`<div class="flex justify-between text-sm"><span class="text-zinc-400">십일조</span><span class="font-medium">${dream.tithe}</span></div>`:''}
-        ${dream.thanks?`<div class="flex justify-between text-sm"><span class="text-zinc-400">감사헌금</span><span class="font-medium">${dream.thanks}</span></div>`:''}
-        <div class="pt-1 border-t border-zinc-50"><p class="text-xs text-zinc-400">온라인 헌금: 우리은행 1005-003-875918</p></div>
-      </div>
-    </div>` : ''}
-    <div class="text-center py-2"><p class="text-[10px] text-zinc-300 font-bold uppercase tracking-[0.2em]">약속의 땅 청년부</p></div>
   </section>`;
 }
 
@@ -919,8 +980,8 @@ function renderBulletinDetail() {
   const dream = b.dream || {};
 
   return `
-  <div class="min-h-screen bg-white">
-    <header class="sticky top-0 z-50 px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
+  <div class="min-h-screen bg-zinc-50">
+    <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">주보</h1>
     </header>
@@ -1029,8 +1090,8 @@ function renderNoticeDetail() {
   if (!n) return '';
   const comments = state.cache.comments[n.id] || [];
   return `
-  <div class="min-h-screen bg-white">
-    <header class="sticky top-0 z-50 px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
+  <div class="min-h-screen bg-zinc-50">
+    <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">공지사항</h1>
     </header>
@@ -1130,8 +1191,8 @@ function renderWorshipDetail() {
   const w = worships[worships.length - 1];
   if (!w) return '';
   return `
-  <div class="min-h-screen bg-white">
-    <header class="sticky top-0 z-50 px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
+  <div class="min-h-screen bg-zinc-50">
+    <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">이번주 찬양</h1>
     </header>
@@ -1382,8 +1443,8 @@ function renderAdmin() {
   }
 
   return `
-  <div class="min-h-screen bg-white">
-    <header class="sticky top-0 z-50 px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
+  <div class="min-h-screen bg-zinc-50">
+    <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back-admin" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">${state.adminSub==='dashboard'?'관리자':menu.find(m=>m.k===state.adminSub)?.l||'관리자'}</h1>
     </header>
@@ -1424,10 +1485,6 @@ function renderAdminWithdrawApprove() {
 
 function adminInput(id, label, ph, type='text') {
   return `<div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">${label}</label><input id="${id}" type="${type}" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="${ph}"/></div>`;
-}
-function adminDateInput(id, label, defaultVal) {
-  const val = defaultVal || new Date().toISOString().split('T')[0];
-  return `<div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">${label}</label><div class="date-picker-wrap"><input id="${id}" type="date" value="${val}" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/><span class="date-icon material-symbols-outlined">calendar_month</span></div></div>`;
 }
 function adminTextarea(id, label, ph, rows=4) {
   return `<div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">${label}</label><textarea id="${id}" rows="${rows}" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black resize-none" placeholder="${ph}"></textarea></div>`;
@@ -2361,44 +2418,11 @@ function bindEvents() {
   document.querySelectorAll('[data-action="approve-withdraw"]').forEach(el => {
     el.addEventListener('click', () => {
       const targetUid = el.dataset.uid;
-      const targetUser = state.cache.users.find(u => u.uid === targetUid);
-      showConfirm(`${targetUser?.name||'해당 회원'}의 탈퇴를 처리합니다.\n관련된 모든 데이터가 삭제됩니다.`, async () => {
-        showToast('처리 중...');
-        // 1) users 문서 삭제
+      showConfirm('정말 탈퇴 처리하시겠습니까?', async () => {
         await window.FDB.deleteDoc('users', targetUid);
-        // 2) rosters에서 linkedUid 연결 해제 (명부에서는 인원 유지, 연결만 끊기)
-        const linkedRoster = state.cache.rosters.find(r => r.linkedUid === targetUid);
-        if (linkedRoster) {
-          await window.FDB.setDoc('rosters', linkedRoster.id, { linkedUid: null, joined: false });
-          linkedRoster.linkedUid = null;
-          linkedRoster.joined = false;
-        }
-        // 3) 출석 기록에서 해당 인원 marks 삭제
-        if (linkedRoster) {
-          for (const dk of Object.keys(state.cache.attendance)) {
-            const att = state.cache.attendance[dk];
-            if (att?.marks?.[linkedRoster.id] !== undefined) {
-              delete att.marks[linkedRoster.id];
-              await window.FDB.setDoc('attendance', dk, att);
-            }
-          }
-        }
-        // 4) 헌금 기록에서 해당 인원 항목 삭제
-        for (const dk of Object.keys(state.cache.offerings)) {
-          const off = state.cache.offerings[dk];
-          if (off?.items) {
-            const filtered = off.items.filter(it =>
-              it.personId !== targetUid && it.name !== (linkedRoster?.name)
-            );
-            if (filtered.length !== off.items.length) {
-              off.items = filtered;
-              await window.FDB.setDoc('offering', dk, off);
-            }
-          }
-        }
-        state.cache.users = state.cache.users.filter(u => u.uid !== targetUid);
+        state.cache.users = state.cache.users.filter(u=>u.uid!==targetUid);
         showToast('탈퇴 처리 완료!'); render();
-      }, '탈퇴 처리', 'bg-red-500 text-white');
+      }, '탈퇴 처리');
     });
   });
 
@@ -2671,37 +2695,12 @@ function bindEvents() {
   document.querySelectorAll('[data-action="roster-delete"]').forEach(el => {
     el.addEventListener('click', e => {
       e.stopPropagation();
-      const rid = el.dataset.rid;
-      const roster = state.cache.rosters.find(r => r.id === rid);
-      showConfirm((roster?.name||'해당 인원') + '을 명부에서 삭제합니다. 관련된 모든 데이터(계정, 출석, 헌금)가 함께 삭제됩니다.', async () => {
-        showToast('처리 중...');
+      showConfirm('탈퇴 처리하시겠습니까?', async () => {
+        const rid = el.dataset.rid;
         await window.FDB.deleteDoc('rosters', rid);
-        if (roster?.linkedUid) {
-          await window.FDB.deleteDoc('users', roster.linkedUid);
-          state.cache.users = state.cache.users.filter(u => u.uid !== roster.linkedUid);
-        }
-        for (const dk of Object.keys(state.cache.attendance)) {
-          const att = state.cache.attendance[dk];
-          if (att?.marks?.[rid] !== undefined) {
-            delete att.marks[rid];
-            await window.FDB.setDoc('attendance', dk, att);
-          }
-        }
-        if (roster?.name) {
-          for (const dk of Object.keys(state.cache.offerings)) {
-            const off = state.cache.offerings[dk];
-            if (off?.items) {
-              const filtered = off.items.filter(it => it.name !== roster.name);
-              if (filtered.length !== off.items.length) {
-                off.items = filtered;
-                await window.FDB.setDoc('offering', dk, off);
-              }
-            }
-          }
-        }
-        state.cache.rosters = state.cache.rosters.filter(r => r.id !== rid);
-        showToast('삭제 완료!'); render();
-      }, '삭제', 'bg-red-500 text-white');
+        state.cache.rosters = state.cache.rosters.filter(r=>r.id!==rid);
+        render();
+      });
     });
   });
 
@@ -2769,7 +2768,7 @@ function bindEvents() {
       const area = document.getElementById('admin-form-area'); if (!area) return;
       area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
         ${adminInput('ef-title','제목','')}
-        ${adminDateInput('ef-date','날짜', ev.date||'')}
+        ${adminInput('ef-date','날짜','')}
         ${adminInput('ef-time','시간','')}
         ${adminInput('ef-loc','장소','')}
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">카테고리</label>
@@ -3097,7 +3096,7 @@ function bindEvents() {
     const area = document.getElementById('admin-form-area'); if (!area) return;
     area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
       ${adminInput('ef-title','제목','주일 청년 예배')}
-      ${adminDateInput('ef-date','날짜',today())}
+      ${adminInput('ef-date','날짜',today())}
       ${adminInput('ef-time','시간','14:00')}
       ${adminInput('ef-loc','장소','본당')}
       <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">카테고리</label>
