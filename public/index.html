@@ -1107,7 +1107,7 @@ function renderBulletinDetail() {
   let announcements = b.announcements || [];
   if (!announcements.length && b.announce) {
     announcements = String(b.announce).split('\n').filter(s=>s.trim()).map(s => ({
-      title: s.replace(/^[•·\-]\s*/, '').trim(), body: ''
+      title: s.replace(/^[-\s]*/, '').trim(), body: ''
     }));
   }
   // 구버전 담당자 필드 → orderItems로 보완
@@ -1386,7 +1386,7 @@ function renderWorshipDetail() {
             </div>
             <div class="relative group bg-zinc-50">
               <img src="${s.sheet}" class="w-full block" alt="${s.title} 악보" loading="lazy"/>
-              <button onclick="downloadSheet('${s.sheet}', '${s.title}_악보')"
+              <button onclick="downloadSheet(this.dataset.sheet, this.dataset.title+'_악보')" data-sheet="${s.sheet}" data-title="${s.title}"
                 class="absolute bottom-3 right-3 w-10 h-10 bg-black/70 rounded-full flex items-center justify-center active:bg-black/90 hover:bg-black/85 transition-opacity">
                 ${icon('download','text-white',20)}
               </button>
