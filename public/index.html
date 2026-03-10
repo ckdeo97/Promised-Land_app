@@ -97,6 +97,13 @@
       } catch(e) { console.error('addDoc', col, e); return null; }
     },
 
+    async setDocFull(col, id, data) {
+      // merge 없이 전체 교체 (songs 배열 줄었을 때 등)
+      try {
+        await setDoc(doc(db, col, id), { ...data, updatedAt: serverTimestamp() });
+      } catch(e) { console.error('setDocFull', col, id, e); }
+    },
+
     async deleteDoc(col, id) {
       try {
         await deleteDoc(doc(db, col, id));
@@ -177,8 +184,8 @@
       {id:"r__1943",name:"강유나",phone:"010-8994-1943",birth:"19980122",cellId:"c3",role:"1",linkedUid:null,joined:false},
       {id:"r__6163",name:"강은혜",phone:"010-9183-6163",birth:"19981014",cellId:"c3",role:"2",linkedUid:null,joined:false},
       {id:"r__5196",name:"강희영",phone:"010-6374-5196",birth:"20051011",cellId:"c3",role:"3",linkedUid:null,joined:false},
-      {id:"r__5196",name:"강희윤",phone:"010-6359-5196",birth:"20031009",cellId:"c3",role:"4",linkedUid:null,joined:false},
-      {id:"r__5712",name:"김서연",phone:"010-6494-5712",birth:"20050307",cellId:"c3",role:"5",linkedUid:null,joined:false},
+      {id:"r__5196b",name:"강희윤",phone:"010-6359-5196",birth:"20031009",cellId:"c3",role:"4",linkedUid:null,joined:false},
+      {id:"r__5712b",name:"김서연",phone:"010-6494-5712",birth:"20050307",cellId:"c3",role:"5",linkedUid:null,joined:false},
       {id:"r__4106",name:"노승철",phone:"010-5536-4106",birth:"20021022",cellId:"c3",role:"6",linkedUid:null,joined:false},
       {id:"r__9382",name:"안사무엘",phone:"010-2571-9382",birth:"19930124",cellId:"c3",role:"7",linkedUid:null,joined:false},
       {id:"r__3192",name:"이건호",phone:"010-7552-3192",birth:"19920515",cellId:"c3",role:"8",linkedUid:null,joined:false},
@@ -186,15 +193,15 @@
       {id:"r__8772",name:"장서희",phone:"010-5733-8772",birth:"20060926",cellId:"c3",role:"10",linkedUid:null,joined:false},
       {id:"r__3108",name:"장수진",phone:"010-5742-3108",birth:"20060407",cellId:"c3",role:"11",linkedUid:null,joined:false},
       {id:"r__9118",name:"지정현",phone:"010-8954-9118",birth:"20001002",cellId:"c3",role:"12",linkedUid:null,joined:false},
-      {id:"r__7399",name:"고범준",phone:"010-2310-7399",birth:"20070703",cellId:"c3",role:"13",linkedUid:null,joined:false},
+      {id:"r__7399b",name:"고범준",phone:"010-2310-7399",birth:"20070703",cellId:"c3",role:"13",linkedUid:null,joined:false},
       {id:"r__4728",name:"김예지",phone:"010-4370-4728",birth:"19971203",cellId:"c4",role:"리더",linkedUid:null,joined:false},
-      {id:"r__7103",name:"김다현",phone:"010-9252-7103",birth:"19981101",cellId:"c4",role:"1",linkedUid:null,joined:false},
+      {id:"r__7103b",name:"김다현",phone:"010-9252-7103",birth:"19981101",cellId:"c4",role:"1",linkedUid:null,joined:false},
       {id:"r__2959",name:"김윤성",phone:"010-5527-2959",birth:"19920501",cellId:"c4",role:"2",linkedUid:null,joined:false},
       {id:"r__3461",name:"박건우",phone:"010-4033-3461",birth:"20020624",cellId:"c4",role:"3",linkedUid:null,joined:false},
-      {id:"r__5449",name:"박세림",phone:"010-3048-5449",birth:"20041001",cellId:"c4",role:"4",linkedUid:null,joined:false},
+      {id:"r__5449b",name:"박세림",phone:"010-3048-5449",birth:"20041001",cellId:"c4",role:"4",linkedUid:null,joined:false},
       {id:"r__4528",name:"박채은",phone:"010-5453-4528",birth:"20060923",cellId:"c4",role:"5",linkedUid:null,joined:false},
-      {id:"r__4230",name:"이민우",phone:"010-7544-4230",birth:"20040216",cellId:"c4",role:"6",linkedUid:null,joined:false},
-      {id:"r__1764",name:"이상재",phone:"010-4177-1764",birth:"19940328",cellId:"c4",role:"7",linkedUid:null,joined:false},
+      {id:"r__4230b",name:"이민우",phone:"010-7544-4230",birth:"20040216",cellId:"c4",role:"6",linkedUid:null,joined:false},
+      {id:"r__1764b",name:"이상재",phone:"010-4177-1764",birth:"19940328",cellId:"c4",role:"7",linkedUid:null,joined:false},
       {id:"r__0929",name:"장은지",phone:"010-9026-0929",birth:"19980926",cellId:"c4",role:"8",linkedUid:null,joined:false},
       {id:"r__0547",name:"정유승",phone:"010-9459-0547",birth:"19990428",cellId:"c4",role:"9",linkedUid:null,joined:false},
       {id:"r__2066",name:"조민수",phone:"010-2083-2066",birth:"19901012",cellId:"c4",role:"10",linkedUid:null,joined:false},
@@ -502,6 +509,19 @@ async function loadAll() {
   } catch(e) {}
 
   // 2) 실시간 리스너 등록 (다른 기기 변경사항 자동 반영)
+  listenCol('users', docs => {
+    state.cache.users = docs;
+    if (state.user) {
+      const fresh = docs.find(u=>u.uid===state.user.uid);
+      if (fresh) { state.user = fresh; SESSION.set(fresh); }
+    }
+  });
+  listenCol('cells', docs => {
+    state.cache.cells = docs.sort((a,b)=>(a.order||0)-(b.order||0));
+  });
+  listenCol('rosters', docs => {
+    state.cache.rosters = docs.sort((a,b)=>koSort(a.name,b.name));
+  });
   listenCol('worshipSets', docs => {
     state.cache.worshipSets = docs.sort((a,b)=>a.date.localeCompare(b.date));
   });
@@ -650,7 +670,13 @@ function morphDOM(container, newHTML) {
   }
 }
 
+let _renderPending = false;
 function render() {
+  if (_renderPending) return;
+  _renderPending = true;
+  requestAnimationFrame(() => { _renderPending = false; _doRender(); });
+}
+function _doRender() {
   const app = document.getElementById('app');
   let html = '';
 
@@ -685,7 +711,7 @@ function render() {
   bindCropModal();
 }
 
-function showToast(msg) {
+function showToast(msg, isError) {
   // render() 없이 DOM 직접 조작 → 깜빡임 없음
   let toastEl = document.getElementById('_toast');
   if (!toastEl) {
@@ -693,7 +719,10 @@ function showToast(msg) {
     toastEl.id = '_toast';
     document.body.appendChild(toastEl);
   }
-  toastEl.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-[300] bg-black text-white px-5 py-3 rounded-2xl text-sm font-bold shadow-xl toast-anim';
+  // 오류 키워드 자동 감지
+  const errKw = ['틀렸','실패','오류','없습니다','해주세요','이상이어야','일치하지','중입니다'];
+  const isErr = isError || errKw.some(k=>msg.includes(k));
+  toastEl.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-[300] ' + (isErr?'bg-red-500':'bg-black') + ' text-white px-5 py-3 rounded-2xl text-sm font-bold shadow-xl toast-anim';
   toastEl.textContent = msg;
   toastEl.style.display = 'block';
   clearTimeout(window._toastTimer);
@@ -1067,8 +1096,33 @@ function renderBulletinDetail() {
   const b = state.cache.bulletins.find(x => x.id === state.detail.id);
   if (!b) return '';
 
-  const orderItems = b.orderItems || [];
-  const announcements = b.announcements || [];
+  // 구버전 주보 fallback (order/announce 텍스트 필드)
+  let orderItems = b.orderItems || [];
+  if (!orderItems.length && b.order) {
+    orderItems = String(b.order).split('\n').filter(Boolean).map(line => {
+      const m = line.match(/^\d+\.\s*(.+)$/);
+      return { name: m ? m[1].trim() : line.trim(), participant: '', scripture: '' };
+    });
+  }
+  let announcements = b.announcements || [];
+  if (!announcements.length && b.announce) {
+    announcements = String(b.announce).split('\n').filter(s=>s.trim()).map(s => ({
+      title: s.replace(/^[•·\-]\s*/, '').trim(), body: ''
+    }));
+  }
+  // 구버전 담당자 필드 → orderItems로 보완
+  if (b.prayer_duty && !orderItems.find(o=>o.name==='오늘의 기도')) {
+    orderItems.push({name:'오늘의 기도', participant:b.prayer_duty, scripture:''});
+  }
+  if (b.bible_reading && !orderItems.find(o=>o.name==='성경봉독')) {
+    orderItems.push({name:'성경봉독', participant:b.bible_reading, scripture:''});
+  }
+  if (b.offering_duty && !orderItems.find(o=>o.name==='봉헌')) {
+    orderItems.push({name:'봉헌', participant:b.offering_duty, scripture:''});
+  }
+  if (b.announcement_duty && !orderItems.find(o=>o.name==='성도의 교제')) {
+    orderItems.push({name:'성도의 교제', participant:b.announcement_duty, scripture:''});
+  }
   const dream = b.dream || {};
 
   return `
@@ -1282,11 +1336,9 @@ function renderWorshipDetail() {
   const worships = state.cache.worshipSets;
   const w = worships[worships.length - 1];
   if (!w) return '';
-  const now = new Date();
   const storedAt = w.storedAt ? new Date(w.storedAt) : null;
-  const sheetExpired = storedAt ? (now - storedAt) > 30*24*60*60*1000 : false;
-  // 악보 있는 곡들 (30일 이내)
-  const songsWithSheet = w.songs.filter(s => s.sheet && !sheetExpired);
+  // 악보 있는 곡들 (영구 보관)
+  const songsWithSheet = w.songs.filter(s => s.sheet);
   return `
   <div class="min-h-screen bg-white">
     <header class="sticky top-0 z-50 px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
@@ -1324,7 +1376,7 @@ function renderWorshipDetail() {
       <div>
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider">악보</h3>
-          ${storedAt ? `<span class="text-[10px] text-zinc-300">보관 만료: ${new Date(storedAt.getTime()+30*24*60*60*1000).toLocaleDateString('ko-KR')}</span>` : ''}
+
         </div>
         <div class="space-y-4">
           ${songsWithSheet.map(s => `
@@ -1341,10 +1393,6 @@ function renderWorshipDetail() {
             </div>
           </div>`).join('')}
         </div>
-      </div>` : (w.songs.some(s=>s.sheet) && sheetExpired ? `
-      <div class="bg-zinc-50 rounded-2xl p-5 text-center">
-        <p class="text-sm font-bold text-zinc-400">악보 보관 기간이 만료되었습니다</p>
-        <p class="text-xs text-zinc-300 mt-1">악보는 업로드 후 30일간 보관됩니다</p>
       </div>` : '')}
     </div>
   </div>`;
@@ -1789,11 +1837,8 @@ function renderAdminAttendance() {
   <div class="flex gap-2 mb-3 overflow-x-auto hide-scrollbar pb-1">
     ${tabs.map(t=>`<button data-att-tab="${t.id}" class="flex-none px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${activeTab===t.id?'bg-black text-white border-black':'bg-white text-zinc-500 border-zinc-200'}">${t.name}</button>`).join('')}
   </div>
-  <div class="flex items-center justify-between mb-3">
-    <p class="text-xs text-zinc-400">${yr}년 ${mo}월 ${wk}째주 출석: <span class="font-bold text-black">${present}</span> / ${filtered.length}</p>
-    <button data-action="save-attendance" class="px-4 py-2 bg-black text-white rounded-xl text-xs font-bold active:scale-95">저장</button>
-  </div>
-  <div class="space-y-1 mb-6">${filtered.map(r=>{
+  <p class="text-xs text-zinc-400 mb-3">${yr}년 ${mo}월 ${wk}째주 출석: <span class="font-bold text-black">${present}</span> / ${filtered.length}명</p>
+  <div class="space-y-1 mb-24">${filtered.map(r=>{
     const cellName = cells.find(c=>c.id===r.cellId)?.name||'미배정';
     return `
     <button data-action="toggle-att" data-rid="${r.id}" class="w-full flex items-center gap-3 p-3 rounded-xl transition-colors ${marks[r.id]?'bg-emerald-50 border border-emerald-200':'bg-white border border-zinc-100'}">
@@ -1806,6 +1851,9 @@ function renderAdminAttendance() {
       </div>
     </button>`;
   }).join('')}</div>
+  <div class="fixed bottom-[88px] left-0 right-0 z-40 px-5 pb-2 bg-zinc-50/90 backdrop-blur-sm">
+    <button data-action="save-attendance" class="w-full py-3 bg-black text-white rounded-2xl text-sm font-bold active:opacity-70">출석 저장</button>
+  </div>
   ${attKeys.length ? `
   <div class="mt-2">
     <p class="text-xs font-bold text-zinc-500 mb-2">이전 출석 기록</p>
@@ -2539,9 +2587,19 @@ function bindEvents() {
   document.querySelectorAll('[data-action="approve-withdraw"]').forEach(el => {
     el.addEventListener('click', () => {
       const targetUid = el.dataset.uid;
-      showConfirm('정말 탈퇴 처리하시겠습니까?', async () => {
+      const targetUser = state.cache.users.find(u=>u.uid===targetUid);
+      const nm = targetUser?.name ? targetUser.name + '님을 ' : '';
+      showConfirm(nm + '탈퇴 처리하시겠습니까?\n출석·헌금 기록은 유지됩니다.', async () => {
+        // users 문서 삭제
         await window.FDB.deleteDoc('users', targetUid);
         state.cache.users = state.cache.users.filter(u=>u.uid!==targetUid);
+        // roster 연결 해제 (roster 문서·출석·헌금은 보존)
+        const linked = state.cache.rosters.find(r=>r.linkedUid===targetUid);
+        if (linked) {
+          linked.linkedUid = null;
+          linked.joined = false;
+          await window.FDB.setDoc('rosters', linked.id, { linkedUid: null, joined: false });
+        }
         showToast('탈퇴 처리 완료!'); render();
       }, '탈퇴 처리');
     });
@@ -2816,8 +2874,13 @@ function bindEvents() {
   document.querySelectorAll('[data-action="roster-delete"]').forEach(el => {
     el.addEventListener('click', e => {
       e.stopPropagation();
-      showConfirm('탈퇴 처리하시겠습니까?', async () => {
+      showConfirm('명부에서 삭제하시겠습니까?\n출석·헌금 기록은 유지됩니다.', async () => {
         const rid = el.dataset.rid;
+        // 연결된 user 계정도 정리
+        const rr = state.cache.rosters.find(r=>r.id===rid);
+        if (rr?.linkedUid) {
+          await window.FDB.setDoc('users', rr.linkedUid, { status:'withdraw_pending', withdrawAt:today() });
+        }
         await window.FDB.deleteDoc('rosters', rid);
         state.cache.rosters = state.cache.rosters.filter(r=>r.id!==rid);
         render();
@@ -2983,7 +3046,30 @@ function bindEvents() {
       const yrEl=document.getElementById('wfd-yr'); const moEl=document.getElementById('wfd-mo'); const wkEl=document.getElementById('wfd-wk');
       if(yrEl) yrEl.value=dwmv.yr; if(moEl) moEl.value=dwmv.mo; if(wkEl) wkEl.value=dwmv.wk;
       document.getElementById('wf-leader').value=ws.leader||'';
-      document.getElementById('add-song-row')?.addEventListener('click',()=>{ songCount++; document.getElementById('song-rows').innerHTML=getSongRows(ws.songs); bindSheets(); });
+      document.getElementById('add-song-row')?.addEventListener('click',()=>{
+        // 현재 입력된 값 수집
+        const saved = [];
+        for(let i=0;i<songCount;i++){
+          saved.push({
+            title: document.getElementById('ws-title-'+i)?.value||'',
+            url:   document.getElementById('ws-url-'+i)?.value||'',
+            key:   document.getElementById('ws-key-'+i)?.value||'C',
+            sheet: ws.songs[i]?.sheet||'',
+            _sheetName: document.getElementById('ws-sheet-name-'+i)?.textContent||'',
+          });
+        }
+        songCount++;
+        // 저장된 값으로 songs 배열 구성 후 재렌더
+        const mergedSongs = [...ws.songs];
+        saved.forEach((s,i)=>{
+          mergedSongs[i] = { ...(mergedSongs[i]||{}), title:s.title, url:s.url, key:s.key, sheet:s.sheet };
+        });
+        document.getElementById('song-rows').innerHTML=getSongRows(mergedSongs);
+        saved.forEach((s,i)=>{
+          const nEl=document.getElementById('ws-sheet-name-'+i); if(nEl&&s._sheetName) nEl.textContent=s._sheetName;
+        });
+        bindSheets();
+      });
       document.getElementById('update-worship')?.addEventListener('click', async () => {
         const g = id => document.getElementById(id)?.value||'';
         const songs = [];
@@ -3002,7 +3088,7 @@ function bindEvents() {
         const hasNewSheet = songs.some((_,i)=>document.getElementById('ws-sheet-'+i)?.files[0]);
         const updated = { ...ws, date:ymwToDate(wfYr,wfMo,wfWk), leader:g('wf-leader'), songs,
           storedAt: hasNewSheet ? today() : (ws.storedAt||today()) };
-        await window.FDB.setDoc('worshipSets', wid, updated);
+        await window.FDB.setDocFull('worshipSets', wid, updated);
         const idx = state.cache.worshipSets.findIndex(x=>x.id===wid);
         if(idx>=0) state.cache.worshipSets[idx]=updated;
         showToast('찬양 수정 완료!'); render();
@@ -3079,31 +3165,55 @@ function bindEvents() {
     document.getElementById('id-section')?.classList.toggle('hidden');
   });
   document.getElementById('save-pw')?.addEventListener('click', async () => {
-    const cur=document.getElementById('pw-current')?.value;
-    const nw=document.getElementById('pw-new')?.value;
-    const cf=document.getElementById('pw-confirm')?.value;
-    const u=state.cache.users.find(x=>x.uid===state.user.uid);
-    if (!u||u.pw!==cur) return showToast('현재 비밀번호가 틀렸습니다.');
+    const cur=document.getElementById('pw-current')?.value||'';
+    const nw=document.getElementById('pw-new')?.value||'';
+    const cf=document.getElementById('pw-confirm')?.value||'';
+    if (!cur) return showToast('현재 비밀번호를 입력해주세요.');
+    if (!nw) return showToast('새 비밀번호를 입력해주세요.');
     if (nw!==cf) return showToast('새 비밀번호가 일치하지 않습니다.');
     if (nw.length<8 || !/[a-zA-Z]/.test(nw) || !/[0-9]/.test(nw)) return showToast('영문+숫자 혼합 8자 이상이어야 합니다.');
-    u.pw=nw;
-    await window.FDB.setDoc('users', u.uid, { pw:nw });
-    state.user=u; SESSION.set(u);
-    showToast('비밀번호 변경 완료!');
+    const btnEl = document.getElementById('save-pw');
+    if (btnEl) { btnEl.disabled=true; btnEl.textContent='변경 중...'; }
+    try {
+      const u = state.cache.users.find(x=>x.uid===state.user.uid);
+      const email = (u?.id || state.user.id) + '@promisedland.com';
+      await window.FB_reauth(email, cur);
+      await window.FB_updatePw(nw);
+      document.getElementById('pw-current').value='';
+      document.getElementById('pw-new').value='';
+      document.getElementById('pw-confirm').value='';
+      showToast('비밀번호 변경 완료!');
+    } catch(e) {
+      const msg = (e.code==='auth/invalid-credential'||e.code==='auth/wrong-password') ? '현재 비밀번호가 틀렸습니다.' : '오류가 발생했습니다. 다시 시도해주세요.';
+      showToast(msg);
+    } finally {
+      if (btnEl) { btnEl.disabled=false; btnEl.textContent='변경'; }
+    }
   });
   document.getElementById('save-id')?.addEventListener('click', async () => {
-    const pwVerify=document.getElementById('id-pw-verify')?.value;
-    const newId=document.getElementById('id-new')?.value?.trim();
-    const u=state.cache.users.find(x=>x.uid===state.user.uid);
-    if (!u||u.pw!==pwVerify) return showToast('비밀번호가 틀렸습니다.');
+    const pwVerify=document.getElementById('id-pw-verify')?.value||'';
+    const newId=document.getElementById('id-new')?.value?.trim()||'';
+    if (!pwVerify) return showToast('현재 비밀번호를 입력해주세요.');
     if (!newId) return showToast('새 아이디를 입력해주세요.');
     if (newId.length<3) return showToast('아이디는 3자 이상이어야 합니다.');
-    if (state.cache.users.find(x=>x.id===newId&&x.uid!==u.uid)) return showToast('이미 사용 중인 아이디입니다.');
-    u.id=newId; u.idChangedAt=today();
-    await window.FDB.setDoc('users', u.uid, { id:newId, idChangedAt:today() });
-    state.user=u; SESSION.set(u);
-    showToast('아이디 변경 완료! 다음 로그인 시 새 아이디를 사용해주세요.');
-    render();
+    if (state.cache.users.find(x=>x.id===newId&&x.uid!==state.user.uid)) return showToast('이미 사용 중인 아이디입니다.');
+    const btnEl = document.getElementById('save-id');
+    if (btnEl) { btnEl.disabled=true; btnEl.textContent='변경 중...'; }
+    try {
+      const u = state.cache.users.find(x=>x.uid===state.user.uid);
+      const email = (u?.id || state.user.id) + '@promisedland.com';
+      await window.FB_reauth(email, pwVerify);
+      u.id=newId; u.idChangedAt=today();
+      await window.FDB.setDoc('users', u.uid, { id:newId, idChangedAt:today() });
+      state.user=u; SESSION.set(u);
+      showToast('아이디 변경 완료! 다음 로그인 시 새 아이디를 사용해주세요.');
+      render();
+    } catch(e) {
+      const msg = (e.code==='auth/invalid-credential'||e.code==='auth/wrong-password') ? '비밀번호가 틀렸습니다.' : '오류가 발생했습니다. 다시 시도해주세요.';
+      showToast(msg);
+    } finally {
+      if (btnEl) { btnEl.disabled=false; btnEl.textContent='변경'; }
+    }
   });
   document.getElementById('withdraw-btn')?.addEventListener('click', () => {
     // 비밀번호 입력 모달
@@ -3265,7 +3375,7 @@ function bindEvents() {
     </div>`;
     document.getElementById('save-event')?.addEventListener('click', async () => {
       const g = id => document.getElementById(id)?.value||'';
-      const title=g('ef-title'); if (!title) return;
+      const title=g('ef-title'); if (!title) return showToast('제목을 입력해주세요.');
       const eid = uid();
       const ev = { id:eid, title, date:g('ef-date'), time:g('ef-time'), loc:g('ef-loc'), cat:g('ef-cat')||'기타' };
       await window.FDB.setDoc('events', eid, ev);
@@ -3415,7 +3525,29 @@ function bindEvents() {
       </div>`;
       const bindSheets = () => { for(let i=0;i<songCount;i++){ document.getElementById('ws-sheet-'+i)?.addEventListener('change', function(){ const nm=document.getElementById('ws-sheet-name-'+i); if(nm) nm.textContent=this.files[0]?.name||''; }); } };
       bindSheets();
-      document.getElementById('add-song-row')?.addEventListener('click', () => { songCount++; document.getElementById('song-rows').innerHTML=getSongRows(); bindSheets(); });
+      document.getElementById('add-song-row')?.addEventListener('click', () => {
+        // 현재 입력된 값 수집
+        const saved = [];
+        for(let i=0;i<songCount;i++){
+          saved.push({
+            title: document.getElementById('ws-title-'+i)?.value||'',
+            url:   document.getElementById('ws-url-'+i)?.value||'',
+            key:   document.getElementById('ws-key-'+i)?.value||'C',
+            _sheetFile: document.getElementById('ws-sheet-'+i)?.files[0]||null,
+            _sheetName: document.getElementById('ws-sheet-name-'+i)?.textContent||'',
+          });
+        }
+        songCount++;
+        document.getElementById('song-rows').innerHTML=getSongRows();
+        // 저장된 값 복원
+        saved.forEach((s,i)=>{
+          const tEl=document.getElementById('ws-title-'+i); if(tEl) tEl.value=s.title;
+          const uEl=document.getElementById('ws-url-'+i);   if(uEl) uEl.value=s.url;
+          const kEl=document.getElementById('ws-key-'+i);   if(kEl) kEl.value=s.key;
+          const nEl=document.getElementById('ws-sheet-name-'+i); if(nEl&&s._sheetName) nEl.textContent=s._sheetName;
+        });
+        bindSheets();
+      });
       document.getElementById('save-worship')?.addEventListener('click', async () => {
         const g = id => document.getElementById(id)?.value||'';
         const wfYr=+document.getElementById('wfd-yr')?.value||new Date().getFullYear();
@@ -3433,7 +3565,7 @@ function bindEvents() {
         }
         const wid=uid();
         const ws={id:wid,date,leader:g('wf-leader'),songs,by:state.user.uid,at:today(),storedAt:today()};
-        await window.FDB.setDoc('worshipSets', wid, ws);
+        await window.FDB.setDocFull('worshipSets', wid, ws);
         state.cache.worshipSets.push(ws);
         showToast('찬양 저장 완료!'); render();
       });
