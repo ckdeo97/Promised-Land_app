@@ -61,6 +61,15 @@
   window.FDB = {
     db, storage,
 
+    // 실시간 리스너
+    listenCol(colName, onData) {
+      return onSnapshot(
+        collection(db, colName),
+        snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+        err => console.warn('onSnapshot', colName, err)
+      );
+    },
+
     async getCol(col) {
       try {
         const snap = await getDocs(collection(db, col));
@@ -442,7 +451,26 @@ const SESSION = {
 // ============================================================
 // FIREBASE LOADER
 // ============================================================
+// 실시간 리스너 unsubscribe 함수 목록
+const _unsubs = [];
+
+function stopListeners() {
+  _unsubs.forEach(fn => { try { fn(); } catch(e) {} });
+  _unsubs.length = 0;
+}
+
+function listenCol(colName, onData) {
+  const unsub = window.FDB.listenCol(colName, docs => {
+    onData(docs);
+    render();
+  });
+  _unsubs.push(unsub);
+}
+
 async function loadAll() {
+  stopListeners();
+
+  // 1회성 로드 (빠른 초기 렌더)
   const FDB = window.FDB;
   const [users, cells, rosters, notices, bulletins, worshipSets, events, cellMeetings, serviceSchedules, offeringDocs, attendanceDocs] = await Promise.all([
     FDB.getCol('users'), FDB.getCol('cells'), FDB.getCol('rosters'),
@@ -459,28 +487,47 @@ async function loadAll() {
   state.cache.events = events.sort((a,b)=>a.date.localeCompare(b.date));
   state.cache.serviceSchedules = serviceSchedules.sort((a,b)=>a.date.localeCompare(b.date));
   state.cache.cellMeetings = cellMeetings.sort((a,b)=>b.date.localeCompare(a.date));
-  // offerings: { [date]: { items: [...] } } 형태로 변환
   state.cache.offerings = {};
-  offeringDocs.forEach(doc => {
-    const { id, ...data } = doc;
-    state.cache.offerings[id] = data;
-  });
-  // attendance: { [date]: { marks: {...} } } 형태로 변환
+  offeringDocs.forEach(doc => { const { id, ...data } = doc; state.cache.offerings[id] = data; });
   state.cache.attendance = {};
-  attendanceDocs.forEach(doc => {
-    const { id, ...data } = doc;
-    state.cache.attendance[id] = data;
-  });
-  // 주요 데이터 localStorage 캐시 저장
+  attendanceDocs.forEach(doc => { const { id, ...data } = doc; state.cache.attendance[id] = data; });
+
+  // localStorage 캐시 저장
   try {
     localStorage.setItem('jmc_cache', JSON.stringify({
-      users: state.cache.users,
-      cells: state.cache.cells,
-      rosters: state.cache.rosters,
-      bulletins: state.cache.bulletins,
+      users: state.cache.users, cells: state.cache.cells,
+      rosters: state.cache.rosters, bulletins: state.cache.bulletins,
       notices: state.cache.notices,
     }));
   } catch(e) {}
+
+  // 2) 실시간 리스너 등록 (다른 기기 변경사항 자동 반영)
+  listenCol('worshipSets', docs => {
+    state.cache.worshipSets = docs.sort((a,b)=>a.date.localeCompare(b.date));
+  });
+  listenCol('bulletins', docs => {
+    state.cache.bulletins = docs.sort((a,b)=>a.date.localeCompare(b.date));
+  });
+  listenCol('notices', docs => {
+    state.cache.notices = docs.sort((a,b)=>b.at.localeCompare(a.at));
+  });
+  listenCol('events', docs => {
+    state.cache.events = docs.sort((a,b)=>a.date.localeCompare(b.date));
+  });
+  listenCol('cellMeetings', docs => {
+    state.cache.cellMeetings = docs.sort((a,b)=>b.date.localeCompare(a.date));
+  });
+  listenCol('offering', docs => {
+    state.cache.offerings = {};
+    docs.forEach(doc => { const { id, ...data } = doc; state.cache.offerings[id] = data; });
+  });
+  listenCol('attendance', docs => {
+    state.cache.attendance = {};
+    docs.forEach(doc => { const { id, ...data } = doc; state.cache.attendance[id] = data; });
+  });
+  listenCol('serviceSchedules', docs => {
+    state.cache.serviceSchedules = docs.sort((a,b)=>a.date.localeCompare(b.date));
+  });
 }
 
 // ============================================================
