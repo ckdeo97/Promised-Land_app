@@ -382,16 +382,48 @@ let state = {
 const uid = () => Math.random().toString(36).substr(2, 9);
 // 악보 다운로드 (압축 없이 원본 그대로)
 async function downloadSheet(url, filename) {
+  // canvas를 이용해 이미지를 로컬에 저장 (크로스오리진 우회, 모바일/웹 통합)
   try {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    const ext = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg';
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 1.0); // 압축 없이 최고 품질
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${filename}.${ext}`;
+    a.href = dataUrl;
+    a.download = filename + '.jpg';
+    document.body.appendChild(a);
     a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  } catch(e) { window.open(url, '_blank'); }
+    document.body.removeChild(a);
+  } catch(e) {
+    // canvas 실패 시 (CORS 등) → fetch blob 시도
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      const blob = await res.blob();
+      const ext = blob.type.includes('png') ? 'png' : 'jpg';
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename + '.' + ext;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+    } catch(e2) {
+      // 최후 수단: 새 탭에서 이미지 열기 (길게 눌러 저장 안내)
+      const win = window.open(url, '_blank');
+      if (!win) showToast('이미지를 길게 눌러 저장하세요');
+      else showToast('이미지를 길게 눌러 저장하세요');
+    }
+  }
 }
 const koSort = (a, b) => (a||'').localeCompare(b||'', 'ko');
 const sortByName = arr => [...arr].sort((a,b) => koSort(a.name, b.name));
@@ -1255,11 +1287,10 @@ function renderWorshipDetail() {
             </div>
             <div class="relative group bg-zinc-50">
               <img src="${s.sheet}" class="w-full block" alt="${s.title} 악보" loading="lazy"/>
-              <a href="${s.sheet}" download="${s.title}_악보.jpg"
-                class="absolute bottom-3 right-3 w-10 h-10 bg-black/70 rounded-full flex items-center justify-center opacity-80 active:opacity-100 hover:opacity-100 transition-opacity"
-                onclick="event.preventDefault(); downloadSheet('${s.sheet}', '${s.title}_악보')">
+              <button onclick="downloadSheet('${s.sheet}', '${s.title}_악보')"
+                class="absolute bottom-3 right-3 w-10 h-10 bg-black/70 rounded-full flex items-center justify-center active:bg-black/90 hover:bg-black/85 transition-opacity">
                 ${icon('download','text-white',20)}
-              </a>
+              </button>
             </div>
           </div>`).join('')}
         </div>
