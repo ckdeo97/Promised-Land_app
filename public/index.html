@@ -1332,13 +1332,37 @@ function renderCalendarTab() {
 // ============================================================
 // WORSHIP DETAIL
 // ============================================================
+function _renderSongRow(s, i) {
+  const linkBtn = s.url
+    ? '<a href="' + s.url + '" target="_blank" class="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center flex-none">' + icon('play_arrow','text-red-500',20) + '</a>'
+    : '';
+  return '<div class="bg-white rounded-2xl border border-zinc-100 p-4 flex items-center gap-3">'
+    + '<div class="w-9 h-9 bg-black rounded-xl flex items-center justify-center flex-none"><span class="text-white font-bold text-sm">' + (i+1) + '</span></div>'
+    + '<div class="flex-1 min-w-0"><p class="font-bold text-sm">' + s.title + '</p><p class="text-xs text-zinc-400">Key: ' + s.key + '</p></div>'
+    + linkBtn
+    + '</div>';
+}
+function _renderSheetCard(s) {
+  const parts = [];
+  parts.push('<div class="rounded-2xl overflow-hidden border border-zinc-100">');
+  parts.push('<div class="px-4 py-2.5 bg-zinc-50 border-b border-zinc-100">');
+  parts.push('<p class="text-xs font-bold">' + s.title + ' <span class="text-zinc-400 font-normal">· Key ' + s.key + '</span></p></div>');
+  parts.push('<div class="relative group bg-zinc-50">');
+  parts.push('<img src="' + s.sheet + '" class="w-full block" loading="lazy"/>');
+  parts.push('<button data-dl-sheet="' + s.sheet + '" data-dl-title="' + s.title + '" class="dl-sheet-btn absolute bottom-3 right-3 w-10 h-10 bg-black/70 rounded-full flex items-center justify-center active:bg-black/90">');
+  parts.push(icon('download','text-white',20));
+  parts.push('</button></div></div>');
+  return parts.join('');
+}
 function renderWorshipDetail() {
   const worships = state.cache.worshipSets;
   const w = worships[worships.length - 1];
   if (!w) return '';
-  const storedAt = w.storedAt ? new Date(w.storedAt) : null;
-  // 악보 있는 곡들 (영구 보관)
   const songsWithSheet = w.songs.filter(s => s.sheet);
+  const songRows = w.songs.map((s,i) => _renderSongRow(s,i)).join('');
+  const sheetSection = songsWithSheet.length
+    ? '<div><h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">악보</h3><div class="space-y-4">' + songsWithSheet.map(_renderSheetCard).join('') + '</div></div>'
+    : '';
   return `
   <div class="min-h-screen bg-white">
     <header class="sticky top-0 z-50 px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
@@ -1346,54 +1370,16 @@ function renderWorshipDetail() {
       <h1 class="font-bold text-sm flex-1">이번주 찬양</h1>
     </header>
     <div class="p-5 space-y-6 pb-12">
-      <!-- 세트 정보 -->
       <div class="bg-zinc-50 rounded-2xl p-4">
         <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">세트 정보</p>
         <p class="text-sm font-bold mb-1">${w.date}</p>
         <div class="text-xs"><span class="text-zinc-400">인도:</span> <span class="font-bold">${w.leader}</span></div>
       </div>
-
-      <!-- 찬양 링크 목록 (상단) -->
       <div>
         <h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">곡 목록</h3>
-        <div class="space-y-2">
-          ${w.songs.map((s,i) => `
-          <div class="bg-white rounded-2xl border border-zinc-100 p-4 flex items-center gap-3">
-            <div class="w-9 h-9 bg-black rounded-xl flex items-center justify-center flex-none">
-              <span class="text-white font-bold text-sm">${i+1}</span>
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="font-bold text-sm">${s.title}</p>
-              <p class="text-xs text-zinc-400">Key: ${s.key}</p>
-            </div>
-            ${s.url ? `<a href="${s.url}" target="_blank" class="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center flex-none">${icon('play_arrow','text-red-500',20)}</a>` : ''}
-          </div>`).join('')}
-        </div>
+        <div class="space-y-2">${songRows}</div>
       </div>
-
-      <!-- 악보 섹션 (하단) -->
-      ${songsWithSheet.length ? `
-      <div>
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider">악보</h3>
-
-        </div>
-        <div class="space-y-4">
-          ${songsWithSheet.map(s => `
-          <div class="rounded-2xl overflow-hidden border border-zinc-100">
-            <div class="px-4 py-2.5 bg-zinc-50 border-b border-zinc-100">
-              <p class="text-xs font-bold">${s.title} <span class="text-zinc-400 font-normal">· Key ${s.key}</span></p>
-            </div>
-            <div class="relative group bg-zinc-50">
-              <img src="${s.sheet}" class="w-full block" alt="${s.title} 악보" loading="lazy"/>
-              <button onclick="downloadSheet(this.dataset.sheet, this.dataset.title+'_악보')" data-sheet="${s.sheet}" data-title="${s.title}"
-                class="absolute bottom-3 right-3 w-10 h-10 bg-black/70 rounded-full flex items-center justify-center active:bg-black/90 hover:bg-black/85 transition-opacity">
-                ${icon('download','text-white',20)}
-              </button>
-            </div>
-          </div>`).join('')}
-        </div>
-      </div>` : '')}
+      ${sheetSection}
     </div>
   </div>`;
 }
@@ -3591,6 +3577,13 @@ function bindEvents() {
       else state.cache.serviceSchedules.push(data);
     }
     showToast('임사 저장 완료!');
+  });
+
+  // 악보 다운로드
+  document.querySelectorAll('.dl-sheet-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      downloadSheet(btn.dataset.dlSheet, btn.dataset.dlTitle + '_악보');
+    });
   });
 }
 
