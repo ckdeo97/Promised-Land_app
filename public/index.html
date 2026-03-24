@@ -477,44 +477,25 @@ function listenCol(colName, onData) {
 async function loadAll() {
   stopListeners();
 
-  // 1회성 로드 (빠른 초기 렌더)
-  const FDB = window.FDB;
-  const [users, cells, rosters, notices, bulletins, worshipSets, events, cellMeetings, serviceSchedules, offeringDocs, attendanceDocs] = await Promise.all([
-    FDB.getCol('users'), FDB.getCol('cells'), FDB.getCol('rosters'),
-    FDB.getCol('notices'), FDB.getCol('bulletins'), FDB.getCol('worshipSets'),
-    FDB.getCol('events'), FDB.getCol('cellMeetings'), FDB.getCol('serviceSchedules'),
-    FDB.getCol('offering'), FDB.getCol('attendance')
-  ]);
-  state.cache.users = users;
-  state.cache.cells = cells.sort((a,b)=>(a.order||0)-(b.order||0));
-  state.cache.rosters = rosters.sort((a,b)=>koSort(a.name,b.name));
-  state.cache.notices = notices.sort((a,b)=>b.at.localeCompare(a.at));
-  state.cache.bulletins = bulletins.sort((a,b)=>a.date.localeCompare(b.date));
-  state.cache.worshipSets = worshipSets.sort((a,b)=>a.date.localeCompare(b.date));
-  state.cache.events = events.sort((a,b)=>a.date.localeCompare(b.date));
-  state.cache.serviceSchedules = serviceSchedules.sort((a,b)=>a.date.localeCompare(b.date));
-  state.cache.cellMeetings = cellMeetings.sort((a,b)=>b.date.localeCompare(a.date));
-  state.cache.offerings = {};
-  offeringDocs.forEach(doc => { const { id, ...data } = doc; state.cache.offerings[id] = data; });
-  state.cache.attendance = {};
-  attendanceDocs.forEach(doc => { const { id, ...data } = doc; state.cache.attendance[id] = data; });
+  // users만 선행 1회 로드: initApp()이 await loadAll() 직후 state.cache.users로 유저를 조회하기 때문에
+  // 나머지 10개 컬렉션은 onSnapshot 최초 발화 시 캐시에 채워지므로 getCol 중복 호출 불필요
+  state.cache.users = await window.FDB.getCol('users');
 
-  // localStorage 캐시 저장
-  try {
-    localStorage.setItem('jmc_cache', JSON.stringify({
-      users: state.cache.users, cells: state.cache.cells,
-      rosters: state.cache.rosters, bulletins: state.cache.bulletins,
-      notices: state.cache.notices,
-    }));
-  } catch(e) {}
-
-  // 2) 실시간 리스너 등록 (다른 기기 변경사항 자동 반영)
+  // 실시간 리스너 등록 (다른 기기 변경사항 자동 반영)
   listenCol('users', docs => {
     state.cache.users = docs;
     if (state.user) {
       const fresh = docs.find(u=>u.uid===state.user.uid);
       if (fresh) { state.user = fresh; SESSION.set(fresh); }
     }
+    // localStorage 캐시 저장 (다음 세션의 즉시 렌더링용)
+    try {
+      localStorage.setItem('jmc_cache', JSON.stringify({
+        users: state.cache.users, cells: state.cache.cells,
+        rosters: state.cache.rosters, bulletins: state.cache.bulletins,
+        notices: state.cache.notices,
+      }));
+    } catch(e) {}
   });
   listenCol('cells', docs => {
     state.cache.cells = docs.sort((a,b)=>(a.order||0)-(b.order||0));
@@ -2192,47 +2173,6 @@ function openCellSettings() {
 // EVENT BINDING
 // ============================================================
 function bindEvents() {
-  // ── Pull to Refresh ──
-  (function setupPTR() {
-    let startY = 0, pulling = false, indicator = null;
-    const threshold = 70;
-    const mainEl = () => document.querySelector('main') || document.querySelector('.min-h-screen');
-
-    document.addEventListener('touchstart', e => {
-      // 홈탭에서만 PTR 동작
-      if (state.page !== 'main' || state.tab !== 'home' || state.detail || state.profilePage) return;
-      const scrollTop = window.scrollY || 0;
-      if (scrollTop <= 0) { startY = e.touches[0].clientY; pulling = true; }
-    }, { passive: true });
-
-    document.addEventListener('touchmove', e => {
-      if (!pulling) return;
-      const dy = e.touches[0].clientY - startY;
-      if (dy > 10 && !indicator) {
-        indicator = document.createElement('div');
-        indicator.id = 'ptr-indicator';
-        indicator.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:9999;background:#000;color:#fff;padding:6px 16px;border-radius:999px;font-size:12px;font-weight:700;opacity:0;transition:opacity 0.2s;pointer-events:none;';
-        indicator.textContent = '↓ 당겨서 새로고침';
-        document.body.appendChild(indicator);
-        setTimeout(() => { if(indicator) indicator.style.opacity = '1'; }, 10);
-      }
-      if (indicator && dy > threshold) indicator.textContent = '↑ 놓으면 새로고침';
-      else if (indicator) indicator.textContent = '↓ 당겨서 새로고침';
-    }, { passive: true });
-
-    document.addEventListener('touchend', async e => {
-      if (!pulling) return;
-      pulling = false;
-      const dy = e.changedTouches[0].clientY - startY;
-      if (indicator) { indicator.style.opacity = '0'; setTimeout(() => { indicator?.remove(); indicator = null; }, 200); }
-      if (dy > threshold) {
-        showToast('새로고침 중...');
-        await loadAll();
-        render();
-      }
-    });
-  })();
-
   // confirm handled by showConfirm DOM direct
 
   // ── Login ──
@@ -2441,33 +2381,6 @@ function bindEvents() {
     });
   });
 
-
-  // ── iOS 스와이프 뒤로가기 ──
-  (function setupSwipeBack() {
-    let startX = 0, startY = 0, swiping = false;
-    const EDGE = 30; // 왼쪽 30px 안에서 시작해야 인식
-    document.addEventListener('touchstart', e => {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      swiping = startX < EDGE;
-    }, { passive: true });
-    document.addEventListener('touchend', e => {
-      if (!swiping) return;
-      const dx = e.changedTouches[0].clientX - startX;
-      const dy = Math.abs(e.changedTouches[0].clientY - startY);
-      swiping = false;
-      if (dx > 60 && dy < 80) {
-        // 뒤로가기: 하위 페이지/모달만 닫음, 홈(메인탭)은 스와이프 불가
-        if (state.detail) { state.detail = null; render(); }
-        else if (state.profilePage) { state.profilePage = null; render(); }
-        else if (state.page === 'admin' && state.adminSub !== 'dashboard') { state.adminSub = 'dashboard'; render(); }
-        else if (state.page === 'admin') { state.page = 'main'; state.tab = 'home'; render(); }
-        else if (state.page === 'register') { state.page = 'login'; render(); }
-        // 메인 탭 간 스와이프는 의도치 않은 동작 방지를 위해 제거
-        // (홈탭에서 스와이프해도 아무 동작 없음)
-      }
-    });
-  })();
 
   // ── Worship ──
   document.querySelectorAll('[data-action="go-worship"]').forEach(el => {
@@ -4007,9 +3920,80 @@ function bindCropModal() {
 }
 
 // ============================================================
+// GLOBAL GESTURES — initApp에서 딱 1회만 등록 (bindEvents 반복 호출로 인한 누수 방지)
+// ============================================================
+function setupPTR() {
+  let startY = 0, pulling = false, indicator = null;
+  const threshold = 70;
+  document.addEventListener('touchstart', e => {
+    if (state.page !== 'main' || state.tab !== 'home' || state.detail || state.profilePage) return;
+    const scrollTop = window.scrollY || 0;
+    if (scrollTop <= 0) { startY = e.touches[0].clientY; pulling = true; }
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy > 10 && !indicator) {
+      indicator = document.createElement('div');
+      indicator.id = 'ptr-indicator';
+      indicator.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:9999;background:#000;color:#fff;padding:6px 16px;border-radius:999px;font-size:12px;font-weight:700;opacity:0;transition:opacity 0.2s;pointer-events:none;';
+      indicator.textContent = '↓ 당겨서 새로고침';
+      document.body.appendChild(indicator);
+      setTimeout(() => { if(indicator) indicator.style.opacity = '1'; }, 10);
+    }
+    if (indicator && dy > threshold) indicator.textContent = '↑ 놓으면 새로고침';
+    else if (indicator) indicator.textContent = '↓ 당겨서 새로고침';
+  }, { passive: true });
+  document.addEventListener('touchend', async e => {
+    if (!pulling) return;
+    pulling = false;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (indicator) { indicator.style.opacity = '0'; setTimeout(() => { indicator?.remove(); indicator = null; }, 200); }
+    if (dy > threshold) {
+      showToast('새로고침 중...');
+      await loadAll();
+      render();
+    }
+  });
+}
+
+function setupSwipeBack() {
+  let startX = 0, startY = 0, swiping = false;
+  const EDGE = 30; // 왼쪽 30px 안에서 시작해야 인식
+  document.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    swiping = startX < EDGE;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!swiping) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = Math.abs(e.changedTouches[0].clientY - startY);
+    swiping = false;
+    if (dx > 60 && dy < 80) {
+      // 뒤로가기: 하위 페이지/모달만 닫음, 홈(메인탭)은 스와이프 불가
+      if (state.detail) { state.detail = null; render(); }
+      else if (state.profilePage) { state.profilePage = null; render(); }
+      else if (state.page === 'admin' && state.adminSub !== 'dashboard') { state.adminSub = 'dashboard'; render(); }
+      else if (state.page === 'admin') { state.page = 'main'; state.tab = 'home'; render(); }
+      else if (state.page === 'register') { state.page = 'login'; render(); }
+      // 메인 탭 간 스와이프는 의도치 않은 동작 방지를 위해 제거
+      // (홈탭에서 스와이프해도 아무 동작 없음)
+    }
+  });
+}
+
+// ============================================================
 // APP INIT
 // ============================================================
+let _gesturesSetup = false;
 async function initApp(firebaseUser) {
+  // 제스처 리스너: 앱 생애주기 동안 딱 1회만 등록
+  if (!_gesturesSetup) {
+    setupPTR();
+    setupSwipeBack();
+    _gesturesSetup = true;
+  }
   // Firebase Auth가 로그인된 유저를 알고 있으면 → 세션 복원
   // (localStorage가 날아가도 Firebase Auth IndexedDB는 살아있음)
   const session = SESSION.get();
