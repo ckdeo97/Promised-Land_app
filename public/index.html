@@ -2656,8 +2656,8 @@ function bindEvents() {
       const pw = document.getElementById('withdraw-pw-input')?.value;
       const u = state.cache.users.find(x=>x.uid===state.user.uid);
       if (!u) { showToast('사용자 정보를 찾을 수 없습니다.'); return; }
+      const authUser = window.FAUTH.currentUser;
       try {
-        const authUser = window.FAUTH.currentUser;
         if (authUser) {
           const email = u.id + '@promisedland.com';
           await window.FB_reauth(email, pw);
@@ -2668,6 +2668,7 @@ function bindEvents() {
       showLoading('처리 중...');
       try {
         await window.FDB.setDoc('users', u.uid, { status:'withdraw_pending', withdrawAt:today() });
+        if (authUser) { await authUser.delete(); }
         await window.FB_signOut().catch(()=>{});
         SESSION.clear();
         state.user=null; state.page='login'; state.profilePage=null; state.isEditing=false;
@@ -2714,8 +2715,7 @@ function bindEvents() {
       const cellId = state.user.cellId;
       let profileImg = state.user.profileImg;
       if (state._pendingProfileImg) {
-        const url = await window.FDB.uploadBase64(`profiles/${state.user.uid}`, state._pendingProfileImg);
-        if (url) profileImg = url;
+        profileImg = state._pendingProfileImg;
         state._pendingProfileImg = null;
       }
       const updated = { ...state.user };
@@ -3188,7 +3188,7 @@ function bindCropModal() {
   // 완료
   document.getElementById('crop-confirm')?.addEventListener('click', () => {
     const c = state._cropModal;
-    const OUT = 400;
+    const OUT = 100;
     const canvas = document.createElement('canvas');
     canvas.width = OUT; canvas.height = OUT;
     const ctx = canvas.getContext('2d');
@@ -3203,7 +3203,7 @@ function bindCropModal() {
     const imgObj = new Image();
     imgObj.onload = () => {
       ctx.drawImage(imgObj, srcX, srcY, srcW, srcH, 0, 0, OUT, OUT);
-      state._pendingProfileImg = canvas.toDataURL('image/jpeg', 0.9);
+      state._pendingProfileImg = canvas.toDataURL('image/jpeg', 0.8);
       state._cropModal = null;
       render();
     };
