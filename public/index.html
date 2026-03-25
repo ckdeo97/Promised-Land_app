@@ -574,6 +574,137 @@ const fmtAmt = v => Number(v).toLocaleString();
 // XSS 방어: 유저 입력 텍스트를 HTML 엔티티로 변환
 const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
+/** 명부 생년월일(숫자 8자리) → 유효한 월·일 */
+function rosterBirthMonthDay(birth) {
+  const d = String(birth || '').replace(/\D/g, '');
+  if (d.length !== 8) return null;
+  const mo = +d.slice(4, 6);
+  const day = +d.slice(6, 8);
+  if (mo < 1 || mo > 12 || day < 1 || day > 31) return null;
+  const y = +d.slice(0, 4);
+  const dt = new Date(y, mo - 1, day);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== day) return null;
+  return { mo, day };
+}
+/** 특정 연도의 생일 날짜 YYYY-MM-DD (2/29는 평년 2/28) */
+function birthdayDateForYear(md, year) {
+  let dd = md.day;
+  if (md.mo === 2 && dd === 29) {
+    const leap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+    if (!leap) dd = 28;
+  }
+  const dt = new Date(year, md.mo - 1, dd);
+  if (dt.getMonth() !== md.mo - 1) return null;
+  return `${year}-${String(md.mo).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+}
+/** 명부 기준 자동 생일 일정(올해·내년, 가상 문서 — Firestore 미저장) */
+function getVirtualBirthdayEventsFromRosters() {
+  const rosters = state.cache.rosters || [];
+  const out = [];
+  const yNow = new Date().getFullYear();
+  for (const r of rosters) {
+    const name = (r && r.name || '').trim();
+    if (!name) continue;
+    const md = rosterBirthMonthDay(r.birth);
+    if (!md) continue;
+    for (const yr of [yNow, yNow + 1]) {
+      const ds = birthdayDateForYear(md, yr);
+      if (!ds) continue;
+      const title = name + ' 생일';
+      out.push({
+        id: 'vbday_' + r.id + '_' + yr,
+        title,
+        date: ds,
+        time: '',
+        loc: '',
+        cat: '생일',
+        _virtualBirthday: true,
+        _rosterId: r.id
+      });
+    }
+  }
+  return out;
+}
+/** 저장된 일정 + 자동 생일(동일 날짜·제목 수동 일정이 있으면 생일 제외) */
+function getMergedEventsForDisplay() {
+  const real = [...(state.cache.events || [])];
+  const virt = getVirtualBirthdayEventsFromRosters();
+  const norm = s => String(s || '').replace(/\s/g, '');
+  const merged = [...real];
+  for (const v of virt) {
+    const dup = real.some(e =>
+      e.date === v.date &&
+      String(e.cat || '') === '생일' &&
+      norm(e.title) === norm(v.title)
+    );
+    if (!dup) merged.push(v);
+  }
+  merged.sort((a, b) => {
+    const c = (a.date || '').localeCompare(b.date || '');
+    if (c !== 0) return c;
+    return (a.title || '').localeCompare(b.title || '', 'ko');
+  });
+  return merged;
+}
+/** 단일 날짜 또는 기간(date~dateEnd) 포함 여부 */
+function eventCoversDate(e, ds) {
+  if (!e || !ds || !e.date) return false;
+  const end = (e.dateEnd && String(e.dateEnd).trim() && e.dateEnd >= e.date) ? e.dateEnd : '';
+  if (end) return ds >= e.date && ds <= end;
+  return e.date === ds;
+}
+/** 오늘 이후에 아직 끝나지 않은 일정(기간은 끝날짜 기준) */
+function eventIsUpcomingOrOngoing(e, tday) {
+  const end = (e.dateEnd && String(e.dateEnd).trim() && e.dateEnd >= e.date) ? e.dateEnd : e.date;
+  return (end || '') >= tday;
+}
+function bindEventFormRangeFields() {
+  const chk = document.getElementById('ef-date-range');
+  const endEl = document.getElementById('ef-date-end');
+  if (!chk || !endEl) return;
+  const sync = () => {
+    const on = chk.checked;
+    endEl.disabled = !on;
+    endEl.classList.toggle('opacity-50', !on);
+    endEl.classList.toggle('cursor-not-allowed', !on);
+    if (!on) endEl.value = '';
+  };
+  chk.addEventListener('change', sync);
+  sync();
+}
+/** 일정 기간 문구 (부가 설명용) */
+function formatEventDateRangeSubtitle(ev) {
+  if (!ev || !ev.date) return '';
+  const endStr = (ev.dateEnd && String(ev.dateEnd).trim() && ev.dateEnd > ev.date) ? ev.dateEnd : '';
+  if (!endStr) return '';
+  const start = new Date(ev.date + 'T12:00:00');
+  const end = new Date(endStr + 'T12:00:00');
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return '';
+  const sm = start.getMonth() + 1, sd = start.getDate();
+  const em = end.getMonth() + 1, ed = end.getDate();
+  return sm + '월 ' + sd + '일 ~ ' + em + '월 ' + ed + '일';
+}
+function readValidatedEventRangePayload() {
+  const range = !!document.getElementById('ef-date-range')?.checked;
+  const date = (document.getElementById('ef-date')?.value || '').trim();
+  if (!date) {
+    showToast('시작일을 선택해 주세요.');
+    return null;
+  }
+  const dateEnd = range ? (document.getElementById('ef-date-end')?.value || '').trim() : '';
+  if (range) {
+    if (!dateEnd) {
+      showToast('기간 일정은 종료일을 선택해 주세요.');
+      return null;
+    }
+    if (dateEnd < date) {
+      showToast('종료일은 시작일과 같거나 이후여야 합니다.');
+      return null;
+    }
+  }
+  return { dateEnd: range ? dateEnd : '' };
+}
+
 /** 공지 첨부: 가로 최대 1000px, 품질 0.8 — WebP 우선, 미지원 시 JPEG Blob */
 function compressNoticeImageFile(file) {
   return new Promise((resolve, reject) => {
@@ -1350,7 +1481,7 @@ function bindNoticeFormScheduleFields() {
 function renderHomeTab() {
   const worships = state.cache.worshipSets;
   const notices = state.cache.notices;
-  const events = state.cache.events;
+  const mergedEvents = getMergedEventsForDisplay();
   const latest = worships[worships.length - 1];
   const verses = state.cache.verses;
   const upcomingDate = getUpcomingSundays(1, false)[0];
@@ -1377,10 +1508,10 @@ function renderHomeTab() {
           {l:'성도의 교제', v:(svc.fellowship && String(svc.fellowship).trim()) || '미정', i:'campaign'},
           {l:'봉헌', v:(svc.offering && String(svc.offering).trim()) || '미정', i:'favorite'},
         ].map(d => `
-        <div class="flex items-center gap-3 px-5 py-4">
-          <div class="w-8 h-8 bg-zinc-100 rounded-lg flex items-center justify-center flex-none">${icon(d.i,'text-zinc-600',16)}</div>
-          <span class="text-xs text-zinc-400 w-20 flex-none">${d.l}</span>
-          <span class="text-sm font-bold flex-1 text-center min-w-0">${esc(d.v)}</span>
+        <div class="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-4 min-w-0">
+          <div class="w-7 h-7 sm:w-8 sm:h-8 bg-zinc-100 rounded-lg flex items-center justify-center flex-none shrink-0">${icon(d.i,'text-zinc-600',16)}</div>
+          <span class="text-[11px] sm:text-xs text-zinc-400 w-[4.25rem] sm:w-24 flex-none shrink-0 text-right leading-tight">${d.l}</span>
+          <span class="text-sm font-bold flex-1 text-center min-w-0 px-1">${esc(d.v)}</span>
         </div>`).join('')}
       </div>
     </div>
@@ -1450,9 +1581,10 @@ function renderHomeTab() {
       <button data-tab="calendar" class="text-zinc-400 text-xs font-bold">전체보기</button>
     </div>
     <div class="space-y-3">
-      ${events.slice(0,3).map(ev => {
+      ${mergedEvents.filter(e => eventIsUpcomingOrOngoing(e, today())).slice(0,3).map(ev => {
         const d = new Date(ev.date); const m = d.getMonth()+1; const day = d.getDate();
         const isW = ev.cat === '예배';
+        const rangeSub = formatEventDateRangeSubtitle(ev);
         return `
         <div class="flex items-center gap-4 bg-white p-4 rounded-2xl border border-zinc-100">
           <div class="w-12 h-12 ${isW?'bg-black':'bg-zinc-100'} rounded-xl flex flex-col items-center justify-center flex-none">
@@ -1462,6 +1594,7 @@ function renderHomeTab() {
           <div class="flex-1 min-w-0 flex items-start justify-between gap-3">
             <div class="min-w-0">
               <h4 class="font-bold text-sm text-black">${esc(ev.title)}</h4>
+              ${rangeSub ? `<p class="text-[11px] text-zinc-500 mt-0.5 font-medium">${esc(rangeSub)}</p>` : ''}
               ${(ev.loc||ev.time)?`<p class="text-xs text-zinc-400 mt-0.5">${[ev.loc,ev.time].filter(Boolean).map(esc).join(' · ')}</p>`:''}
             </div>
             <span class="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded shrink-0 self-start">${esc(ev.cat)}</span>
@@ -1713,7 +1846,7 @@ function renderNoticeDetail() {
 // CALENDAR TAB
 // ============================================================
 function renderCalendarTab() {
-  const events = state.cache.events;
+  const merged = getMergedEventsForDisplay();
   const vm = state._calMonth || { y: new Date().getFullYear(), m: new Date().getMonth() };
   const y = vm.y; const m = vm.m;
   const selDate = state._calSel || today();
@@ -1725,7 +1858,7 @@ function renderCalendarTab() {
   for (let d=1; d<=daysInMonth; d++) {
     const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isSel = ds === selDate;
-    const hasEv = events.some(e=>e.date===ds);
+    const hasEv = merged.some(e => eventCoversDate(e, ds));
     const isToday = ds === today();
     const dow = new Date(ds).getDay();
     const holiday = isHoliday(ds);
@@ -1739,7 +1872,7 @@ function renderCalendarTab() {
     cells += `<button data-cal-date="${ds}" class="relative w-full aspect-square flex items-center justify-center rounded-xl text-sm font-medium transition-colors ${bgColor} ${txtColor} active:opacity-70">${d}${hasEv&&!isSel?`<span class="absolute bottom-1 w-1 h-1 ${(dow===0||holiday)?'bg-red-400':dow===6?'bg-blue-400':'bg-black'} rounded-full"></span>`:''}</button>`;
   }
 
-  const dayEvents = events.filter(e => e.date === selDate);
+  const dayEvents = merged.filter(e => eventCoversDate(e, selDate));
   const sd = new Date(selDate);
 
   return `
@@ -1757,16 +1890,19 @@ function renderCalendarTab() {
     <div>
       <h3 class="text-sm font-bold mb-3">${sd.getMonth()+1}월 ${sd.getDate()}일 일정</h3>
       ${dayEvents.length===0 ? '<p class="text-sm text-zinc-300 text-center py-8">등록된 일정이 없습니다</p>' :
-        `<div class="space-y-2">${dayEvents.map(ev=>`
+        `<div class="space-y-2">${dayEvents.map(ev => {
+          const rangeLine = formatEventDateRangeSubtitle(ev);
+          return `
           <div class="flex items-center gap-4 bg-zinc-50 p-4 rounded-2xl">
             <div class="w-1 h-10 bg-black rounded-full"></div>
             <div>
               <span class="text-[10px] font-bold bg-zinc-200 text-zinc-500 px-1.5 py-0.5 rounded">${esc(ev.cat)}</span>
               <h4 class="font-bold text-sm mt-0.5">${esc(ev.title)}</h4>
+              ${rangeLine ? `<p class="text-[11px] text-zinc-500 mt-0.5">${esc(rangeLine)}</p>` : ''}
               ${(ev.loc||ev.time)?`<p class="text-xs text-zinc-400">${[ev.loc,ev.time].filter(Boolean).map(esc).join(' · ')}</p>`:''}
             </div>
-          </div>
-        `).join('')}</div>`
+          </div>`;
+        }).join('')}</div>`
       }
     </div>
   </section>`;
@@ -2285,13 +2421,18 @@ function renderAdminEvent() {
   return `<h2 class="text-lg font-bold mb-4">일정 관리</h2>
   <div id="admin-form-area">
     <button data-action="show-event-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-4">+ 새 일정</button>
-    <div class="space-y-2">${list.map(e=>`<div class="bg-white p-4 rounded-2xl border border-zinc-100 flex items-center justify-between">
-      <div><p class="font-bold text-sm">${esc(e.title)}</p><p class="text-xs text-zinc-400">${e.date} ${esc(e.time)} · ${esc(e.cat)}</p></div>
+    <div class="space-y-2">${list.map(e => {
+      const rangeLine = formatEventDateRangeSubtitle(e);
+      const metaParts = [rangeLine || e.date, e.time || '', e.cat || ''].map(x => String(x || '').trim()).filter(Boolean);
+      const meta = metaParts.map(esc).join(' · ');
+      return `<div class="bg-white p-4 rounded-2xl border border-zinc-100 flex items-center justify-between">
+      <div><p class="font-bold text-sm">${esc(e.title)}</p><p class="text-xs text-zinc-400">${meta}</p></div>
       <div class="flex gap-1">
         <button data-action="edit-event" data-eid="${e.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('edit','text-zinc-400',18)}</button>
         <button data-action="del-event" data-eid="${e.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-red-50">${icon('delete','text-red-400',18)}</button>
       </div>
-    </div>`).join('')}</div>
+    </div>`;
+    }).join('')}</div>
   </div>`;
 }
 
@@ -3934,7 +4075,11 @@ function setupDelegation() {
             const ev = state.cache.events.find(x => x.id === eid); if (!ev) break;
             const area = document.getElementById('admin-form-area'); if (!area) break;
             area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
-              ${adminInput('ef-title', '제목', '')}${adminInput('ef-date', '날짜', '', 'date')}${adminInput('ef-time', '시간', '')}${adminInput('ef-loc', '장소', '')}
+              ${adminInput('ef-title', '제목', '')}${adminInput('ef-date', '시작일', '', 'date')}
+              <label class="flex items-center gap-2 cursor-pointer select-none"><input id="ef-date-range" type="checkbox" class="w-4 h-4 rounded accent-black"/><span class="text-sm font-medium">기간</span></label>
+              <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">종료일</label>
+                <input id="ef-date-end" type="date" disabled class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black opacity-50 cursor-not-allowed"/></div>
+              ${adminInput('ef-time', '시간', '')}${adminInput('ef-loc', '장소', '')}
               <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">카테고리</label>
                 <select id="ef-cat" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">
                   ${['예배', '모임', '행사', '생일', '기타'].map(c => `<option value="${c}"${c === ev.cat ? ' selected' : ''}>${c}</option>`).join('')}
@@ -3945,12 +4090,20 @@ function setupDelegation() {
               </div></div>`;
             document.getElementById('ef-title').value = ev.title; document.getElementById('ef-date').value = ev.date;
             document.getElementById('ef-time').value = ev.time || ''; document.getElementById('ef-loc').value = ev.loc || '';
+            const rangeChk = document.getElementById('ef-date-range');
+            const endEl = document.getElementById('ef-date-end');
+            const hasRange = !!(ev.dateEnd && String(ev.dateEnd).trim() && ev.dateEnd >= ev.date);
+            if (rangeChk) rangeChk.checked = hasRange;
+            if (endEl) endEl.value = hasRange ? ev.dateEnd : '';
+            bindEventFormRangeFields();
             scheduleEditingReset();
             document.getElementById('update-event')?.addEventListener('click', async () => {
+              const g = id => document.getElementById(id)?.value || '';
+              const rangePayload = readValidatedEventRangePayload();
+              if (!rangePayload) return;
               showLoading('저장 중...');
               try {
-                const g = id => document.getElementById(id)?.value || '';
-                const updated = { ...ev, title: g('ef-title'), date: g('ef-date'), time: g('ef-time'), loc: g('ef-loc'), cat: g('ef-cat') || '기타' };
+                const updated = { ...ev, title: g('ef-title'), date: g('ef-date'), time: g('ef-time'), loc: g('ef-loc'), cat: g('ef-cat') || '기타', dateEnd: rangePayload.dateEnd };
                 await window.FDB.setDoc('events', eid, updated);
                 const idx = state.cache.events.findIndex(x => x.id === eid); if (idx >= 0) state.cache.events[idx] = updated;
                 state.isEditing = false;
@@ -4143,7 +4296,11 @@ function setupDelegation() {
           case 'show-event-form': {
             const area = document.getElementById('admin-form-area'); if (!area) break;
             area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
-              ${adminInput('ef-title','제목','주일 청년 예배')}${adminInput('ef-date','날짜','','date')}${adminInput('ef-time','시간','14:00')}${adminInput('ef-loc','장소','본당')}
+              ${adminInput('ef-title','제목','주일 청년 예배')}${adminInput('ef-date','시작일','','date')}
+              <label class="flex items-center gap-2 cursor-pointer select-none"><input id="ef-date-range" type="checkbox" class="w-4 h-4 rounded accent-black"/><span class="text-sm font-medium">기간</span></label>
+              <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">종료일</label>
+                <input id="ef-date-end" type="date" disabled class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black opacity-50 cursor-not-allowed"/></div>
+              ${adminInput('ef-time','시간','14:00')}${adminInput('ef-loc','장소','본당')}
               <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">카테고리</label>
                 <select id="ef-cat" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">${['예배','모임','행사','생일','기타'].map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>
               <div class="flex gap-2">
@@ -4152,12 +4309,15 @@ function setupDelegation() {
               </div></div>`;
             const efDate = document.getElementById('ef-date');
             if (efDate) efDate.value = today();
+            bindEventFormRangeFields();
             scheduleEditingReset();
             document.getElementById('save-event')?.addEventListener('click', async () => {
               const g=id=>document.getElementById(id)?.value||''; const title=g('ef-title'); if(!title) return showToast('제목을 입력해주세요.');
+              const rangePayload = readValidatedEventRangePayload();
+              if (!rangePayload) return;
               showLoading('저장 중...');
               try {
-                const eid=uid(); const ev={id:eid,title,date:g('ef-date'),time:g('ef-time'),loc:g('ef-loc'),cat:g('ef-cat')||'기타'};
+                const eid=uid(); const ev={id:eid,title,date:g('ef-date'),time:g('ef-time'),loc:g('ef-loc'),cat:g('ef-cat')||'기타',dateEnd:rangePayload.dateEnd};
                 await window.FDB.setDoc('events',eid,ev); state.cache.events.push(ev); state.cache.events.sort((a,b)=>a.date.localeCompare(b.date));
                 state.isEditing = false;
                 showToast('일정 저장 완료!'); render();
