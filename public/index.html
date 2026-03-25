@@ -331,7 +331,8 @@ let state = {
     users: [], cells: [], rosters: [], notices: [], bulletins: [],
     worshipSets: [], events: [], cellMeetings: [], notifications: [],
     attendance: {}, offerings: {}, comments: {},
-    serviceSchedules: []  // 임사 관리
+    serviceSchedules: [],  // 임사 관리
+    verses: []  // public/verses.json (홈 오늘의 말씀)
   }
 };
 
@@ -428,6 +429,15 @@ function listenCol(colName, onData) {
 
 async function loadAll() {
   stopListeners();
+
+  try {
+    const vRes = await fetch('verses.json');
+    state.cache.verses = vRes.ok ? (await vRes.json().catch(() => [])) : [];
+    if (!Array.isArray(state.cache.verses)) state.cache.verses = [];
+  } catch (e) {
+    console.warn('verses.json', e);
+    state.cache.verses = [];
+  }
 
   // users만 선행 1회 로드: initApp()이 await loadAll() 직후 state.cache.users로 유저를 조회하기 때문에
   // 나머지 10개 컬렉션은 onSnapshot 최초 발화 시 캐시에 채워지므로 getCol 중복 호출 불필요
@@ -858,6 +868,12 @@ function renderHomeTab() {
   const events = state.cache.events;
   const latest = worships[worships.length - 1];
   const lb = bulletins[bulletins.length - 1];
+  const verses = state.cache.verses;
+  const vLen = verses.length;
+  const vIdx = vLen ? Math.floor(Date.now() / 86400000) % vLen : 0;
+  const dv = vLen ? verses[vIdx] : null;
+  const verseRef = esc(dv?.verse || '빌립보서 4:13');
+  const verseBody = esc(dv?.text || '내게 능력 주시는 자 안에서 내가 모든 것을 할 수 있느니라').replace(/\n/g, '<br/>');
 
   const dutySection = lb ? `
   <section>
@@ -893,8 +909,8 @@ function renderHomeTab() {
     <div class="bg-black rounded-3xl p-7 text-white relative overflow-hidden">
       <div class="relative z-10">
         <span class="px-2.5 py-1 bg-white/10 border border-white/20 rounded-lg text-[10px] font-bold uppercase tracking-wider">오늘의 말씀</span>
-        <blockquote class="text-xl font-bold leading-snug mt-5 mb-4">"내게 능력 주시는 자 안에서<br/>내가 모든 것을 할 수 있느니라"</blockquote>
-        <p class="text-zinc-400 text-sm">빌립보서 4:13</p>
+        <blockquote class="text-xl font-bold leading-snug mt-5 mb-4">"${verseBody}"</blockquote>
+        <p class="text-zinc-400 text-sm">${verseRef}</p>
       </div>
       <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
       <div class="absolute -right-4 top-4 opacity-[0.06]">${icon('menu_book','text-white',120)}</div>
