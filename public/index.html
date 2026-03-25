@@ -427,6 +427,17 @@ function listenCol(colName, onData) {
   _unsubs.push(unsub);
 }
 
+/** Firestore에 유저 없음·비활성 등 — Auth만 남은 유령 세션 차단 */
+function forceLogoutInvalidSession() {
+  window.FB_signOut().catch(()=>{});
+  SESSION.clear();
+  state.user = null;
+  state.page = 'login';
+  state.profileOpen = false;
+  render();
+  showToast('계정 정보가 변경되어 로그아웃되었습니다.');
+}
+
 async function loadAll() {
   stopListeners();
 
@@ -447,8 +458,13 @@ async function loadAll() {
   listenCol('users', docs => {
     state.cache.users = docs;
     if (state.user) {
-      const fresh = docs.find(u=>u.uid===state.user.uid);
-      if (fresh) { state.user = fresh; SESSION.set(fresh); }
+      const fresh = docs.find(u => u.uid === state.user.uid);
+      if (!fresh || fresh.status !== 'active') {
+        forceLogoutInvalidSession();
+      } else {
+        state.user = fresh;
+        SESSION.set(fresh);
+      }
     }
     // localStorage 캐시 저장 (다음 세션의 즉시 렌더링용)
     try {
@@ -3574,20 +3590,16 @@ async function initApp(firebaseUser) {
 
     await loadAll();
 
-    // Firebase Auth UID로 유저 찾기 (localStorage session 날아간 경우 복원)
     const lookupUid = firebaseUser?.uid || session?.uid;
-    const freshUser = state.cache.users.find(u => u.uid === lookupUid);
-    if (freshUser) {
-      state.user = freshUser;
-      SESSION.set(freshUser); // localStorage에 다시 저장
-    } else if (!hasSession && hasAuth) {
-      // Firebase Auth는 있지만 앱 유저 데이터 없음 → 재가입 필요 안 내보내고 로그인 페이지
-      state.page = 'login';
-      render();
-      return;
-    }
+    const freshUser = lookupUid ? state.cache.users.find(u => u.uid === lookupUid) : null;
 
-    state.page = 'main';
+    if (freshUser && freshUser.status === 'active') {
+      state.user = freshUser;
+      SESSION.set(freshUser);
+      state.page = 'main';
+    } else {
+      forceLogoutInvalidSession();
+    }
   } else {
     state.page = 'login';
   }
