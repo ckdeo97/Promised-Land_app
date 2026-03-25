@@ -270,6 +270,12 @@ tailwind.config = {
     touch-action: none;
     overscroll-behavior: none;
   }
+  /* body.no-scroll 일 때 터치 스크롤 허용 구역 (JS touchmove 예외와 함께 사용) */
+  .allow-scroll {
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
   .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
   .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
   ::-webkit-scrollbar { display: none; }
@@ -583,7 +589,8 @@ function showConfirm(msg, onYes, yesLabel='삭제', yesClass='bg-red-500 text-wh
     document.body.appendChild(overlay);
   }
   overlay.className = 'fixed inset-0 z-[300] bg-black/50 flex items-center justify-center px-6 overlay-scroll-lock';
-  overlay.innerHTML = `<div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+  overlay.style.touchAction = 'none';
+  overlay.innerHTML = `<div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl allow-scroll max-h-[min(85vh,520px)] overflow-y-auto overscroll-contain">
     <p class="text-base font-bold text-center mb-2">확인</p>
     <p class="text-sm text-zinc-500 text-center leading-relaxed mb-6">${msg}</p>
     <div class="flex gap-3">
@@ -607,8 +614,8 @@ function renderCropModal() {
   // 슬라이더 값: origW 기준 배율 (100~350%)
   const scaleVal = Math.max(100, Math.min(350, Math.round((state._cropModal.w / state._cropModal.origW) * 100)));
   return `
-  <div id="crop-modal" class="fixed inset-0 z-[310] bg-black/75 flex items-center justify-center px-4 overlay-scroll-lock">
-    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden">
+  <div id="crop-modal" class="fixed inset-0 z-[310] bg-black/75 flex items-center justify-center px-4 overlay-scroll-lock" style="touch-action:none">
+    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl allow-scroll max-h-[min(92vh,720px)] overflow-y-auto overflow-x-hidden overscroll-contain">
       <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
         <button id="crop-cancel" class="text-sm text-zinc-500 font-medium py-1 px-2">취소</button>
         <p class="text-sm font-bold">프로필 사진 설정</p>
@@ -765,6 +772,7 @@ function showLoading(msg) {
     document.body.appendChild(el);
   }
   el.classList.add('overlay-scroll-lock');
+  el.style.touchAction = 'none';
   const m = el.querySelector('._gl-msg');
   if (m) m.textContent = msg || '잠시만 기다려주세요…';
   el.style.display = 'flex';
@@ -818,7 +826,7 @@ function icon(name, cls='', size=24, fill=false) {
 function renderLogin() {
   return `
   <div class="fixed-layout bg-white login-page px-8">
-    <div class="w-full max-w-sm">
+    <div class="allow-scroll w-full max-w-sm max-h-full overflow-y-auto overscroll-contain py-6">
       <div class="text-center mb-10">
         <div class="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-5 overflow-hidden bg-black">
           ${logoImg('w-20 h-20')}
@@ -846,7 +854,7 @@ function renderLogin() {
 // ============================================================
 function renderRegister() {
   return `
-  <div class="fixed-layout bg-white overflow-y-auto" style="position:fixed;inset:0;overflow-y:auto;display:block;">
+  <div class="fixed-layout bg-white overflow-y-auto allow-scroll overscroll-contain" style="position:fixed;inset:0;overflow-y:auto;display:block;touch-action:pan-y;">
     <div class="px-6 py-8 max-w-sm mx-auto">
       <button id="btn-back-login" class="flex items-center gap-1 text-sm text-zinc-500 mb-6">${icon('arrow_back','',20)} 뒤로</button>
       <h1 class="text-2xl font-bold mb-1">회원가입</h1>
@@ -950,10 +958,10 @@ function renderProfileSheet() {
   const cells = state.cache.cells;
   const cell = cells.find(c => c.id === u.cellId);
   return `
-  <div data-action="close-profile" class="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm modal-overlay overlay-scroll-lock"></div>
-  <div class="fixed bottom-0 left-0 right-0 z-[101] bg-white rounded-t-3xl shadow-2xl modal-sheet overlay-scroll-lock">
-    <div class="flex justify-center pt-3 pb-1"><div class="w-10 h-1 bg-zinc-200 rounded-full"></div></div>
-    <div class="flex items-center gap-4 px-6 py-5 border-b border-zinc-100">
+  <div data-action="close-profile" class="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm modal-overlay overlay-scroll-lock" style="touch-action:none"></div>
+  <div class="fixed bottom-0 left-0 right-0 z-[101] bg-white rounded-t-3xl shadow-2xl modal-sheet overlay-scroll-lock flex flex-col max-h-[90vh]" style="touch-action:none">
+    <div class="flex justify-center pt-3 pb-1 flex-none"><div class="w-10 h-1 bg-zinc-200 rounded-full"></div></div>
+    <div class="flex items-center gap-4 px-6 py-5 border-b border-zinc-100 flex-none">
       ${u.profileImg ? `<div class="w-14 h-14 rounded-full bg-zinc-200 flex items-center justify-center border-2 border-black overflow-hidden"><img src="${u.profileImg}" class="w-full h-full object-cover"/></div>` :
         `<div class="w-14 h-14 rounded-full bg-zinc-200 flex items-center justify-center border-2 border-black"><span class="text-xl font-bold text-zinc-500">${esc((u.name||'?')[0])}</span></div>`}
       <div>
@@ -961,7 +969,7 @@ function renderProfileSheet() {
         <p class="text-sm text-zinc-400">${cell ? esc(cell.name) : '목장 미배정'} · ${isAdmin?'관리자':'청년부원'}</p>
       </div>
     </div>
-    <div class="px-4 py-3 space-y-1">
+    <div class="allow-scroll overflow-y-auto overscroll-contain px-4 py-3 space-y-1 min-h-0 flex-1 pb-2">
       ${isAdmin ? `
       <button data-action="go-admin" class="w-full flex items-center gap-4 px-4 py-4 rounded-2xl active:bg-zinc-50 transition-colors text-left">
         <div class="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center">${icon('admin_panel_settings','text-black')}</div>
@@ -987,8 +995,8 @@ function renderProfileSheet() {
         <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">${icon('logout','text-red-500')}</div>
         <p class="font-bold text-sm text-red-500">로그아웃</p>
       </button>
+      <div class="h-8 shrink-0"></div>
     </div>
-    <div class="h-8"></div>
   </div>`;
 }
 
@@ -1301,18 +1309,24 @@ function renderNoticeTab() {
   <section>
     <h2 class="text-xl font-bold tracking-tight mb-6">공지사항</h2>
     <div class="space-y-3">
-      ${notices.map(n => `
-        <button data-detail="notice:${n.id}" class="w-full flex items-start gap-3 bg-white p-5 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
-          <div class="w-9 h-9 ${n.pinned?'bg-black':'bg-zinc-100'} rounded-xl flex items-center justify-center flex-none">
+      ${notices.map(n => {
+        const thumb = (n.images && n.images[0]) ? n.images[0] : '';
+        return `
+        <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
+          <div class="w-8 h-8 ${n.pinned?'bg-black':'bg-zinc-100'} rounded-lg flex items-center justify-center flex-none">
             ${icon(n.pinned?'priority_high':'info','',16,false)}
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-bold">${esc(n.title)}</p>
-            <p class="text-xs text-zinc-400 mt-1 line-clamp-2">${esc(n.body.split('\n')[0])}</p>
-            <p class="text-[10px] text-zinc-300 mt-1.5">${n.at}</p>
+            <p class="text-sm font-bold leading-tight line-clamp-2">${esc(n.title)}</p>
+            <p class="text-[10px] text-zinc-300 mt-1">${esc((n.at || '').slice(5))}</p>
           </div>
-        </button>
-      `).join('')}
+          ${thumb
+            ? `<div class="flex-none w-14 h-14 rounded-xl overflow-hidden border border-zinc-100 bg-zinc-50 shrink-0">
+                <img src="${esc(thumb)}" alt="" class="w-full h-full object-cover"/>
+              </div>`
+            : ''}
+        </button>`;
+      }).join('')}
     </div>
   </section>`;
 }
@@ -1342,15 +1356,21 @@ function renderNoticeDetail() {
       </div>
       <div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
         <div class="px-5 py-4 border-b border-zinc-50"><p class="text-xs font-bold text-zinc-500">댓글 ${comments.length}</p></div>
-        ${comments.map(c=>`
-          <div class="px-5 py-3.5 border-b border-zinc-50 last:border-0 flex items-start gap-2">
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 mb-1"><p class="text-xs font-bold">${esc(c.name)}</p><p class="text-[10px] text-zinc-300">${c.at}</p></div>
-              <p class="text-sm text-zinc-600">${esc(c.body)}</p>
+        ${comments.map(c => {
+          const cu = state.cache.users.find(x => x.uid === c.uid);
+          const av = cu?.profileImg
+            ? `<img src="${esc(cu.profileImg)}" alt="" class="w-8 h-8 rounded-full object-cover flex-none bg-zinc-100 ring-1 ring-zinc-100"/>`
+            : `<div class="w-8 h-8 rounded-full bg-zinc-200 flex items-center justify-center flex-none text-xs font-bold text-zinc-600">${esc((c.name || '?')[0])}</div>`;
+          return `
+          <div class="px-5 py-4 border-b border-zinc-50 last:border-0 flex items-start gap-3">
+            ${av}
+            <div class="flex-1 min-w-0 pt-0.5">
+              <div class="flex items-center gap-2 mb-1 flex-wrap"><p class="text-xs font-bold">${esc(c.name)}</p><p class="text-[10px] text-zinc-300">${c.at}</p></div>
+              <p class="text-sm text-zinc-600 leading-relaxed">${esc(c.body)}</p>
             </div>
-            ${canDelComment(c) ? `<button type="button" data-action="delete-comment" data-notice-id="${esc(n.id)}" data-comment-id="${esc(c.id)}" class="flex-none w-7 h-7 flex items-center justify-center rounded-lg text-zinc-300 hover:bg-zinc-100 hover:text-zinc-600 text-xs font-bold" aria-label="댓글 삭제">✕</button>` : ''}
-          </div>
-        `).join('')}
+            ${canDelComment(c) ? `<button type="button" data-action="delete-comment" data-notice-id="${esc(n.id)}" data-comment-id="${esc(c.id)}" class="flex-none w-7 h-7 flex items-center justify-center rounded-lg text-zinc-300 hover:bg-zinc-100 hover:text-zinc-600 text-xs font-bold shrink-0" aria-label="댓글 삭제">✕</button>` : ''}
+          </div>`;
+        }).join('')}
         <div class="flex gap-2 p-3 border-t border-zinc-100">
           <input id="comment-input" placeholder="댓글 입력..." class="flex-1 px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
           <button data-action="post-comment" data-notice-id="${n.id}" class="px-4 py-2.5 bg-black text-white rounded-xl text-xs font-bold">전송</button>
@@ -1478,30 +1498,53 @@ function renderWorshipDetail() {
 function renderCellTab() {
   const meetings = state.cache.cellMeetings;
   const latest = meetings[0];
-  if (!latest) return `<div>
-    <div class="pb-5 border-b border-zinc-100 mb-5"><h1 class="text-xl font-bold tracking-tight">목장 모임 자료</h1></div>
-    <div class="flex items-center justify-center py-16"><p class="text-sm text-zinc-400">등록된 자료가 없습니다</p></div>
+  if (!latest) return `<div class="space-y-4">
+    <div class="pb-3 border-b border-zinc-200/80">
+      <h1 class="text-xl font-bold tracking-tight">목장 모임 자료</h1>
+    </div>
+    <div class="bg-white rounded-2xl border border-zinc-100 shadow-sm p-8 text-center">
+      <p class="text-sm text-zinc-400 leading-relaxed">등록된 자료가 없습니다</p>
+    </div>
   </div>`;
   const questions = latest.questions || [];
-  return `<div>
-    <div class="pb-5 border-b border-zinc-100 mb-6"><h1 class="text-xl font-bold tracking-tight">목장 모임 자료</h1><p class="text-sm text-zinc-400 mt-0.5">${latest.date}</p></div>
-    <div class="space-y-5">
-      <div class="bg-zinc-900 text-white p-5 rounded-2xl">
-        <p class="text-xs font-bold text-zinc-400 mb-1">오늘의 말씀</p>
-        <p class="text-base font-bold">${esc(latest.verse||'')}</p>
-        ${latest.verseText?`<p class="text-sm text-zinc-300 mt-2 leading-relaxed italic">${esc(latest.verseText)}</p>`:''}
-      </div>
-      ${questions.length ? questions.map((q,qi)=>`
-      <div class="bg-white p-5 rounded-2xl border border-zinc-100">
-        <p class="text-xs font-bold text-zinc-400 mb-2">나눔 질문 ${qi+1}</p>
-        <p class="text-sm leading-relaxed font-medium">${esc(q)}</p>
-      </div>`).join('') : ''}
-      ${latest.prayerItems?`
-      <div class="bg-gradient-to-br from-indigo-50 to-purple-50 p-5 rounded-2xl border border-indigo-100">
-        <p class="text-xs font-bold text-indigo-400 mb-2">함께 기도</p>
-        <p class="text-sm leading-relaxed whitespace-pre-line text-indigo-900">${esc(latest.prayerItems)}</p>
-      </div>`:''}
+  return `<div class="space-y-4">
+    <div class="pb-3 border-b border-zinc-200/80">
+      <h1 class="text-xl font-bold tracking-tight">목장 모임 자료</h1>
+      <p class="text-sm text-zinc-400 mt-1">${esc(latest.date)}</p>
     </div>
+
+    <div class="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5 flex flex-col gap-4">
+      <div class="flex items-start gap-4">
+        <div class="w-11 h-11 rounded-2xl bg-zinc-100 flex items-center justify-center flex-none shrink-0">${icon('menu_book','text-zinc-800',22)}</div>
+        <div class="min-w-0 flex-1 pt-0.5">
+          <p class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">오늘의 말씀</p>
+          <p class="text-base font-bold text-zinc-900 leading-snug">${esc(latest.verse || '')}</p>
+        </div>
+      </div>
+      ${latest.verseText ? `<p class="text-sm text-zinc-600 leading-relaxed pl-[3.75rem] -mt-1">${esc(latest.verseText)}</p>` : ''}
+    </div>
+
+    ${questions.length ? questions.map((q, qi) => `
+    <div class="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5 flex flex-col gap-4">
+      <div class="flex items-start gap-4">
+        <div class="w-11 h-11 rounded-2xl bg-zinc-100 flex items-center justify-center flex-none shrink-0">${icon('chat_bubble','text-zinc-800',22)}</div>
+        <div class="min-w-0 flex-1">
+          <p class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">나눔 질문 ${qi + 1}</p>
+          <p class="text-[15px] text-zinc-800 leading-relaxed font-medium">${esc(q)}</p>
+        </div>
+      </div>
+    </div>`).join('') : ''}
+
+    ${latest.prayerItems ? `
+    <div class="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5 flex flex-col gap-4">
+      <div class="flex items-start gap-4">
+        <div class="w-11 h-11 rounded-2xl bg-zinc-100 flex items-center justify-center flex-none shrink-0">${icon('volunteer_activism','text-zinc-800',22)}</div>
+        <div class="min-w-0 flex-1">
+          <p class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">함께 기도</p>
+          <p class="text-sm text-zinc-700 leading-relaxed whitespace-pre-line">${esc(latest.prayerItems)}</p>
+        </div>
+      </div>
+    </div>` : ''}
   </div>`;
 }
 
@@ -1520,9 +1563,9 @@ function renderProfilePage() {
   </header>`;
 
   if (pg === 'edit') {
-    return `<div class="min-h-screen bg-zinc-50">
+    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col">
       ${header('프로필 수정')}
-      <div class="px-5 py-4 pt-20 space-y-4">
+      <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 pt-20 pb-10 space-y-4">
         <div class="flex flex-col items-center gap-4">
           <div class="relative">
             <div class="w-24 h-24 rounded-full bg-zinc-200 border-2 border-black overflow-hidden">
@@ -1564,9 +1607,9 @@ function renderProfilePage() {
       {k:'schedule',l:'새 일정',d:'새 일정 등록 시'},
       {k:'duty',l:'담당자 지정',d:'예배 담당 배정 시'},
     ];
-    return `<div class="min-h-screen bg-zinc-50">
+    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col">
       ${header('알림 설정')}
-      <div class="px-5 py-6 pt-20">
+      <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-6 pt-20 pb-10">
         <div class="bg-white rounded-2xl border border-zinc-100 divide-y divide-zinc-50">
           ${items.map(it=>`
           <div class="flex items-center justify-between px-5 py-4">
@@ -1584,9 +1627,9 @@ function renderProfilePage() {
   }
 
   if (pg === 'settings') {
-    return `<div class="min-h-screen bg-zinc-50">
+    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col">
       ${header('설정')}
-      <div class="px-5 py-6 pt-20 space-y-4">
+      <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-6 pt-20 pb-10 space-y-4">
         <!-- 비밀번호 변경 -->
         <div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
           <button id="toggle-pw-section" class="w-full flex items-center justify-between px-5 py-4">
@@ -2147,11 +2190,13 @@ function openCellSettings() {
   if (!overlay) { overlay = document.createElement('div'); overlay.id='cell-settings-overlay'; document.body.appendChild(overlay); }
   const renderContent = () => {
     overlay.className = 'fixed inset-0 z-[500] bg-black/50 flex items-end justify-center overlay-scroll-lock';
-    overlay.innerHTML = `<div class="bg-white rounded-t-3xl w-full max-w-lg p-5 pb-8 shadow-2xl">
-      <div class="flex items-center justify-between mb-4">
+    overlay.style.touchAction = 'none';
+    overlay.innerHTML = `<div class="bg-white rounded-t-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[min(88vh,720px)]" style="touch-action:none">
+      <div class="flex items-center justify-between p-5 pb-3 flex-none border-b border-zinc-100">
         <h3 class="text-base font-bold">목장 설정</h3>
         <button id="cell-set-close" class="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-100">${icon('close','text-zinc-500',18)}</button>
       </div>
+      <div class="allow-scroll overflow-y-auto overscroll-contain px-5 pt-3 pb-8 min-h-0 flex-1">
       <button data-cset-action="add-cell" class="w-full py-2.5 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-3">+ 목장 추가</button>
       <div id="cset-form-area"></div>
       <div class="space-y-2">${cells.map(cell=>`
@@ -2170,6 +2215,7 @@ function openCellSettings() {
           </div>
         </div>
       `).join('')}</div>
+      </div>
     </div>`;
     document.getElementById('cell-set-close')?.addEventListener('click', () => overlay.remove());
     overlay.addEventListener('click', e => { if (e.target===overlay) overlay.remove(); });
@@ -3178,6 +3224,7 @@ function setupDelegation() {
             const lb = document.createElement('div');
             lb.id = 'image-zoom-overlay';
             lb.className = 'fixed inset-0 z-[620] bg-black/85 flex items-center justify-center p-3 overlay-scroll-lock';
+            lb.style.touchAction = 'none';
             lb.setAttribute('role', 'presentation');
             const im = document.createElement('img');
             im.src = src;
@@ -3346,7 +3393,8 @@ function setupDelegation() {
             let overlay = document.getElementById('minister-overlay');
             if (!overlay) { overlay = document.createElement('div'); overlay.id = 'minister-overlay'; document.body.appendChild(overlay); }
             overlay.className = 'fixed inset-0 z-[400] bg-black/50 flex items-center justify-center px-6 overlay-scroll-lock';
-            overlay.innerHTML = `<div class="bg-white rounded-3xl p-5 w-full max-w-xs shadow-2xl">
+            overlay.style.touchAction = 'none';
+            overlay.innerHTML = `<div class="bg-white rounded-3xl p-5 w-full max-w-xs shadow-2xl allow-scroll max-h-[min(70vh,420px)] overflow-y-auto overscroll-contain">
               <p class="text-sm font-bold mb-3">${esc(r.name)} 직분 설정</p>
               <div class="space-y-1.5">${roles.map(role => `<button data-mrole="${role}" class="w-full py-2.5 px-4 rounded-xl text-sm text-left font-medium ${(r.minister || '') === (role === '없음' ? '' : role) ? 'bg-black text-white' : 'bg-zinc-50 hover:bg-zinc-100'}">${role}</button>`).join('')}</div>
               <button id="minister-cancel" class="w-full mt-3 py-2.5 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
@@ -3867,6 +3915,11 @@ let _gesturesSetup = false;
 async function initApp(firebaseUser) {
   // 제스처·이벤트위임 리스너: 앱 생애주기 동안 딱 1회만 등록
   if (!_gesturesSetup) {
+    document.addEventListener('touchmove', e => {
+      if (document.body.classList.contains('no-scroll') && !e.target.closest('.allow-scroll')) {
+        e.preventDefault();
+      }
+    }, { passive: false });
     setupDelegation();
     setupPTR();
     setupSwipeBack();
