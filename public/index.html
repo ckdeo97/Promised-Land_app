@@ -835,11 +835,11 @@ function worshipSongRowHtml(i, s, KEYS) {
   const sk = s.key || 'C';
   return `<div class="bg-zinc-50 rounded-xl p-3 space-y-2 mb-2">
     <p class="text-[10px] font-bold text-zinc-400">곡 ${i + 1}</p>
-    <input id="ws-title-${i}" value="${esc(s.title || '')}" placeholder="곡 제목" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-    <input id="ws-url-${i}" value="${(s.url || '').replace(/"/g, '&quot;')}" placeholder="유튜브 링크" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+    <input id="ws-title-${i}" value="${esc(s.title || '')}" placeholder="곡 제목" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+    <input id="ws-url-${i}" value="${(s.url || '').replace(/"/g, '&quot;')}" placeholder="유튜브 링크" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
     <div class="flex gap-2">
       <div class="flex-1"><label class="block text-[10px] font-bold text-zinc-500 mb-1">키</label>
-        <select id="ws-key-${i}" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm">${KEYS.map(k => `<option value="${k}"${k === sk ? ' selected' : ''}>${k}</option>`).join('')}</select></div>
+        <select id="ws-key-${i}" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">${KEYS.map(k => `<option value="${k}"${k === sk ? ' selected' : ''}>${k}</option>`).join('')}</select></div>
       <div class="flex-1"><label class="block text-[10px] font-bold text-zinc-500 mb-1">악보 이미지</label>
         <label class="flex items-center gap-1 px-3 py-2 bg-white border border-zinc-200 rounded-xl text-xs text-zinc-400 cursor-pointer">📎 ${s.sheet ? '교체' : '파일선택'}<input id="ws-sheet-${i}" type="file" accept="image/*" class="hidden"/></label>
         ${s.sheet ? `<div class="relative mt-1"><img src="${s.sheet}" class="w-full rounded-lg border border-zinc-100 object-cover max-h-24"/><p class="text-[10px] text-emerald-600 mt-0.5">✓ 기존 악보 있음</p></div>` : ''}
@@ -853,7 +853,7 @@ function bindWsSheet(i) {
   });
 }
 function cmQuestionRowHtml(i) {
-  return `<div class="flex gap-2 items-start mb-2"><textarea id="cm-q-${i}" rows="2" placeholder="질문 ${i + 1}" class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black resize-none"></textarea></div>`;
+  return `<div class="flex gap-2 items-start mb-2"><textarea id="cm-q-${i}" rows="2" placeholder="질문 ${i + 1}" class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black resize-none"></textarea></div>`;
 }
 
 function icon(name, cls='', size=24, fill=false) {
@@ -875,8 +875,8 @@ function renderLogin() {
         <p class="text-zinc-400 text-sm mt-1">청년부 커뮤니티</p>
       </div>
       <div class="space-y-4">
-        <input id="login-id" type="text" placeholder="아이디" class="w-full px-4 py-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"/>
-        <input id="login-pw" type="password" placeholder="비밀번호" class="w-full px-4 py-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"/>
+        <input id="login-id" type="text" placeholder="아이디" class="w-full px-4 py-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+        <input id="login-pw" type="password" placeholder="비밀번호" class="w-full px-4 py-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
         <div id="login-error" class="text-red-500 text-xs font-medium px-1 hidden"></div>
         <button id="btn-login" class="w-full py-3.5 bg-black text-white rounded-2xl font-bold text-sm transition-opacity active:opacity-70">로그인</button>
       </div>
@@ -900,13 +900,13 @@ function renderRegister() {
       <h1 class="text-2xl font-bold mb-1">회원가입</h1>
       <p class="text-zinc-400 text-sm mb-8">약속의 땅 청년부 커뮤니티에 가입합니다.</p>
       <div class="space-y-4">
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">이름</label><input id="reg-name" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="홍길동"/></div>
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">전화번호</label><input id="reg-phone" inputmode="numeric" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="010-1234-5678"/></div>
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">생년월일</label><input id="reg-birth" inputmode="numeric" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="1995.03.15"/></div>
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">아이디</label><input id="reg-id" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="사용할 아이디"/></div>
+        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">이름</label><input id="reg-name" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black" placeholder="홍길동"/></div>
+        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">전화번호</label><input id="reg-phone" inputmode="numeric" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black" placeholder="010-1234-5678"/></div>
+        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">생년월일</label><input id="reg-birth" inputmode="numeric" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black" placeholder="1995.03.15"/></div>
+        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">아이디</label><input id="reg-id" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black" placeholder="사용할 아이디"/></div>
         <div>
           <label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">비밀번호</label>
-          <input id="reg-pw" type="password" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="비밀번호 입력"/>
+          <input id="reg-pw" type="password" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black" placeholder="비밀번호 입력"/>
           <div id="pw-strength" class="mt-2 px-1 space-y-1">
             <div class="flex items-center gap-1.5"><span id="pwc-len" class="w-3.5 h-3.5 rounded-full bg-zinc-200 flex-none"></span><span class="text-[11px] text-zinc-400">8자 이상</span></div>
             <div class="flex items-center gap-1.5"><span id="pwc-eng" class="w-3.5 h-3.5 rounded-full bg-zinc-200 flex-none"></span><span class="text-[11px] text-zinc-400">영문 포함</span></div>
@@ -915,7 +915,7 @@ function renderRegister() {
         </div>
         <div>
           <label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">비밀번호 확인</label>
-          <input id="reg-pw2" type="password" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="비밀번호 재입력"/>
+          <input id="reg-pw2" type="password" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black" placeholder="비밀번호 재입력"/>
           <p id="pw-match-hint" class="mt-1 px-1 text-[11px] text-zinc-400 hidden"></p>
         </div>
         <label class="flex items-start gap-3 pt-2">
@@ -1044,33 +1044,34 @@ function renderProfileSheet() {
 // HOME TAB
 // ============================================================
 function renderHomeTab() {
-  const bulletins = state.cache.bulletins;
   const worships = state.cache.worshipSets;
   const notices = state.cache.notices;
   const events = state.cache.events;
   const latest = worships[worships.length - 1];
-  const lb = bulletins[bulletins.length - 1];
   const verses = state.cache.verses;
+  const upcomingDate = getUpcomingSundays(1, false)[0];
+  const svc = state.cache.serviceSchedules.find(s => s.date === upcomingDate) || {};
+  const dutyYmw = dateToYMW(upcomingDate);
   const vLen = verses.length;
   const vIdx = vLen ? Math.floor(Date.now() / 86400000) % vLen : 0;
   const dv = vLen ? verses[vIdx] : null;
   const verseRef = esc(dv?.verse || '빌립보서 4:13');
   const verseBody = esc(dv?.text || '내게 능력 주시는 자 안에서 내가 모든 것을 할 수 있느니라').replace(/\n/g, '<br/>');
 
-  const dutySection = lb ? `
+  const dutySection = `
   <section>
     <h2 class="text-base font-bold tracking-tight mb-3">금주 예배 담당</h2>
     <div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
       <div class="bg-black px-5 py-3 flex items-center gap-2">
         ${icon('church','text-white',18)}
-        <span class="text-white text-xs font-bold">${lb.date} 예배</span>
+        <span class="text-white text-xs font-bold">${dutyYmw.mo}월 ${dutyYmw.wk}째주 주일 예배</span>
       </div>
       <div class="divide-y divide-zinc-50">
         ${[
-          {l:'대표기도', v:lb.prayer_duty||'미정', i:'volunteer_activism'},
-          {l:'성경봉독', v:lb.bible_reading||'미정', i:'menu_book'},
-          {l:'성도의 교제', v:lb.announcement_duty||'미정', i:'campaign'},
-          {l:'봉헌', v:lb.offering_duty||'미정', i:'favorite'},
+          {l:'대표기도', v:(svc.prayer && String(svc.prayer).trim()) || '미정', i:'volunteer_activism'},
+          {l:'성경봉독', v:(svc.bible && String(svc.bible).trim()) || '미정', i:'menu_book'},
+          {l:'성도의 교제', v:(svc.fellowship && String(svc.fellowship).trim()) || '미정', i:'campaign'},
+          {l:'봉헌', v:(svc.offering && String(svc.offering).trim()) || '미정', i:'favorite'},
         ].map(d => `
         <div class="flex items-center gap-3 px-5 py-4">
           <div class="w-8 h-8 bg-zinc-100 rounded-lg flex items-center justify-center flex-none">${icon(d.i,'text-zinc-600',16)}</div>
@@ -1078,11 +1079,6 @@ function renderHomeTab() {
           <span class="text-sm font-bold">${esc(d.v)}</span>
         </div>`).join('')}
       </div>
-    </div>
-  </section>` : `
-  <section>
-    <div class="bg-zinc-50 rounded-2xl p-6 text-center">
-      <p class="text-sm text-zinc-400">등록된 주보가 없습니다</p>
     </div>
   </section>`;
 
@@ -1412,7 +1408,7 @@ function renderNoticeDetail() {
           </div>`;
         }).join('')}
         <div class="flex gap-2 p-3 border-t border-zinc-100">
-          <input id="comment-input" placeholder="댓글 입력..." class="flex-1 px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+          <input id="comment-input" placeholder="댓글 입력..." class="flex-1 px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
           <button data-action="post-comment" data-notice-id="${n.id}" class="px-4 py-2.5 bg-black text-white rounded-xl text-xs font-bold">전송</button>
         </div>
       </div>
@@ -1628,13 +1624,13 @@ function renderProfilePage() {
         </div>
         <div>
           <label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">이름</label>
-          <input id="edit-name" value="${esc(u.name)}" class="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+          <input id="edit-name" value="${esc(u.name)}" class="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
         </div>
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">전화번호</label>
-          <input id="edit-phone" value="${fmtPhone(u.phone||'')}" placeholder="010-0000-0000" inputmode="numeric" class="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+          <input id="edit-phone" value="${fmtPhone(u.phone||'')}" placeholder="010-0000-0000" inputmode="numeric" class="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
         </div>
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">생년월일</label>
-          <input id="edit-birth" value="${fmtDate(u.birth||'')}" placeholder="1995.03.15" inputmode="numeric" class="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+          <input id="edit-birth" value="${fmtDate(u.birth||'')}" placeholder="1995.03.15" inputmode="numeric" class="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
         </div>
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">목장</label>
           <div class="w-full px-4 py-3 bg-zinc-100 border border-zinc-200 rounded-xl text-sm text-zinc-500 flex items-center justify-between">
@@ -1685,9 +1681,9 @@ function renderProfilePage() {
             ${icon('expand_more','text-zinc-400',20)}
           </button>
           <div id="pw-section" class="hidden border-t border-zinc-100 px-5 py-4 space-y-3">
-            <input id="pw-current" type="password" placeholder="현재 비밀번호" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-            <input id="pw-new" type="password" placeholder="새 비밀번호" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-            <input id="pw-confirm" type="password" placeholder="새 비밀번호 확인" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+            <input id="pw-current" type="password" placeholder="현재 비밀번호" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+            <input id="pw-new" type="password" placeholder="새 비밀번호" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+            <input id="pw-confirm" type="password" placeholder="새 비밀번호 확인" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
             <button id="save-pw" class="w-full py-3 bg-black text-white rounded-xl text-sm font-bold">변경</button>
           </div>
         </div>
@@ -1792,10 +1788,10 @@ function renderAdminWithdrawApprove() {
 }
 
 function adminInput(id, label, ph, type='text') {
-  return `<div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">${label}</label><input id="${id}" type="${type}" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black" placeholder="${ph}"/></div>`;
+  return `<div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">${label}</label><input id="${id}" type="${type}" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black" placeholder="${ph}"/></div>`;
 }
 function adminTextarea(id, label, ph, rows=4) {
-  return `<div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">${label}</label><textarea id="${id}" rows="${rows}" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black resize-none" placeholder="${ph}"></textarea></div>`;
+  return `<div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">${label}</label><textarea id="${id}" rows="${rows}" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black resize-none" placeholder="${ph}"></textarea></div>`;
 }
 
 
@@ -1832,9 +1828,9 @@ function ymwSelectors(prefix, yr, mo, wk) {
   const moOpts = Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}"${m===mo?' selected':''}>${m}월</option>`).join('');
   const wkOpts = [1,2,3,4,5].map(w=>`<option value="${w}"${w===wk?' selected':''}>${w}째주</option>`).join('');
   return `<div class="flex gap-2 mb-4">
-    <select id="${prefix}-yr" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">${yrOpts}</select>
-    <select id="${prefix}-mo" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">${moOpts}</select>
-    <select id="${prefix}-wk" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">${wkOpts}</select>
+    <select id="${prefix}-yr" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">${yrOpts}</select>
+    <select id="${prefix}-mo" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">${moOpts}</select>
+    <select id="${prefix}-wk" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">${wkOpts}</select>
   </div>`;
 }
 
@@ -1871,6 +1867,14 @@ function getSvcForDate(date) {
 function renderAdminServiceSchedule() {
   const sundays = getUpcomingSundays(8);
 
+  const header = `<div class="flex items-center justify-between mb-4">
+    <div>
+      <h2 class="text-lg font-bold mb-1">임사</h2>
+      <p class="text-xs text-zinc-400">저장하면 주보에 자동 반영됩니다.</p>
+    </div>
+    <button id="svc-save-all" class="px-4 py-2 bg-black text-white rounded-xl text-xs font-bold active:opacity-70">저장</button>
+  </div>`;
+
   const rows = sundays.map(date => {
     const s = getSvcForDate(date);
     const ymw = dateToYMW(date);
@@ -1886,17 +1890,13 @@ function renderAdminServiceSchedule() {
         <div>
           <label class="block text-[10px] font-bold text-zinc-500 mb-1.5">${SVC_COL_LABELS[col]}</label>
           <input id="svc-${date}-${col}" value="${esc(s[col]||'')}" placeholder="이름"
-            class="w-full px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black"/>
+            class="w-full px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
         </div>`).join('')}
       </div>
     </div>`;
   }).join('');
 
-  return `
-  <h2 class="text-lg font-bold mb-1">임사</h2>
-  <p class="text-xs text-zinc-400 mb-4">저장하면 주보에 자동 반영됩니다.</p>
-  <div id="svc-list">${rows}</div>
-  <button id="svc-save-all" class="w-full py-3 bg-black text-white rounded-2xl text-sm font-bold mt-2">저장</button>`;
+  return `${header}<div id="svc-list">${rows}</div>`;
 }
 
 function renderAdminBulletin() {
@@ -2030,17 +2030,17 @@ function renderAdminOffering() {
   <div class="bg-white p-4 rounded-2xl border border-zinc-100 space-y-3">
     <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">이름</label>
       <input id="off-name" value="" placeholder="이름 직접 입력" autocomplete="off"
-        class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+        class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
     </div>
     <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">항목</label>
-      <select id="off-type" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
+      <select id="off-type" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">
         ${['주정','십일조','감사','기타'].map(t=>`<option value="${t}">${t}</option>`).join('')}
       </select>
     </div>
     <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">금액</label>
       <div class="relative">
         <input id="off-amount" value="" placeholder="0" inputmode="numeric"
-          class="w-full px-4 py-3 pr-10 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black text-right"/>
+          class="w-full px-4 py-3 pr-10 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black text-right"/>
         <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-zinc-400 font-medium">원</span>
       </div>
       <p id="off-amt-display" class="text-xs text-zinc-500 mt-1 ml-1 h-4"></p>
@@ -2174,7 +2174,7 @@ function renderAdminRoster() {
   ${activeTab==='all' ? `
   <div class="relative mb-3">
     <input id="roster-search" value="${esc(searchQ)}" placeholder="이름 또는 전화번호 검색..."
-      class="w-full pl-10 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl text-sm focus:outline-none focus:border-black"/>
+      class="w-full pl-10 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
     <span class="absolute left-3.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-zinc-400" style="font-size:18px">search</span>
     ${searchQ?`<button id="roster-search-clear" class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-zinc-200 text-zinc-500 text-xs">✕</button>`:''}
   </div>` : ''}
@@ -2199,8 +2199,8 @@ function renderAdminCells() {
         </div>
       </div>
       <div id="cell-edit-area-${c.id}" class="hidden mt-3 space-y-2">
-        <input id="cell-name-${c.id}" value="${esc(c.name)}" placeholder="목장 이름" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-        <input id="cell-leader-${c.id}" value="${esc(c.leader)}" placeholder="목자 이름" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+        <input id="cell-name-${c.id}" value="${esc(c.name)}" placeholder="목장 이름" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+        <input id="cell-leader-${c.id}" value="${esc(c.leader)}" placeholder="목자 이름" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
         <button data-action="cell-save" data-cid="${c.id}" class="w-full py-2 bg-black text-white rounded-xl text-xs font-bold">저장</button>
       </div>
     </div>
@@ -2265,8 +2265,8 @@ function openCellSettings() {
             </div>
           </div>
           <div id="cset-edit-${cell.id}" class="hidden mt-2 space-y-2">
-            <input id="cset-name-${cell.id}" value="${esc(cell.name)}" placeholder="목장 이름" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-            <input id="cset-leader-${cell.id}" value="${esc(cell.leader)}" placeholder="목자 이름" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+            <input id="cset-name-${cell.id}" value="${esc(cell.name)}" placeholder="목장 이름" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+            <input id="cset-leader-${cell.id}" value="${esc(cell.leader)}" placeholder="목자 이름" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
             <button data-cset-save="${cell.id}" class="w-full py-2 bg-black text-white rounded-xl text-xs font-bold">저장</button>
           </div>
         </div>
@@ -2279,8 +2279,8 @@ function openCellSettings() {
     overlay.querySelector('[data-cset-action="add-cell"]')?.addEventListener('click', () => {
       const area = document.getElementById('cset-form-area');
       area.innerHTML = `<div class="bg-zinc-50 rounded-2xl p-3 mb-3 space-y-2">
-        <input id="new-cell-name" placeholder="목장 이름" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-        <input id="new-cell-leader" placeholder="목자 이름" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+        <input id="new-cell-name" placeholder="목장 이름" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+        <input id="new-cell-leader" placeholder="목자 이름" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
         <button id="new-cell-save" class="w-full py-2 bg-black text-white rounded-xl text-xs font-bold">저장</button>
       </div>`;
       document.getElementById('new-cell-save')?.addEventListener('click', async () => {
@@ -2586,7 +2586,7 @@ function bindEvents() {
     // 비밀번호 입력 모달
     showConfirm(`<div class="space-y-3">
       <p>탈퇴 신청 후 관리자 승인이 필요합니다.<br/>현재 비밀번호를 입력해주세요.</p>
-      <input id="withdraw-pw-input" type="password" placeholder="비밀번호" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black mt-2"/>
+      <input id="withdraw-pw-input" type="password" placeholder="비밀번호" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black mt-2"/>
     </div>`, async () => {
       const pw = document.getElementById('withdraw-pw-input')?.value;
       const u = state.cache.users.find(x=>x.uid===state.user.uid);
@@ -2662,7 +2662,10 @@ function bindEvents() {
       state.user=updated; SESSION.set(updated);
       state.isEditing = false;
       showToast('프로필 저장 완료!'); state.profilePage=null; render();
-    } finally { hideLoading(); }
+    } finally {
+      state.isEditing = false;
+      hideLoading();
+    }
   });
 
   // ── Edit phone/birth realtime format in profile edit ──
@@ -2693,7 +2696,10 @@ function bindEvents() {
         else state.cache.serviceSchedules.push(data);
       }
       showToast('임사 저장 완료!');
-    } finally { hideLoading(); }
+    } finally {
+      state.isEditing = false;
+      hideLoading();
+    }
   });
 
   // (dl-sheet-btn → setupDelegation 처리)
@@ -2750,21 +2756,21 @@ function openBulletinForm(existing) {
       <div class="flex items-center gap-2">
         <span class="text-xs font-bold text-zinc-400 w-4 flex-none">${i + 1}</span>
         <input data-ai="${i}" data-afield="title" value="${esc(a.title || '')}" placeholder="제목"
-          class="flex-1 px-2.5 py-2 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>
+          class="flex-1 px-2.5 py-2 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
         <button type="button" data-delann="${i}" class="w-5 h-5 flex items-center justify-center text-zinc-300 flex-none text-xs">✕</button>
       </div>
       <textarea data-ai="${i}" data-afield="body" placeholder="내용 (선택)"
-        class="w-full px-2.5 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black resize-none" rows="2">${esc(a.body || '')}</textarea>
+        class="w-full px-2.5 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black resize-none" rows="2">${esc(a.body || '')}</textarea>
     </div>`;
   const renderAnnRows = () => announcements.map((a, i) => bfAnnRowHtml(i, a)).join('');
 
   // 입력 헬퍼: 담당자 30% / 내용 70% 통일
   const inp = (id, val, ph, wCls='flex-[7]') =>
     `<input id="${id}" value="${esc(val||'')}" placeholder="${ph}"
-      class="${wCls} min-w-0 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>`;
+      class="${wCls} min-w-0 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>`;
   const inpPerson = (id, val, ph='담당자') =>
     `<input id="${id}" value="${esc(val||'')}" placeholder="${ph}"
-      class="flex-[3] min-w-0 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>`;
+      class="flex-[3] min-w-0 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>`;
   const fixed = (txt) =>
     `<span class="flex-[7] min-w-0 px-2.5 py-2 text-center bg-zinc-100 rounded-lg text-[11px] text-zinc-500 font-medium">${txt}</span>`;
   const fixedPerson = (txt) =>
@@ -2784,7 +2790,7 @@ function openBulletinForm(existing) {
   // 최근 4주치 주보 불러오기 옵션
   const recentBulletins = [...state.cache.bulletins].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4);
   const loadOpts = recentBulletins.length
-    ? `<select id="bf-load" class="flex-1 px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
+    ? `<select id="bf-load" class="flex-1 px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">
         <option value="">주보 선택...</option>
         ${recentBulletins.map(b=>`<option value="${b.id}">${esc(b.title||b.date)}</option>`).join('')}
       </select>
@@ -2803,9 +2809,9 @@ function openBulletinForm(existing) {
     <div>
       <p class="text-xs font-bold text-zinc-600 mb-2 ml-0.5">날짜</p>
       <div class="flex gap-2">
-        <select id="bf-yr" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">${yrOpts}</select>
-        <select id="bf-mo" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">${moOpts}</select>
-        <select id="bf-wk" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">${wkOpts}</select>
+        <select id="bf-yr" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">${yrOpts}</select>
+        <select id="bf-mo" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">${moOpts}</select>
+        <select id="bf-wk" class="flex-1 px-2.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">${wkOpts}</select>
       </div>
     </div>
 
@@ -2860,17 +2866,17 @@ function openBulletinForm(existing) {
         <div class="flex items-center gap-2">
           <span class="text-xs text-zinc-400 w-16 flex-none">주정헌금</span>
           <input id="bf-dream-weekly" value="${esc(existingDream.weekly||'')}" placeholder="담당자 이름"
-            class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black"/>
+            class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-xs text-zinc-400 w-16 flex-none">십일조</span>
           <input id="bf-dream-tithe" value="${esc(existingDream.tithe||'')}" placeholder="담당자 이름"
-            class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black"/>
+            class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-xs text-zinc-400 w-16 flex-none">감사헌금</span>
           <input id="bf-dream-thanks" value="${esc(existingDream.thanks||'')}" placeholder="담당자 이름"
-            class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black"/>
+            class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
         </div>
         <p class="text-[11px] text-zinc-400 pl-1">온라인 헌금: 우리은행 1005-003-875918</p>
       </div>
@@ -2976,7 +2982,10 @@ function openBulletinForm(existing) {
     }
     state.isEditing = false;
     showToast(isEdit?'주보 수정 완료!':'주보 저장 완료!'); render();
-    } finally { hideLoading(); }
+    } finally {
+      state.isEditing = false;
+      hideLoading();
+    }
   });
 
   scheduleEditingReset();
@@ -3390,10 +3399,10 @@ function setupDelegation() {
             const editDiv = document.createElement('div');
             editDiv.id = 'roster-inline-edit-' + rid; editDiv.className = 'mt-3 space-y-2';
             editDiv.innerHTML = `
-              <input id="re-name-${rid}" value="${esc(r.name)}" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-              <input id="re-phone-${rid}" value="${fmtPhone(r.phone)}" inputmode="numeric" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-              <input id="re-birth-${rid}" value="${fmtDate(r.birth)}" inputmode="numeric" placeholder="YYYY.MM.DD" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-              <select id="re-cell-${rid}" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
+              <input id="re-name-${rid}" value="${esc(r.name)}" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+              <input id="re-phone-${rid}" value="${fmtPhone(r.phone)}" inputmode="numeric" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+              <input id="re-birth-${rid}" value="${fmtDate(r.birth)}" inputmode="numeric" placeholder="YYYY.MM.DD" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+              <select id="re-cell-${rid}" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">
                 <option value="">미배정</option>${cells.map(c => `<option value="${c.id}"${c.id === r.cellId ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}
               </select>
               <button id="re-save-${rid}" class="w-full py-2 bg-black text-white rounded-xl text-xs font-bold">저장</button>`;
@@ -3490,7 +3499,10 @@ function setupDelegation() {
                 const idx = state.cache.notices.findIndex(x => x.id === nid); if (idx >= 0) state.cache.notices[idx] = updated;
                 state.isEditing = false;
                 showToast('공지 수정 완료!'); render();
-              } finally { hideLoading(); }
+              } finally {
+                state.isEditing = false;
+                hideLoading();
+              }
             }); break;
           }
           case 'edit-event': {
@@ -3500,7 +3512,7 @@ function setupDelegation() {
             area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
               ${adminInput('ef-title', '제목', '')}${adminInput('ef-date', '날짜', '', 'date')}${adminInput('ef-time', '시간', '')}${adminInput('ef-loc', '장소', '')}
               <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">카테고리</label>
-                <select id="ef-cat" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
+                <select id="ef-cat" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">
                   ${['예배', '모임', '행사', '생일', '기타'].map(c => `<option value="${c}"${c === ev.cat ? ' selected' : ''}>${c}</option>`).join('')}
                 </select></div>
               <div class="flex gap-2">
@@ -3519,7 +3531,10 @@ function setupDelegation() {
                 const idx = state.cache.events.findIndex(x => x.id === eid); if (idx >= 0) state.cache.events[idx] = updated;
                 state.isEditing = false;
                 showToast('일정 수정 완료!'); render();
-              } finally { hideLoading(); }
+              } finally {
+                state.isEditing = false;
+                hideLoading();
+              }
             }); break;
           }
           case 'edit-bulletin': {
@@ -3574,7 +3589,10 @@ function setupDelegation() {
                 await window.FDB.setDocFull('worshipSets',wid,updated); const idx=state.cache.worshipSets.findIndex(x=>x.id===wid); if(idx>=0) state.cache.worshipSets[idx]=updated;
                 state.isEditing = false;
                 showToast('찬양 수정 완료!'); render();
-              } finally { hideLoading(); }
+              } finally {
+                state.isEditing = false;
+                hideLoading();
+              }
             }); break;
           }
           case 'edit-cellmeet': {
@@ -3617,7 +3635,10 @@ function setupDelegation() {
                 await window.FDB.setDoc('cellMeetings',mid,updated); const idx=state.cache.cellMeetings.findIndex(x=>x.id===mid); if(idx>=0) state.cache.cellMeetings[idx]=updated;
                 state.isEditing = false;
                 showToast('목장 나눔 자료 저장 완료!'); render();
-              } finally { hideLoading(); }
+              } finally {
+                state.isEditing = false;
+                hideLoading();
+              }
             }); break;
           }
           case 'show-notice-form': {
@@ -3672,7 +3693,10 @@ function setupDelegation() {
                 await window.FDB.setDoc('notices',nid,n); state.cache.notices.unshift(n);
                 state.isEditing = false;
                 showToast('공지 저장 완료!'); render();
-              } finally { hideLoading(); }
+              } finally {
+                state.isEditing = false;
+                hideLoading();
+              }
             }); break;
           }
           case 'show-event-form': {
@@ -3680,7 +3704,7 @@ function setupDelegation() {
             area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
               ${adminInput('ef-title','제목','주일 청년 예배')}${adminInput('ef-date','날짜','','date')}${adminInput('ef-time','시간','14:00')}${adminInput('ef-loc','장소','본당')}
               <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">카테고리</label>
-                <select id="ef-cat" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm">${['예배','모임','행사','생일','기타'].map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>
+                <select id="ef-cat" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">${['예배','모임','행사','생일','기타'].map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>
               <div class="flex gap-2">
                 <button onclick="state.isEditing=false;state.adminSub='event';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
                 <button id="save-event" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
@@ -3696,15 +3720,18 @@ function setupDelegation() {
                 await window.FDB.setDoc('events',eid,ev); state.cache.events.push(ev); state.cache.events.sort((a,b)=>a.date.localeCompare(b.date));
                 state.isEditing = false;
                 showToast('일정 저장 완료!'); render();
-              } finally { hideLoading(); }
+              } finally {
+                state.isEditing = false;
+                hideLoading();
+              }
             }); break;
           }
           case 'show-cell-form': {
             const area = document.getElementById('cell-form-area'); if (!area) break;
             if (area.innerHTML) { area.innerHTML = ''; break; }
             area.innerHTML = `<div class="bg-white p-4 rounded-2xl border border-zinc-100 mb-3 space-y-2 fade-in">
-              <input id="new-cell-name" placeholder="목장 이름" class="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-              <input id="new-cell-leader" placeholder="목자 이름" class="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+              <input id="new-cell-name" placeholder="목장 이름" class="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+              <input id="new-cell-leader" placeholder="목자 이름" class="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
               <button id="save-new-cell" class="w-full py-2 bg-black text-white rounded-xl text-xs font-bold">추가</button></div>`;
             document.getElementById('save-new-cell')?.addEventListener('click', async () => {
               const name=document.getElementById('new-cell-name')?.value; const leader=document.getElementById('new-cell-leader')?.value; if(!name) return;
@@ -3764,7 +3791,10 @@ function setupDelegation() {
                 await window.FDB.setDoc('cellMeetings',mid,meeting); state.cache.cellMeetings.unshift(meeting);
                 state.isEditing = false;
                 showToast('목장 나눔 자료 저장 완료!'); render();
-              } finally { hideLoading(); }
+              } finally {
+                state.isEditing = false;
+                hideLoading();
+              }
             }); break;
           }
           case 'show-worship-form': {
@@ -3808,7 +3838,10 @@ function setupDelegation() {
                 await window.FDB.setDocFull('worshipSets',wid,ws); state.cache.worshipSets.push(ws);
                 state.isEditing = false;
                 showToast('찬양 저장 완료!'); render();
-              } finally { hideLoading(); }
+              } finally {
+                state.isEditing = false;
+                hideLoading();
+              }
             }); break;
           }
           case 'show-bulletin-form': openBulletinForm(null); break;
