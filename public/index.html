@@ -369,50 +369,169 @@ let state = {
 };
 
 const uid = () => Math.random().toString(36).substr(2, 9);
-// 악보 다운로드 (압축 없이 원본 그대로)
-async function downloadSheet(url, filename) {
-  // canvas를 이용해 이미지를 로컬에 저장 (크로스오리진 우회, 모바일/웹 통합)
+
+function sanitizeSheetFilename(s) {
+  return String(s || '악보').replace(/[/\\?%*:|"<>]/g, '_').trim().slice(0, 120);
+}
+/** 터치 우선·모바일 UA → 앨범/공유 UX, 그 외 PC → 저장 위치 지정 UX */
+function isSheetSaveMobile() {
+  try {
+    if (window.matchMedia('(pointer: coarse)').matches) return true;
+  } catch (e) {}
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+}
+/** 원격 악보 URL → Blob (canvas 우선, 실패 시 fetch). 새 창 열지 않음 */
+async function fetchSheetAsBlob(url) {
+  const bust = url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now();
   try {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     await new Promise((resolve, reject) => {
       img.onload = resolve;
       img.onerror = reject;
-      img.src = url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+      img.src = bust;
     });
     const canvas = document.createElement('canvas');
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    const dataUrl = canvas.toDataURL('image/jpeg', 1.0); // 압축 없이 최고 품질
-    const a = document.createElement('a');
-    a.href = dataUrl;
-    a.download = filename + '.jpg';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  } catch(e) {
-    // canvas 실패 시 (CORS 등) → fetch blob 시도
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob'))), 'image/jpeg', 1);
+    });
+    return { blob, ext: 'jpg' };
+  } catch (e) {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error('fetch');
+    const blob = await res.blob();
+    const t = blob.type || '';
+    const ext = t.includes('png') ? 'png' : (t.includes('webp') ? 'webp' : 'jpg');
+    return { blob, ext };
+  }
+}
+/** PC: 저장 대화상자(또는 브라우저 기본 다운로드). 새 탭 없음 */
+async function saveSheetBlobDesktop(blob, baseFilename, ext) {
+  const name = sanitizeSheetFilename(baseFilename) + '.' + ext;
+  if (window.showSaveFilePicker) {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: name,
+      types: [{ description: '이미지', accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.webp'] } }]
+    });
+    const w = await handle.createWritable();
+    await w.write(blob);
+    await w.close();
+    return;
+  }
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = u;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(u), 8000);
+}
+/**
+ * 모바일: 공유 시트로「사진에 저장」등 선택 유도(단일). 전체 저장 시에는 파일 다운로드만 연속(공유 N회 방지).
+ * 새 탭 없음.
+ */
+async function saveSheetBlobMobile(blob, baseFilename, ext, opts) {
+  const name = sanitizeSheetFilename(baseFilename) + '.' + ext;
+  const mime = blob.type || 'image/jpeg';
+  const useShare = !opts?.bulk && navigator.canShare;
+  if (useShare) {
     try {
-      const res = await fetch(url, { mode: 'cors' });
-      const blob = await res.blob();
-      const ext = blob.type.includes('png') ? 'png' : 'jpg';
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = filename + '.' + ext;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-    } catch(e2) {
-      // 최후 수단: 새 탭에서 이미지 열기 (길게 눌러 저장 안내)
-      const win = window.open(url, '_blank');
-      if (!win) showToast('이미지를 길게 눌러 저장하세요');
-      else showToast('이미지를 길게 눌러 저장하세요');
+      const file = new File([blob], name, { type: mime });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] });
+        if (!opts?.silent) showToast('저장을 완료했습니다.');
+        return;
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') return;
     }
   }
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = u;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(u), 8000);
+  if (!opts?.silent) showToast(opts?.bulk ? '' : '사진첩에 저장했습니다.');
+}
+/** 개별 악보 저장 (PC/모바일 분기) */
+async function downloadSheet(url, filename) {
+  try {
+    const { blob, ext } = await fetchSheetAsBlob(url);
+    if (isSheetSaveMobile()) {
+      await saveSheetBlobMobile(blob, filename, ext, {});
+    } else {
+      await saveSheetBlobDesktop(blob, filename, ext);
+      showToast('저장했습니다.');
+    }
+  } catch (e) {
+    console.warn('downloadSheet', e);
+    showToast('이미지를 불러오거나 저장할 수 없습니다.');
+  }
+}
+/** 전체 악보 저장 */
+async function downloadAllSheets(list) {
+  if (!list.length) {
+    showToast('다운로드할 악보가 없습니다.');
+    return;
+  }
+  if (isSheetSaveMobile()) {
+    showToast('악보를 순서대로 저장합니다…');
+    let ok = 0;
+    for (const s of list) {
+      try {
+        const { blob, ext } = await fetchSheetAsBlob(s.sheetOrig || s.sheet);
+        await saveSheetBlobMobile(blob, (s.title || '악보') + '_악보', ext, { bulk: true, silent: true });
+        ok++;
+      } catch (e) { console.warn('sheet', e); }
+      await new Promise(r => setTimeout(r, 450));
+    }
+    showToast(ok ? `악보 ${ok}장 저장을 완료했습니다.` : '저장에 실패했습니다.');
+    return;
+  }
+  showToast('악보 파일을 준비하는 중…');
+  const items = [];
+  for (const s of list) {
+    try {
+      const { blob, ext } = await fetchSheetAsBlob(s.sheetOrig || s.sheet);
+      items.push({ blob, ext, base: (s.title || '악보') + '_악보' });
+    } catch (e) { console.warn('sheet', e); }
+  }
+  if (!items.length) {
+    showToast('저장할 악보를 불러오지 못했습니다.');
+    return;
+  }
+  if (window.showDirectoryPicker) {
+    try {
+      const dir = await window.showDirectoryPicker();
+      for (const it of items) {
+        const fn = sanitizeSheetFilename(it.base) + '.' + it.ext;
+        const fh = await dir.getFileHandle(fn, { create: true });
+        const w = await fh.createWritable();
+        await w.write(it.blob);
+        await w.close();
+      }
+      showToast(`악보 ${items.length}장을 선택한 폴더에 저장했습니다.`);
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+    }
+  }
+  for (const it of items) {
+    try {
+      await saveSheetBlobDesktop(it.blob, it.base, it.ext);
+    } catch (e) {
+      console.warn('save desktop', e);
+    }
+    await new Promise(r => setTimeout(r, 350));
+  }
+  showToast(`악보 ${items.length}장 저장을 마쳤습니다.`);
 }
 const koSort = (a, b) => (a||'').localeCompare(b||'', 'ko');
 const sortByName = arr => [...arr].sort((a,b) => koSort(a.name, b.name));
@@ -3370,14 +3489,7 @@ function setupDelegation() {
             const worships = state.cache.worshipSets;
             const w = worships[worships.length - 1];
             const list = (w && w.songs) ? w.songs.filter(s => s.sheetOrig || s.sheet) : [];
-            if (!list.length) { showToast('다운로드할 악보가 없습니다.'); break; }
-            showToast('악보 전체 다운로드를 시작합니다.');
-            (async () => {
-              for (const s of list) {
-                await new Promise(r => setTimeout(r, 500));
-                await downloadSheet(s.sheetOrig || s.sheet, s.title + '_악보');
-              }
-            })();
+            downloadAllSheets(list);
             break;
           }
           case 'cal-prev': {
