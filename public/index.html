@@ -2115,34 +2115,31 @@ function bindEvents() {
     if (btnEl) { btnEl.textContent='로그인 중...'; btnEl.disabled=true; }
     errEl.classList.add('hidden');
     try {
-      // 1) Firestore에서 아이디로 사용자 찾기
-      const allUsers = await window.FDB.getCol('users');
-      const u = allUsers.find(x => x.id === id);
-      if (!u) { errEl.textContent='아이디 또는 비밀번호가 틀렸습니다.'; errEl.classList.remove('hidden'); return; }
-      if (u.status === 'pending') { errEl.textContent='관리자 승인 대기 중입니다.'; errEl.classList.remove('hidden'); return; }
-      if (u.status === 'withdraw_pending') { errEl.textContent='탈퇴 신청 중인 계정입니다.'; errEl.classList.remove('hidden'); return; }
-
-      // 2) Firebase Auth로 실제 인증 (ID@promisedland.com)
       const email = id + '@promisedland.com';
+      let authCred;
       try {
-        await window.FB_signIn(email, pw);
-      } catch(authErr) {
-        // Auth 계정 없거나 비번 틀림 → 레거시 pw 필드 폴백 (마이그레이션 기간)
-        if (u.pw && u.pw === pw) {
-          // 최초 로그인 시 Auth 계정 생성 (마이그레이션)
-          try {
-            await window.FB_createUser(email, pw);
-            // pw 필드 제거 (보안)
-            await window.FDB.setDoc('users', u.uid, { pw: null });
-            u.pw = null;
-          } catch(createErr) {
-            if (createErr.code !== 'auth/email-already-in-use') throw createErr;
-            // 이미 있으면 비번이 다른 것 → 오류
-            errEl.textContent='비밀번호가 틀렸습니다.'; errEl.classList.remove('hidden'); return;
-          }
-        } else {
-          errEl.textContent='아이디 또는 비밀번호가 틀렸습니다.'; errEl.classList.remove('hidden'); return;
-        }
+        authCred = await window.FB_signIn(email, pw);
+      } catch {
+        errEl.textContent='아이디 또는 비밀번호가 틀렸습니다.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      const uid = authCred.user.uid;
+      let u = await window.FDB.getDoc('users', uid);
+      if (u && !u.uid) u.uid = uid;
+
+      if (!u || u.status === 'pending') {
+        await window.FB_signOut();
+        errEl.textContent='관리자 승인 대기 중입니다.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      if (u.status === 'withdraw_pending') {
+        await window.FB_signOut();
+        errEl.textContent='탈퇴 신청 중인 계정입니다.';
+        errEl.classList.remove('hidden');
+        return;
       }
 
       state.user = u; state.page = 'main';
