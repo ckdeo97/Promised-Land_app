@@ -447,6 +447,8 @@ const today = () => new Date().toISOString().split('T')[0];
 const fmtPhone = v => { const d = v.replace(/\D/g,''); if(d.length<=3) return d; if(d.length<=7) return d.slice(0,3)+'-'+d.slice(3); return d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7,11); };
 const fmtDate = v => { if(!v) return ''; const d = String(v).replace(/\D/g,''); if(d.length===8) return d.slice(0,4)+'.'+d.slice(4,6)+'.'+d.slice(6,8); return v; };
 const fmtAmt = v => Number(v).toLocaleString();
+// XSS 방어: 유저 입력 텍스트를 HTML 엔티티로 변환
+const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 // localStorage: 현재 로그인 유저만 유지
 const SESSION = {
@@ -827,12 +829,12 @@ function renderMain() {
           </div>
           <div>
             <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em]">약속의 땅</p>
-            <h1 class="text-lg font-bold tracking-tight">${u.name} <span class="text-xs font-light text-zinc-400 tracking-normal ml-1">청년</span></h1>
+            <h1 class="text-lg font-bold tracking-tight">${esc(u.name)} <span class="text-xs font-light text-zinc-400 tracking-normal ml-1">청년</span></h1>
           </div>
         </div>
         <div class="flex gap-2">
           <button data-action="open-profile" class="relative w-10 h-10 rounded-full bg-zinc-200 flex items-center justify-center border-2 border-black overflow-hidden">
-            ${u.profileImg ? `<img src="${u.profileImg}" class="w-full h-full object-cover"/>` : `<span class="text-sm font-bold text-zinc-500">${(u.name||'?')[0]}</span>`}
+            ${u.profileImg ? `<img src="${u.profileImg}" class="w-full h-full object-cover"/>` : `<span class="text-sm font-bold text-zinc-500">${esc((u.name||'?')[0])}</span>`}
           </button>
         </div>
       </div>
@@ -869,10 +871,10 @@ function renderProfileSheet() {
     <div class="flex justify-center pt-3 pb-1"><div class="w-10 h-1 bg-zinc-200 rounded-full"></div></div>
     <div class="flex items-center gap-4 px-6 py-5 border-b border-zinc-100">
       ${u.profileImg ? `<div class="w-14 h-14 rounded-full bg-zinc-200 flex items-center justify-center border-2 border-black overflow-hidden"><img src="${u.profileImg}" class="w-full h-full object-cover"/></div>` :
-        `<div class="w-14 h-14 rounded-full bg-zinc-200 flex items-center justify-center border-2 border-black"><span class="text-xl font-bold text-zinc-500">${(u.name||'?')[0]}</span></div>`}
+        `<div class="w-14 h-14 rounded-full bg-zinc-200 flex items-center justify-center border-2 border-black"><span class="text-xl font-bold text-zinc-500">${esc((u.name||'?')[0])}</span></div>`}
       <div>
-        <p class="font-bold text-base">${u.name}</p>
-        <p class="text-sm text-zinc-400">${cell ? cell.name : '목장 미배정'} · ${isAdmin?'관리자':'청년부원'}</p>
+        <p class="font-bold text-base">${esc(u.name)}</p>
+        <p class="text-sm text-zinc-400">${cell ? esc(cell.name) : '목장 미배정'} · ${isAdmin?'관리자':'청년부원'}</p>
       </div>
     </div>
     <div class="px-4 py-3 space-y-1">
@@ -935,7 +937,7 @@ function renderHomeTab() {
         <div class="flex items-center gap-3 px-5 py-4">
           <div class="w-8 h-8 bg-zinc-100 rounded-lg flex items-center justify-center flex-none">${icon(d.i,'text-zinc-600',16)}</div>
           <span class="text-xs text-zinc-400 w-20 flex-none">${d.l}</span>
-          <span class="text-sm font-bold">${d.v}</span>
+          <span class="text-sm font-bold">${esc(d.v)}</span>
         </div>`).join('')}
       </div>
     </div>
@@ -978,8 +980,8 @@ function renderHomeTab() {
             }
           </div>
           <div class="p-3">
-            <p class="text-xs font-bold leading-tight truncate">${s.title}</p>
-            <p class="text-[10px] text-zinc-400 mt-0.5">Key: ${s.key}</p>
+            <p class="text-xs font-bold leading-tight truncate">${esc(s.title)}</p>
+            <p class="text-[10px] text-zinc-400 mt-0.5">Key: ${esc(s.key)}</p>
           </div>
         </button>`;
       }).join('')}
@@ -997,8 +999,8 @@ function renderHomeTab() {
             ${icon(n.pinned?'priority_high':'info','',16,false)}
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-bold leading-tight">${n.title}</p>
-            <p class="text-xs text-zinc-400 mt-0.5 truncate">${n.body.split('\n')[0]}</p>
+            <p class="text-sm font-bold leading-tight">${esc(n.title)}</p>
+            <p class="text-xs text-zinc-400 mt-0.5 truncate">${esc(n.body.split('\n')[0])}</p>
           </div>
           <span class="text-[10px] text-zinc-300 font-medium flex-none">${n.at.slice(5)}</span>
         </button>
@@ -1021,9 +1023,9 @@ function renderHomeTab() {
             <span class="text-lg font-bold leading-none ${isW?'text-white':'text-black'}">${day}</span>
           </div>
           <div class="flex-1">
-            <span class="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded">${ev.cat}</span>
-            <h4 class="font-bold text-sm text-black mt-0.5">${ev.title}</h4>
-            ${(ev.loc||ev.time)?`<p class="text-xs text-zinc-400">${[ev.loc,ev.time].filter(Boolean).join(' · ')}</p>`:''}
+            <span class="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded">${esc(ev.cat)}</span>
+            <h4 class="font-bold text-sm text-black mt-0.5">${esc(ev.title)}</h4>
+            ${(ev.loc||ev.time)?`<p class="text-xs text-zinc-400">${[ev.loc,ev.time].filter(Boolean).map(esc).join(' · ')}</p>`:''}
           </div>
         </div>`;
       }).join('')}
@@ -1058,7 +1060,7 @@ function renderBulletinTab() {
             <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">${icon('menu_book','text-white',18)}</div>
             <span class="text-[10px] font-bold uppercase tracking-wider text-white/60">최신 주보</span>
           </div>
-          <h3 class="text-lg font-bold">${latest.title}</h3>
+          <h3 class="text-lg font-bold">${esc(latest.title)}</h3>
           <p class="text-white/50 text-xs mt-1">${latest.date}</p>
         </div>
       </div>
@@ -1071,7 +1073,7 @@ function renderBulletinTab() {
       ${rest.map(b=>`<button data-detail="bulletin:${b.id}" class="w-full text-left bg-white rounded-2xl border border-zinc-100 p-4 flex items-center gap-3 active:bg-zinc-50">
         <div class="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center flex-none">${icon('menu_book','text-white',16)}</div>
         <div class="flex-1 min-w-0">
-          <p class="font-bold text-sm truncate">${b.title}</p>
+          <p class="font-bold text-sm truncate">${esc(b.title)}</p>
           <p class="text-xs text-zinc-400">${b.date}</p>
         </div>
         ${icon('chevron_right','text-zinc-300',18)}
@@ -1128,7 +1130,7 @@ function renderBulletinDetail() {
       <div class="bg-black text-white rounded-3xl p-8 text-center relative overflow-hidden dot-pattern">
         <div class="relative z-10">
           <p class="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 mb-2">약속의 땅 청년부 · 주일예배</p>
-          <h2 class="text-xl font-bold">${b.title||b.date}</h2>
+          <h2 class="text-xl font-bold">${esc(b.title||b.date)}</h2>
         </div>
       </div>
 
@@ -1142,9 +1144,9 @@ function renderBulletinDetail() {
         <div class="divide-y divide-zinc-50">
           ${orderItems.map(item=>`
           <div class="flex items-center px-4 py-3 gap-2">
-            <span class="text-sm font-medium text-zinc-800 w-[6.5rem] flex-none">${item.name}</span>
-            <span class="flex-1 text-xs text-zinc-400 text-center">${item.scripture||''}</span>
-            <span class="text-xs text-zinc-500 text-right w-[5rem] flex-none">${item.participant||''}</span>
+            <span class="text-sm font-medium text-zinc-800 w-[6.5rem] flex-none">${esc(item.name)}</span>
+            <span class="flex-1 text-xs text-zinc-400 text-center">${esc(item.scripture||'')}</span>
+            <span class="text-xs text-zinc-500 text-right w-[5rem] flex-none">${esc(item.participant||'')}</span>
           </div>`).join('')}
         </div>
       </div>` : ''}
@@ -1162,8 +1164,8 @@ function renderBulletinDetail() {
             <div class="flex items-start gap-2.5">
               <span class="w-5 h-5 bg-zinc-900 text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-none mt-0.5">${i+1}</span>
               <div>
-                <p class="text-sm font-bold">${a.title}</p>
-                ${a.body?`<p class="text-xs text-zinc-500 mt-1 leading-relaxed whitespace-pre-line">${a.body}</p>`:''}
+                <p class="text-sm font-bold">${esc(a.title)}</p>
+                ${a.body?`<p class="text-xs text-zinc-500 mt-1 leading-relaxed whitespace-pre-line">${esc(a.body)}</p>`:''}
               </div>
             </div>
           </div>`).join('')}
@@ -1178,9 +1180,9 @@ function renderBulletinDetail() {
           <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">우리의 드림</h3>
         </div>
         <div class="p-5 space-y-2">
-          ${dream.weekly?`<div class="flex justify-between text-sm"><span class="text-zinc-400">주정헌금</span><span class="font-medium">${dream.weekly}</span></div>`:''}
-          ${dream.tithe?`<div class="flex justify-between text-sm"><span class="text-zinc-400">십일조</span><span class="font-medium">${dream.tithe}</span></div>`:''}
-          ${dream.thanks?`<div class="flex justify-between text-sm"><span class="text-zinc-400">감사헌금</span><span class="font-medium">${dream.thanks}</span></div>`:''}
+          ${dream.weekly?`<div class="flex justify-between text-sm"><span class="text-zinc-400">주정헌금</span><span class="font-medium">${esc(dream.weekly)}</span></div>`:''}
+          ${dream.tithe?`<div class="flex justify-between text-sm"><span class="text-zinc-400">십일조</span><span class="font-medium">${esc(dream.tithe)}</span></div>`:''}
+          ${dream.thanks?`<div class="flex justify-between text-sm"><span class="text-zinc-400">감사헌금</span><span class="font-medium">${esc(dream.thanks)}</span></div>`:''}
           <div class="pt-1 border-t border-zinc-50">
             <p class="text-xs text-zinc-400">온라인 헌금: 우리은행 1005-003-875918</p>
           </div>
@@ -1209,8 +1211,8 @@ function renderNoticeTab() {
             ${icon(n.pinned?'priority_high':'info','',16,false)}
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-bold">${n.title}</p>
-            <p class="text-xs text-zinc-400 mt-1 line-clamp-2">${n.body.split('\n')[0]}</p>
+            <p class="text-sm font-bold">${esc(n.title)}</p>
+            <p class="text-xs text-zinc-400 mt-1 line-clamp-2">${esc(n.body.split('\n')[0])}</p>
             <p class="text-[10px] text-zinc-300 mt-1.5">${n.at}</p>
           </div>
         </button>
@@ -1235,17 +1237,17 @@ function renderNoticeDetail() {
     <div class="p-5 space-y-4">
       <div class="bg-white rounded-2xl p-6 border border-zinc-100">
         ${n.pinned?'<span class="text-[10px] font-bold bg-red-50 text-red-500 px-2 py-1 rounded mb-3 inline-block">📌 중요 공지</span>':''}
-        <h2 class="text-lg font-bold leading-snug mb-2">${n.title}</h2>
+        <h2 class="text-lg font-bold leading-snug mb-2">${esc(n.title)}</h2>
         <p class="text-[11px] text-zinc-400 mb-4">${n.at}</p>
-        <p class="text-sm leading-relaxed text-zinc-700 whitespace-pre-line">${n.body}</p>
+        <p class="text-sm leading-relaxed text-zinc-700 whitespace-pre-line">${esc(n.body)}</p>
         ${n.images?.length ? `<div class="mt-4 space-y-2">${n.images.map(img=>`<img src="${img}" class="w-full rounded-xl"/>`).join('')}</div>` : ''}
       </div>
       <div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
         <div class="px-5 py-4 border-b border-zinc-50"><p class="text-xs font-bold text-zinc-500">댓글 ${comments.length}</p></div>
         ${comments.map(c=>`
           <div class="px-5 py-3.5 border-b border-zinc-50 last:border-0">
-            <div class="flex items-center gap-2 mb-1"><p class="text-xs font-bold">${c.name}</p><p class="text-[10px] text-zinc-300">${c.at}</p></div>
-            <p class="text-sm text-zinc-600">${c.body}</p>
+            <div class="flex items-center gap-2 mb-1"><p class="text-xs font-bold">${esc(c.name)}</p><p class="text-[10px] text-zinc-300">${c.at}</p></div>
+            <p class="text-sm text-zinc-600">${esc(c.body)}</p>
           </div>
         `).join('')}
         <div class="flex gap-2 p-3 border-t border-zinc-100">
@@ -1309,9 +1311,9 @@ function renderCalendarTab() {
           <div class="flex items-center gap-4 bg-zinc-50 p-4 rounded-2xl">
             <div class="w-1 h-10 bg-black rounded-full"></div>
             <div>
-              <span class="text-[10px] font-bold bg-zinc-200 text-zinc-500 px-1.5 py-0.5 rounded">${ev.cat}</span>
-              <h4 class="font-bold text-sm mt-0.5">${ev.title}</h4>
-              ${(ev.loc||ev.time)?`<p class="text-xs text-zinc-400">${[ev.loc,ev.time].filter(Boolean).join(' · ')}</p>`:''}
+              <span class="text-[10px] font-bold bg-zinc-200 text-zinc-500 px-1.5 py-0.5 rounded">${esc(ev.cat)}</span>
+              <h4 class="font-bold text-sm mt-0.5">${esc(ev.title)}</h4>
+              ${(ev.loc||ev.time)?`<p class="text-xs text-zinc-400">${[ev.loc,ev.time].filter(Boolean).map(esc).join(' · ')}</p>`:''}
             </div>
           </div>
         `).join('')}</div>`
@@ -1329,7 +1331,7 @@ function _renderSongRow(s, i) {
     : '';
   return '<div class="bg-white rounded-2xl border border-zinc-100 p-4 flex items-center gap-3">'
     + '<div class="w-9 h-9 bg-black rounded-xl flex items-center justify-center flex-none"><span class="text-white font-bold text-sm">' + (i+1) + '</span></div>'
-    + '<div class="flex-1 min-w-0"><p class="font-bold text-sm">' + s.title + '</p><p class="text-xs text-zinc-400">Key: ' + s.key + '</p></div>'
+    + '<div class="flex-1 min-w-0"><p class="font-bold text-sm">' + esc(s.title) + '</p><p class="text-xs text-zinc-400">Key: ' + esc(s.key) + '</p></div>'
     + linkBtn
     + '</div>';
 }
@@ -1337,10 +1339,10 @@ function _renderSheetCard(s) {
   const parts = [];
   parts.push('<div class="rounded-2xl overflow-hidden border border-zinc-100">');
   parts.push('<div class="px-4 py-2.5 bg-zinc-50 border-b border-zinc-100">');
-  parts.push('<p class="text-xs font-bold">' + s.title + ' <span class="text-zinc-400 font-normal">· Key ' + s.key + '</span></p></div>');
+  parts.push('<p class="text-xs font-bold">' + esc(s.title) + ' <span class="text-zinc-400 font-normal">· Key ' + esc(s.key) + '</span></p></div>');
   parts.push('<div class="relative group bg-zinc-50">');
   parts.push('<img src="' + s.sheet + '" class="w-full block" loading="lazy"/>');
-  parts.push('<button data-dl-sheet="' + s.sheet + '" data-dl-title="' + s.title + '" class="dl-sheet-btn absolute bottom-3 right-3 w-10 h-10 bg-black/70 rounded-full flex items-center justify-center active:bg-black/90">');
+  parts.push('<button data-dl-sheet="' + s.sheet + '" data-dl-title="' + esc(s.title) + '" class="dl-sheet-btn absolute bottom-3 right-3 w-10 h-10 bg-black/70 rounded-full flex items-center justify-center active:bg-black/90">');
   parts.push(icon('download','text-white',20));
   parts.push('</button></div></div>');
   return parts.join('');
@@ -1364,7 +1366,7 @@ function renderWorshipDetail() {
       <div class="bg-zinc-50 rounded-2xl p-4">
         <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">세트 정보</p>
         <p class="text-sm font-bold mb-1">${w.date}</p>
-        <div class="text-xs"><span class="text-zinc-400">인도:</span> <span class="font-bold">${w.leader}</span></div>
+        <div class="text-xs"><span class="text-zinc-400">인도:</span> <span class="font-bold">${esc(w.leader)}</span></div>
       </div>
       <div>
         <h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">곡 목록</h3>
@@ -1391,18 +1393,18 @@ function renderCellTab() {
     <div class="space-y-5">
       <div class="bg-zinc-900 text-white p-5 rounded-2xl">
         <p class="text-xs font-bold text-zinc-400 mb-1">오늘의 말씀</p>
-        <p class="text-base font-bold">${latest.verse||''}</p>
-        ${latest.verseText?`<p class="text-sm text-zinc-300 mt-2 leading-relaxed italic">${latest.verseText}</p>`:''}
+        <p class="text-base font-bold">${esc(latest.verse||'')}</p>
+        ${latest.verseText?`<p class="text-sm text-zinc-300 mt-2 leading-relaxed italic">${esc(latest.verseText)}</p>`:''}
       </div>
       ${questions.length ? questions.map((q,qi)=>`
       <div class="bg-white p-5 rounded-2xl border border-zinc-100">
         <p class="text-xs font-bold text-zinc-400 mb-2">나눔 질문 ${qi+1}</p>
-        <p class="text-sm leading-relaxed font-medium">${q}</p>
+        <p class="text-sm leading-relaxed font-medium">${esc(q)}</p>
       </div>`).join('') : ''}
       ${latest.prayerItems?`
       <div class="bg-gradient-to-br from-indigo-50 to-purple-50 p-5 rounded-2xl border border-indigo-100">
         <p class="text-xs font-bold text-indigo-400 mb-2">함께 기도</p>
-        <p class="text-sm leading-relaxed whitespace-pre-line text-indigo-900">${latest.prayerItems}</p>
+        <p class="text-sm leading-relaxed whitespace-pre-line text-indigo-900">${esc(latest.prayerItems)}</p>
       </div>`:''}
     </div>
   </div>`;
@@ -1430,7 +1432,7 @@ function renderProfilePage() {
         <div class="flex flex-col items-center gap-4">
           <div class="relative">
             <div class="w-24 h-24 rounded-full bg-zinc-200 border-2 border-black overflow-hidden">
-              ${state._pendingProfileImg || u.profileImg ? `<img id="profile-preview-img" src="${state._pendingProfileImg||u.profileImg}" class="w-full h-full object-cover"/>` : `<span class="w-full h-full flex items-center justify-center text-2xl font-bold text-zinc-500">${(u.name||'?')[0]}</span>`}
+              ${state._pendingProfileImg || u.profileImg ? `<img id="profile-preview-img" src="${state._pendingProfileImg||u.profileImg}" class="w-full h-full object-cover"/>` : `<span class="w-full h-full flex items-center justify-center text-2xl font-bold text-zinc-500">${esc((u.name||'?')[0])}</span>`}
             </div>
             <label class="absolute -bottom-1 -right-1 w-7 h-7 bg-black rounded-full flex items-center justify-center cursor-pointer">
               ${icon('photo_camera','text-white',14)}
@@ -1442,7 +1444,7 @@ function renderProfilePage() {
         <div>
           <label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">이름</label>
           <div class="flex gap-2">
-            <input id="edit-name" value="${u.name}" class="flex-1 px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+            <input id="edit-name" value="${esc(u.name)}" class="flex-1 px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
             ${linkedRoster ? `<select id="edit-minister" class="px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
               ${['직분없음','목사','전도사','간사'].map(r=>`<option value="${r==='직분없음'?'':r}" ${(linkedRoster?.minister||'')===(r==='직분없음'?'':r)?'selected':''}>${r}</option>`).join('')}
             </select>` : ''}
@@ -1456,7 +1458,7 @@ function renderProfilePage() {
         </div>
         <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">목장</label>
           <div class="w-full px-4 py-3 bg-zinc-100 border border-zinc-200 rounded-xl text-sm text-zinc-500 flex items-center justify-between">
-            <span>${cells.find(c=>c.id===u.cellId)?.name || '미배정'}</span>
+            <span>${esc(cells.find(c=>c.id===u.cellId)?.name || '미배정')}</span>
             
           </div>
         </div>
@@ -1606,10 +1608,10 @@ function renderAdminApprove() {
     const match = rosters.find(r=>r.phone===u.phone);
     return `<div class="bg-white p-4 rounded-2xl border border-zinc-100">
       <div class="flex items-center justify-between mb-2">
-        <div><p class="font-bold text-sm">${u.name}</p><p class="text-xs text-zinc-400">${fmtPhone(u.phone)} · ${fmtDate(u.birth)}</p></div>
+        <div><p class="font-bold text-sm">${esc(u.name)}</p><p class="text-xs text-zinc-400">${fmtPhone(u.phone)} · ${fmtDate(u.birth)}</p></div>
         <button data-action="approve" data-uid="${u.uid}" class="px-4 py-2 bg-black text-white rounded-xl text-xs font-bold active:scale-95">승인</button>
       </div>
-      ${match?`<p class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded inline-block">📋 명부 매칭: ${match.name}</p>`:''}
+      ${match?`<p class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded inline-block">📋 명부 매칭: ${esc(match.name)}</p>`:''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -1620,7 +1622,7 @@ function renderAdminWithdrawApprove() {
   return `<h2 class="text-lg font-bold mb-4">탈퇴 승인</h2><div class="space-y-3">${pending.map(u=>`
     <div class="bg-white p-4 rounded-2xl border border-zinc-100">
       <div class="flex items-center justify-between">
-        <div><p class="font-bold text-sm">${u.name}</p><p class="text-xs text-zinc-400">${u.id} · ${fmtPhone(u.phone)}</p>
+        <div><p class="font-bold text-sm">${esc(u.name)}</p><p class="text-xs text-zinc-400">${esc(u.id)} · ${fmtPhone(u.phone)}</p>
           <p class="text-[10px] text-zinc-400 mt-0.5">탈퇴 신청일: ${u.withdrawAt||'-'}</p>
         </div>
         <button data-action="approve-withdraw" data-uid="${u.uid}" class="px-4 py-2 bg-red-500 text-white rounded-xl text-xs font-bold active:scale-95">탈퇴 처리</button>
@@ -1715,7 +1717,7 @@ function renderAdminServiceSchedule() {
         ${SVC_COLS.map(col=>`
         <div>
           <label class="block text-[10px] font-bold text-zinc-500 mb-1.5">${SVC_COL_LABELS[col]}</label>
-          <input id="svc-${date}-${col}" value="${s[col]||''}" placeholder="이름"
+          <input id="svc-${date}-${col}" value="${esc(s[col]||'')}" placeholder="이름"
             class="w-full px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black"/>
         </div>`).join('')}
       </div>
@@ -1736,7 +1738,7 @@ function renderAdminBulletin() {
     <button data-action="show-bulletin-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-4">+ 새 주보 작성</button>
     <div class="space-y-2">${list.map(b=>`
     <div class="bg-white p-4 rounded-2xl border border-zinc-100 flex items-center justify-between">
-      <div><p class="font-bold text-sm">${b.title||b.date+' 주보'}</p><p class="text-xs text-zinc-400">${b.date}</p></div>
+      <div><p class="font-bold text-sm">${esc(b.title||b.date+' 주보')}</p><p class="text-xs text-zinc-400">${b.date}</p></div>
       <div class="flex gap-1">
         <button data-action="edit-bulletin" data-bid="${b.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('edit','text-zinc-400',18)}</button>
         <button data-action="del-bulletin" data-bid="${b.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-red-50">${icon('delete','text-red-400',18)}</button>
@@ -1752,7 +1754,7 @@ function renderAdminWorship() {
   <div id="admin-form-area">
     <button data-action="show-worship-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-4">+ 새 세트</button>
     <div class="space-y-2">${list.map(w=>`<div class="bg-white p-4 rounded-2xl border border-zinc-100 flex items-center justify-between">
-      <div><p class="font-bold text-sm">${w.date} 찬양 세트</p><p class="text-xs text-zinc-400">인도: ${w.leader} · ${w.songs.length}곡</p></div>
+      <div><p class="font-bold text-sm">${w.date} 찬양 세트</p><p class="text-xs text-zinc-400">인도: ${esc(w.leader)} · ${w.songs.length}곡</p></div>
       <div class="flex gap-1">
         <button data-action="edit-worship" data-wid="${w.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('edit','text-zinc-400',18)}</button>
         <button data-action="del-worship" data-wid="${w.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-red-50">${icon('delete','text-red-400',18)}</button>
@@ -1767,7 +1769,7 @@ function renderAdminNotice() {
   <div id="admin-form-area">
     <button data-action="show-notice-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-4">+ 새 공지</button>
     <div class="space-y-2">${list.map(n=>`<div class="bg-white p-4 rounded-2xl border border-zinc-100 flex items-center justify-between">
-      <div>${n.pinned?'<span class="text-[9px] font-bold bg-red-50 text-red-500 px-1.5 py-0.5 rounded mr-1">중요</span>':''}<span class="font-bold text-sm">${n.title}</span><p class="text-xs text-zinc-400">${n.at}</p></div>
+      <div>${n.pinned?'<span class="text-[9px] font-bold bg-red-50 text-red-500 px-1.5 py-0.5 rounded mr-1">중요</span>':''}<span class="font-bold text-sm">${esc(n.title)}</span><p class="text-xs text-zinc-400">${n.at}</p></div>
       <div class="flex gap-1">
         <button data-action="edit-notice" data-nid="${n.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('edit','text-zinc-400',18)}</button>
         <button data-action="del-notice" data-nid="${n.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-red-50">${icon('delete','text-red-400',18)}</button>
@@ -1782,7 +1784,7 @@ function renderAdminEvent() {
   <div id="admin-form-area">
     <button data-action="show-event-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-4">+ 새 일정</button>
     <div class="space-y-2">${list.map(e=>`<div class="bg-white p-4 rounded-2xl border border-zinc-100 flex items-center justify-between">
-      <div><p class="font-bold text-sm">${e.title}</p><p class="text-xs text-zinc-400">${e.date} ${e.time} · ${e.cat}</p></div>
+      <div><p class="font-bold text-sm">${esc(e.title)}</p><p class="text-xs text-zinc-400">${e.date} ${esc(e.time)} · ${esc(e.cat)}</p></div>
       <div class="flex gap-1">
         <button data-action="edit-event" data-eid="${e.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('edit','text-zinc-400',18)}</button>
         <button data-action="del-event" data-eid="${e.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-red-50">${icon('delete','text-red-400',18)}</button>
@@ -1812,7 +1814,7 @@ function renderAdminAttendance() {
   return `<h2 class="text-lg font-bold mb-3">출석 관리</h2>
   ${ymwSelectors('att', yr, mo, wk)}
   <div class="flex gap-2 mb-3 overflow-x-auto hide-scrollbar pb-1">
-    ${tabs.map(t=>`<button data-att-tab="${t.id}" class="flex-none px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${activeTab===t.id?'bg-black text-white border-black':'bg-white text-zinc-500 border-zinc-200'}">${t.name}</button>`).join('')}
+    ${tabs.map(t=>`<button data-att-tab="${t.id}" class="flex-none px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${activeTab===t.id?'bg-black text-white border-black':'bg-white text-zinc-500 border-zinc-200'}">${esc(t.name)}</button>`).join('')}
   </div>
   <p class="text-xs text-zinc-400 mb-3">${yr}년 ${mo}월 ${wk}째주 출석: <span class="font-bold text-black">${present}</span> / ${filtered.length}명</p>
   <div class="space-y-1 mb-24">${filtered.map(r=>{
@@ -1823,8 +1825,8 @@ function renderAdminAttendance() {
         ${marks[r.id]?icon('check','text-white',14):''}
       </div>
       <div class="flex-1 text-left">
-        <span class="text-sm font-medium">${r.name}</span>
-        ${activeTab==='all'?`<span class="text-[10px] text-zinc-400 ml-2">${cellName}</span>`:''}
+        <span class="text-sm font-medium">${esc(r.name)}</span>
+        ${activeTab==='all'?`<span class="text-[10px] text-zinc-400 ml-2">${esc(cellName)}</span>`:''}
       </div>
     </button>`;
   }).join('')}</div>
@@ -1883,7 +1885,7 @@ function renderAdminOffering() {
   </div>
   ${(weekData.items||[]).length?`<div class="mt-3 space-y-1">${(weekData.items||[]).map((it,idx)=>`
     <div class="bg-white p-3 rounded-xl border border-zinc-100 flex items-center justify-between">
-      <div><span class="text-sm font-bold">${it.name}</span><span class="text-xs text-zinc-400 ml-2">${it.type}</span></div>
+      <div><span class="text-sm font-bold">${esc(it.name)}</span><span class="text-xs text-zinc-400 ml-2">${esc(it.type)}</span></div>
       <div class="flex items-center gap-2">
         <span class="text-sm font-bold">${fmtAmt(it.amount)}원</span>
         <button data-action="del-offering" data-date="${d}" data-idx="${idx}" class="w-7 h-7 flex items-center justify-center rounded-full active:bg-red-50">${icon('delete','text-red-400',16)}</button>
@@ -1908,7 +1910,7 @@ function renderRosterTabs(activeTab, cells, joinCount, withdrawCount) {
     else if (t.color === 'emerald') cls = 'bg-emerald-50 text-emerald-600 border-emerald-200';
     else if (t.color === 'red') cls = 'bg-red-50 text-red-500 border-red-200';
     else cls = 'bg-white text-zinc-500 border-zinc-200';
-    return `<button data-roster-tab="${t.id}" class="flex-none flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${cls}">${t.name}${t.badge>0?`<span class="${isActive?'bg-white/30':'bg-red-500'} text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">${t.badge}</span>`:''}</button>`;
+    return `<button data-roster-tab="${t.id}" class="flex-none flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${cls}">${esc(t.name)}${t.badge>0?`<span class="${isActive?'bg-white/30':'bg-red-500'} text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">${t.badge}</span>`:''}</button>`;
   };
   return `<div class="flex gap-2 mb-4 overflow-x-auto hide-scrollbar pb-1">
     ${normalTabs.map(renderTab).join('')}
@@ -1937,10 +1939,10 @@ function renderAdminRoster() {
       });
       return `<div class="bg-white p-4 rounded-2xl border border-zinc-100">
         <div class="flex items-center justify-between mb-2">
-          <div><p class="font-bold text-sm">${u.name}</p><p class="text-xs text-zinc-400">${fmtPhone(u.phone)} · ${fmtDate(u.birth)}</p></div>
+          <div><p class="font-bold text-sm">${esc(u.name)}</p><p class="text-xs text-zinc-400">${fmtPhone(u.phone)} · ${fmtDate(u.birth)}</p></div>
           <button data-action="approve" data-uid="${u.uid}" class="px-4 py-2 bg-black text-white rounded-xl text-xs font-bold">승인</button>
         </div>
-        ${match?`<p class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg inline-block">📋 명부 매칭: ${match.name}</p>`:`<p class="text-[10px] text-zinc-400 bg-zinc-50 px-2 py-1 rounded-lg inline-block">명부 미등록</p>`}
+        ${match?`<p class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg inline-block">📋 명부 매칭: ${esc(match.name)}</p>`:`<p class="text-[10px] text-zinc-400 bg-zinc-50 px-2 py-1 rounded-lg inline-block">명부 미등록</p>`}
       </div>`;
     }).join('') : '<p class="text-sm text-zinc-400 text-center py-10">대기 중인 가입 신청이 없습니다.</p>'}</div>`;
   }
@@ -1952,7 +1954,7 @@ function renderAdminRoster() {
     <div class="space-y-3">${pendingWithdraw.length ? sortByName(pendingWithdraw).map(u=>`
       <div class="bg-white p-4 rounded-2xl border border-zinc-100">
         <div class="flex items-center justify-between">
-          <div><p class="font-bold text-sm">${u.name}</p><p class="text-xs text-zinc-400">${u.id} · ${fmtPhone(u.phone)}</p>
+          <div><p class="font-bold text-sm">${esc(u.name)}</p><p class="text-xs text-zinc-400">${esc(u.id)} · ${fmtPhone(u.phone)}</p>
             <p class="text-[10px] text-zinc-400 mt-0.5">신청일: ${u.withdrawAt||'-'}</p>
           </div>
           <button data-action="approve-withdraw" data-uid="${u.uid}" class="px-4 py-2 bg-red-500 text-white rounded-xl text-xs font-bold">탈퇴 처리</button>
@@ -1983,17 +1985,17 @@ function renderAdminRoster() {
     return `
     <div id="roster-card-${r.id}" class="bg-white p-4 rounded-2xl border border-zinc-100 flex items-center gap-3">
       <div class="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center flex-none">
-        <span class="text-white font-bold text-sm">${(r.name||'?')[0]}</span>
+        <span class="text-white font-bold text-sm">${esc((r.name||'?')[0])}</span>
       </div>
       <div class="flex-1 min-w-0 overflow-hidden">
         <div class="flex items-center gap-1.5 flex-nowrap overflow-hidden">
-          <p class="font-bold text-sm truncate">${r.name}</p>
+          <p class="font-bold text-sm truncate">${esc(r.name)}</p>
           ${isAdminR?`<span class="text-[9px] font-bold bg-black text-white px-1.5 py-0.5 rounded flex-none">관리자</span>`:''}
-          ${r.minister?`<span class="text-[9px] font-bold bg-blue-500 text-white px-1.5 py-0.5 rounded flex-none">${r.minister}</span>`:''}
+          ${r.minister?`<span class="text-[9px] font-bold bg-blue-500 text-white px-1.5 py-0.5 rounded flex-none">${esc(r.minister)}</span>`:''}
           ${r.joined?`<span class="text-[9px] font-bold bg-emerald-500 text-white px-1.5 py-0.5 rounded flex-none">앱 가입</span>`
             :`<span class="text-[9px] font-bold bg-zinc-200 text-zinc-500 px-1.5 py-0.5 rounded flex-none">미가입</span>`}
         </div>
-        <p class="text-xs text-zinc-400 truncate">${fmtPhone(r.phone||'')} · ${cell?.name||'미배정'}</p>
+        <p class="text-xs text-zinc-400 truncate">${fmtPhone(r.phone||'')} · ${esc(cell?.name||'미배정')}</p>
       </div>
       <div class="relative flex-none">
         <button data-action="roster-menu" data-rid="${r.id}" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 active:bg-zinc-100">
@@ -2002,7 +2004,7 @@ function renderAdminRoster() {
         <div id="roster-dd-${r.id}" class="hidden absolute right-0 top-9 z-50 bg-white border border-zinc-200 rounded-2xl shadow-xl overflow-hidden w-44">
           <button data-action="roster-edit" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium hover:bg-zinc-50 active:bg-zinc-50 text-left">${icon('edit','text-zinc-500',16)} 정보 변경</button>
           <button data-action="roster-grant" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium hover:bg-zinc-50 active:bg-zinc-50 text-left">${icon('shield','text-zinc-500',16)} ${isAdminR?'관리자 해제':'관리자 부여'}</button>
-          <button data-action="roster-minister" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium hover:bg-zinc-50 active:bg-zinc-50 text-left">${icon('badge','text-zinc-500',16)} ${r.minister?'직분 변경 ('+r.minister+')':'직분 지정'}</button>
+          <button data-action="roster-minister" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium hover:bg-zinc-50 active:bg-zinc-50 text-left">${icon('badge','text-zinc-500',16)} ${r.minister?'직분 변경 ('+esc(r.minister)+')':'직분 지정'}</button>
           <button data-action="roster-delete" data-rid="${r.id}" class="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 active:bg-red-50 text-left">${icon('delete','text-red-500',16)} 탈퇴 처리</button>
         </div>
       </div>
@@ -2024,7 +2026,7 @@ function renderAdminRoster() {
   ${renderRosterTabs(activeTab, cells, pendingJoin.length, pendingWithdraw.length)}
   ${activeTab==='all' ? `
   <div class="relative mb-3">
-    <input id="roster-search" value="${searchQ.replace(/"/g,'&quot;')}" placeholder="이름 또는 전화번호 검색..."
+    <input id="roster-search" value="${esc(searchQ)}" placeholder="이름 또는 전화번호 검색..."
       class="w-full pl-10 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl text-sm focus:outline-none focus:border-black"/>
     <span class="absolute left-3.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-zinc-400" style="font-size:18px">search</span>
     ${searchQ?`<button id="roster-search-clear" class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-zinc-200 text-zinc-500 text-xs">✕</button>`:''}
@@ -2044,15 +2046,15 @@ function renderAdminCells() {
   <div class="space-y-2">${cells.map(c=>`
     <div class="bg-white p-4 rounded-2xl border border-zinc-100">
       <div class="flex items-center justify-between">
-        <div><p class="font-bold text-sm">${c.name}</p><p class="text-xs text-zinc-400">목자: ${c.leader}</p></div>
+        <div><p class="font-bold text-sm">${esc(c.name)}</p><p class="text-xs text-zinc-400">목자: ${esc(c.leader)}</p></div>
         <div class="flex gap-2">
           <button data-action="cell-edit" data-cid="${c.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('edit','text-zinc-400',18)}</button>
           <button data-action="cell-delete" data-cid="${c.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-red-50">${icon('delete','text-red-400',18)}</button>
         </div>
       </div>
       <div id="cell-edit-area-${c.id}" class="hidden mt-3 space-y-2">
-        <input id="cell-name-${c.id}" value="${c.name}" placeholder="목장 이름" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-        <input id="cell-leader-${c.id}" value="${c.leader}" placeholder="목자 이름" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+        <input id="cell-name-${c.id}" value="${esc(c.name)}" placeholder="목장 이름" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+        <input id="cell-leader-${c.id}" value="${esc(c.leader)}" placeholder="목자 이름" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
         <button data-action="cell-save" data-cid="${c.id}" class="w-full py-2 bg-black text-white rounded-xl text-xs font-bold">저장</button>
       </div>
     </div>
@@ -2069,7 +2071,7 @@ function renderAdminCellMeet() {
       <div class="flex items-start justify-between mb-2">
         <div>
           <p class="font-bold text-sm">${m.date}</p>
-          <p class="text-xs text-zinc-500 mt-0.5">${m.verse||''}</p>
+          <p class="text-xs text-zinc-500 mt-0.5">${esc(m.verse||'')}</p>
         </div>
         <div class="flex gap-1">
           <button data-action="edit-cellmeet" data-mid="${m.id}" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-zinc-100">${icon('edit','text-zinc-400',16)}</button>
@@ -2108,15 +2110,15 @@ function openCellSettings() {
       <div class="space-y-2">${cells.map(cell=>`
         <div class="bg-zinc-50 rounded-2xl p-3">
           <div class="flex items-center justify-between">
-            <div><p class="font-bold text-sm">${cell.name}</p><p class="text-xs text-zinc-400">목자: ${cell.leader}</p></div>
+            <div><p class="font-bold text-sm">${esc(cell.name)}</p><p class="text-xs text-zinc-400">목자: ${esc(cell.leader)}</p></div>
             <div class="flex gap-1">
               <button data-cset-edit="${cell.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-zinc-200">${icon('edit','text-zinc-400',16)}</button>
               <button data-cset-delete="${cell.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-red-50">${icon('delete','text-red-400',16)}</button>
             </div>
           </div>
           <div id="cset-edit-${cell.id}" class="hidden mt-2 space-y-2">
-            <input id="cset-name-${cell.id}" value="${cell.name}" placeholder="목장 이름" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-            <input id="cset-leader-${cell.id}" value="${cell.leader}" placeholder="목자 이름" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+            <input id="cset-name-${cell.id}" value="${esc(cell.name)}" placeholder="목장 이름" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+            <input id="cset-leader-${cell.id}" value="${esc(cell.leader)}" placeholder="목자 이름" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
             <button data-cset-save="${cell.id}" class="w-full py-2 bg-black text-white rounded-xl text-xs font-bold">저장</button>
           </div>
         </div>
@@ -2624,20 +2626,20 @@ function openBulletinForm(existing) {
     <div class="bg-zinc-50 rounded-xl p-3 space-y-1.5 mb-2">
       <div class="flex items-center gap-2">
         <span class="text-xs font-bold text-zinc-400 w-4 flex-none">${i+1}</span>
-        <input data-ai="${i}" data-afield="title" value="${(a.title||'').replace(/"/g,'&quot;')}" placeholder="제목"
+        <input data-ai="${i}" data-afield="title" value="${esc(a.title||'')}" placeholder="제목"
           class="flex-1 px-2.5 py-2 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>
         <button data-delann="${i}" class="w-5 h-5 flex items-center justify-center text-zinc-300 flex-none text-xs">✕</button>
       </div>
       <textarea data-ai="${i}" data-afield="body" placeholder="내용 (선택)"
-        class="w-full px-2.5 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black resize-none" rows="2">${a.body||''}</textarea>
+        class="w-full px-2.5 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black resize-none" rows="2">${esc(a.body||'')}</textarea>
     </div>`).join('');
 
   // 입력 헬퍼: 담당자 30% / 내용 70% 통일
   const inp = (id, val, ph, wCls='flex-[7]') =>
-    `<input id="${id}" value="${(val||'').replace(/"/g,'&quot;')}" placeholder="${ph}"
+    `<input id="${id}" value="${esc(val||'')}" placeholder="${ph}"
       class="${wCls} min-w-0 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>`;
   const inpPerson = (id, val, ph='담당자') =>
-    `<input id="${id}" value="${(val||'').replace(/"/g,'&quot;')}" placeholder="${ph}"
+    `<input id="${id}" value="${esc(val||'')}" placeholder="${ph}"
       class="flex-[3] min-w-0 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black"/>`;
   const fixed = (txt) =>
     `<span class="flex-[7] min-w-0 px-2.5 py-2 text-center bg-zinc-100 rounded-lg text-[11px] text-zinc-500 font-medium">${txt}</span>`;
@@ -2660,7 +2662,7 @@ function openBulletinForm(existing) {
   const loadOpts = recentBulletins.length
     ? `<select id="bf-load" class="flex-1 px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
         <option value="">주보 선택...</option>
-        ${recentBulletins.map(b=>`<option value="${b.id}">${b.title||b.date}</option>`).join('')}
+        ${recentBulletins.map(b=>`<option value="${b.id}">${esc(b.title||b.date)}</option>`).join('')}
       </select>
       <button id="bf-load-btn" class="px-4 py-2.5 bg-black text-white rounded-xl text-xs font-bold flex-none">불러오기</button>`
     : `<span class="text-xs text-zinc-400">저장된 주보가 없습니다</span>`;
@@ -2733,17 +2735,17 @@ function openBulletinForm(existing) {
       <div class="space-y-2">
         <div class="flex items-center gap-2">
           <span class="text-xs text-zinc-400 w-16 flex-none">주정헌금</span>
-          <input id="bf-dream-weekly" value="${(existingDream.weekly||'').replace(/"/g,'&quot;')}" placeholder="담당자 이름"
+          <input id="bf-dream-weekly" value="${esc(existingDream.weekly||'')}" placeholder="담당자 이름"
             class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black"/>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-xs text-zinc-400 w-16 flex-none">십일조</span>
-          <input id="bf-dream-tithe" value="${(existingDream.tithe||'').replace(/"/g,'&quot;')}" placeholder="담당자 이름"
+          <input id="bf-dream-tithe" value="${esc(existingDream.tithe||'')}" placeholder="담당자 이름"
             class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black"/>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-xs text-zinc-400 w-16 flex-none">감사헌금</span>
-          <input id="bf-dream-thanks" value="${(existingDream.thanks||'').replace(/"/g,'&quot;')}" placeholder="담당자 이름"
+          <input id="bf-dream-thanks" value="${esc(existingDream.thanks||'')}" placeholder="담당자 이름"
             class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black"/>
         </div>
         <p class="text-[11px] text-zinc-400 pl-1">온라인 헌금: 우리은행 1005-003-875918</p>
@@ -3159,11 +3161,11 @@ function setupDelegation() {
             const editDiv = document.createElement('div');
             editDiv.id = 'roster-inline-edit-' + rid; editDiv.className = 'mt-3 space-y-2';
             editDiv.innerHTML = `
-              <input id="re-name-${rid}" value="${r.name}" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+              <input id="re-name-${rid}" value="${esc(r.name)}" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
               <input id="re-phone-${rid}" value="${fmtPhone(r.phone)}" inputmode="numeric" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
               <input id="re-birth-${rid}" value="${fmtDate(r.birth)}" inputmode="numeric" placeholder="YYYY.MM.DD" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
               <select id="re-cell-${rid}" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
-                <option value="">미배정</option>${cells.map(c => `<option value="${c.id}"${c.id === r.cellId ? ' selected' : ''}>${c.name}</option>`).join('')}
+                <option value="">미배정</option>${cells.map(c => `<option value="${c.id}"${c.id === r.cellId ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}
               </select>
               <button id="re-save-${rid}" class="w-full py-2 bg-black text-white rounded-xl text-xs font-bold">저장</button>`;
             const menuBtn = card.querySelector('[data-action="roster-menu"]'); if (menuBtn) menuBtn.style.display = 'none';
@@ -3212,7 +3214,7 @@ function setupDelegation() {
             if (!overlay) { overlay = document.createElement('div'); overlay.id = 'minister-overlay'; document.body.appendChild(overlay); }
             overlay.className = 'fixed inset-0 z-[400] bg-black/50 flex items-center justify-center px-6';
             overlay.innerHTML = `<div class="bg-white rounded-3xl p-5 w-full max-w-xs shadow-2xl">
-              <p class="text-sm font-bold mb-3">${r.name} 직분 설정</p>
+              <p class="text-sm font-bold mb-3">${esc(r.name)} 직분 설정</p>
               <div class="space-y-1.5">${roles.map(role => `<button data-mrole="${role}" class="w-full py-2.5 px-4 rounded-xl text-sm text-left font-medium ${(r.minister || '') === (role === '없음' ? '' : role) ? 'bg-black text-white' : 'bg-zinc-50 hover:bg-zinc-100'}">${role}</button>`).join('')}</div>
               <button id="minister-cancel" class="w-full mt-3 py-2.5 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
             </div>`;
@@ -3281,7 +3283,7 @@ function setupDelegation() {
                 const s = songs[i] || { title: '', url: '', key: 'C', sheet: '' };
                 rows += `<div class="bg-zinc-50 rounded-xl p-3 space-y-2 mb-2">
                   <p class="text-[10px] font-bold text-zinc-400">곡 ${i+1}</p>
-                  <input id="ws-title-${i}" value="${s.title||''}" placeholder="곡 제목" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+                  <input id="ws-title-${i}" value="${esc(s.title||'')}" placeholder="곡 제목" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
                   <input id="ws-url-${i}" value="${s.url||''}" placeholder="유튜브 링크" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
                   <div class="flex gap-2">
                     <div class="flex-1"><label class="block text-[10px] font-bold text-zinc-500 mb-1">키</label>
