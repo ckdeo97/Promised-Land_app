@@ -289,9 +289,17 @@ tailwind.config = {
   @keyframes subtleLeft { from { transform: translateX(15px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
   /* iOS 디텐트 느낌의 최고급 시트 슬라이드 */
   @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes sheetDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
   .anim-fade-in { animation: fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+  .anim-fade-out { animation: fadeOut 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
   .anim-subtle-left { animation: subtleLeft 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
   .anim-sheet-up { animation: sheetUp 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
+  .anim-sheet-down { animation: sheetDown 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
+  /* 찬양 악보: 접었다 펼침 */
+  .worship-sheet-outer { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.35s cubic-bezier(0.32, 0.72, 0, 1); }
+  .worship-sheet-outer.is-open { grid-template-rows: 1fr; }
+  .worship-sheet-inner { min-height: 0; overflow: hidden; }
   /* 중앙 모달 전용(확인·크롭) — 메인 탭 콘텐츠와 분리 */
   @keyframes subtleUp { from { transform: translateY(15px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   .anim-subtle-up { animation: subtleUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
@@ -1031,6 +1039,60 @@ function renderMain() {
 // ============================================================
 // PROFILE SHEET
 // ============================================================
+let _profileSheetClosing = false;
+/** 열 때와 대칭으로 딤 페이드아웃 + 시트 슬라이드다운 후 콜백 또는 render */
+function closeProfileSheetAnimated(done) {
+  if (!state.profileOpen || _profileSheetClosing) {
+    if (typeof done === 'function') done();
+    else render();
+    return;
+  }
+  const app = document.getElementById('app');
+  const overlay = app && app.querySelector('.modal-overlay');
+  const sheet = app && app.querySelector('.modal-sheet');
+  if (!overlay || !sheet) {
+    state.profileOpen = false;
+    if (typeof done === 'function') done();
+    else render();
+    return;
+  }
+  _profileSheetClosing = true;
+  let settled = false;
+  const cleanup = () => {
+    overlay.removeEventListener('animationend', onOverlayEnd);
+    sheet.removeEventListener('animationend', onSheetEnd);
+  };
+  const finish = () => {
+    if (settled) return;
+    settled = true;
+    cleanup();
+    _profileSheetClosing = false;
+    state.profileOpen = false;
+    if (typeof done === 'function') done();
+    else render();
+  };
+  let overlayDone = false, sheetDone = false;
+  const tryFinish = () => { if (overlayDone && sheetDone) finish(); };
+  const onOverlayEnd = (ev) => {
+    if (ev.target !== overlay || ev.animationName !== 'fadeOut') return;
+    overlayDone = true;
+    tryFinish();
+  };
+  const onSheetEnd = (ev) => {
+    if (ev.target !== sheet || ev.animationName !== 'sheetDown') return;
+    sheetDone = true;
+    tryFinish();
+  };
+  overlay.addEventListener('animationend', onOverlayEnd);
+  sheet.addEventListener('animationend', onSheetEnd);
+  overlay.classList.remove('anim-fade-in');
+  sheet.classList.remove('anim-sheet-up');
+  void overlay.offsetWidth;
+  overlay.classList.add('anim-fade-out');
+  sheet.classList.add('anim-sheet-down');
+  setTimeout(() => { if (!settled) { overlayDone = sheetDone = true; finish(); } }, 480);
+}
+
 function renderProfileSheet() {
   const u = state.user;
   const isAdmin = u.role === 'admin';
@@ -1526,19 +1588,29 @@ function _renderSongRow(s, i) {
   const linkBtn = s.url
     ? '<a href="' + s.url + '" target="_blank" class="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center flex-none">' + icon('play_arrow','text-red-500',20) + '</a>'
     : '';
+  const sheetBtn = s.sheet
+    ? '<button type="button" data-action="toggle-worship-sheet" data-worship-sheet-idx="' + i + '" aria-expanded="false" class="worship-sheet-toggle w-9 h-9 bg-zinc-100 rounded-xl flex items-center justify-center flex-none active:opacity-80">'
+      + icon('article','text-zinc-700',20)
+      + '</button>'
+    : '';
+  const rowActions = (linkBtn || sheetBtn)
+    ? '<div class="flex items-center gap-2 flex-none">' + linkBtn + sheetBtn + '</div>'
+    : '';
   const sheetBlock = s.sheet
-    ? '<div class="mt-3 rounded-2xl overflow-hidden border border-zinc-100">'
+    ? '<div id="worship-sheet-panel-' + i + '" class="worship-sheet-outer" aria-hidden="true">'
+      + '<div class="worship-sheet-inner">'
+      + '<div class="mt-3 rounded-2xl overflow-hidden border border-zinc-100">'
       + '<div class="relative group bg-zinc-50">'
       + '<img src="' + s.sheet + '" class="w-full block" loading="lazy"/>'
       + '<button data-dl-sheet="' + dlSrc + '" data-dl-title="' + esc(s.title) + '" class="dl-sheet-btn absolute bottom-3 right-3 w-10 h-10 bg-black/70 rounded-full flex items-center justify-center active:bg-black/90">'
       + icon('download','text-white',20)
-      + '</button></div></div>'
+      + '</button></div></div></div></div>'
     : '';
   return '<div class="bg-white rounded-2xl border border-zinc-100 p-4">'
     + '<div class="flex items-center gap-3">'
     + '<div class="w-9 h-9 bg-black rounded-xl flex items-center justify-center flex-none"><span class="text-white font-bold text-sm">' + (i+1) + '</span></div>'
     + '<div class="flex-1 min-w-0"><p class="font-bold text-sm">' + esc(s.title) + '</p><p class="text-xs text-zinc-400">Key: ' + esc(s.key) + '</p></div>'
-    + linkBtn
+    + rowActions
     + '</div>'
     + sheetBlock
     + '</div>';
@@ -1561,7 +1633,7 @@ function renderWorshipDetail() {
         <div class="text-xs"><span class="text-zinc-400">인도:</span> <span class="font-bold">${esc(w.leader)}</span></div>
       </div>
       <div>
-        <div class="flex items-center justify-between mb-3"><h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider">곡 목록 · 악보</h3><button data-action="download-all-sheets" class="flex items-center gap-1 px-3 py-1.5 bg-zinc-100 rounded-full text-[10px] font-bold text-zinc-600 active:bg-zinc-200">${icon('download','text-zinc-500',14)} 전체 다운로드</button></div>
+        <div class="flex items-center justify-between mb-3"><h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider">곡 목록 · 악보</h3><button data-action="download-all-sheets" class="flex items-center gap-1 px-3 py-1.5 bg-zinc-100 rounded-full text-[10px] font-bold text-zinc-600 active:bg-zinc-200">${icon('download','text-zinc-500',14)} 전체 악보 다운로드</button></div>
         <div class="space-y-2">${songRows}</div>
       </div>
     </div>
@@ -3236,16 +3308,50 @@ function setupDelegation() {
         const action = actionEl.dataset.action;
         switch (action) {
           case 'open-profile':  state.profileOpen = true; render(); break;
-          case 'close-profile': state.profileOpen = false; render(); break;
-          case 'logout':
-            showLoading('로그아웃 중...');
-            try {
-              await window.FB_signOut().catch(() => {});
-              state.user = null; state.page = 'login'; state.profileOpen = false; state.isEditing = false; SESSION.clear(); render();
-            } finally { hideLoading(); }
+          case 'close-profile': closeProfileSheetAnimated(); break;
+          case 'toggle-worship-sheet': {
+            const idx = actionEl.dataset.worshipSheetIdx;
+            const panel = document.getElementById('worship-sheet-panel-' + idx);
+            if (panel) {
+              const open = panel.classList.toggle('is-open');
+              panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+              actionEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+              actionEl.classList.toggle('bg-zinc-100', !open);
+              actionEl.classList.toggle('bg-zinc-900', open);
+              const ic = actionEl.querySelector('.material-symbols-outlined');
+              if (ic) {
+                ic.classList.toggle('text-zinc-700', !open);
+                ic.classList.toggle('text-white', open);
+              }
+            }
             break;
+          }
+          case 'logout': {
+            const runLogout = async () => {
+              showLoading('로그아웃 중...');
+              try {
+                await window.FB_signOut().catch(() => {});
+                state.user = null; state.page = 'login'; state.profileOpen = false; state.isEditing = false; SESSION.clear(); render();
+              } finally { hideLoading(); }
+            };
+            if (state.profileOpen) closeProfileSheetAnimated(() => { runLogout(); });
+            else runLogout();
+            break;
+          }
           case 'go-admin':
-            runIfLeaveEditorConfirmed(() => { state.page = 'admin'; state.adminSub = 'dashboard'; state.profileOpen = false; render(); });
+            runIfLeaveEditorConfirmed(() => {
+              if (state.profileOpen) {
+                closeProfileSheetAnimated(() => {
+                  state.page = 'admin';
+                  state.adminSub = 'dashboard';
+                  render();
+                });
+              } else {
+                state.page = 'admin';
+                state.adminSub = 'dashboard';
+                render();
+              }
+            });
             break;
           case 'close-profile-page':
             runIfLeaveEditorConfirmed(() => { state.profilePage = null; render(); });
@@ -3933,9 +4039,10 @@ function setupDelegation() {
       if (profilePageEl) {
         const next = profilePageEl.dataset.profilePage;
         runIfLeaveEditorConfirmed(() => {
-          state.profilePage = next;
-          state.profileOpen = false;
-          render();
+          closeProfileSheetAnimated(() => {
+            state.profilePage = next;
+            render();
+          });
         });
         return;
       }
@@ -4074,9 +4181,10 @@ function setupSwipeBack() {
     const dx = e.changedTouches[0].clientX - startX;
     const dy = Math.abs(e.changedTouches[0].clientY - startY);
     swiping = false;
-    if (dx > 60 && dy < 80) {
+      if (dx > 60 && dy < 80) {
       // 뒤로가기: 하위 페이지/모달만 닫음, 홈(메인탭)은 스와이프 불가
-      if (state.detail) { state.detail = null; render(); }
+      if (state.profileOpen) { closeProfileSheetAnimated(); }
+      else if (state.detail) { state.detail = null; render(); }
       else if (state.profilePage) { state.profilePage = null; render(); }
       else if (state.page === 'admin' && state.adminSub !== 'dashboard') { state.adminSub = 'dashboard'; render(); }
       else if (state.page === 'admin') { state.page = 'main'; state.tab = 'home'; render(); }
