@@ -117,8 +117,10 @@ service cloud.firestore {
           && request.resource.data.keys().hasAll(['id', 'uid', 'name', 'body', 'at'])
           && request.resource.data.keys().hasOnly(['id', 'uid', 'name', 'body', 'at', 'createdAt']);
 
-        // 수정·삭제: 관리자만
-        allow update, delete: if isAdmin();
+        // 수정: 관리자만 / 삭제: 본인 댓글 또는 관리자
+        allow update: if isAdmin();
+        allow delete: if isAdmin()
+          || (isActive() && resource.data.uid == request.auth.uid);
       }
     }
 
