@@ -855,7 +855,7 @@ function renderCropModal() {
 function getYtThumb(url) {
   if (!url) return null;
   const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
-  return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : null;
+  return m ? `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg` : null;
 }
 
 function logoImg(cls='w-10 h-10') {
@@ -1290,14 +1290,14 @@ function renderProfileSheet() {
   </div>`;
 }
 
-/** 공지 목록 행 — 왼쪽 썸네일(첫 이미지 없으면 로고) */
+/** 공지 목록 행 — 왼쪽 썸네일(첫 이미지 없으면 로고, 로고는 꽉 채움) */
 function noticeRowThumbHtml(n) {
   const url = (n.images && n.images[0]) || '';
   const src = url ? esc(url) : 'asset/logo.png';
-  const imgClass = url ? 'w-full h-full object-cover' : 'w-full h-full object-contain p-2.5';
+  const imgClass = 'w-full h-full object-cover';
   const ring = n.pinned ? ' ring-2 ring-zinc-900 ring-offset-2 ring-offset-white' : '';
-  return '<div class="flex-none w-14 h-14 rounded-xl overflow-hidden border border-zinc-100 bg-zinc-50 shrink-0' + ring + '">'
-    + '<img src="' + src + '" alt="" class="' + imgClass + '" onerror="this.onerror=null;this.src=\'asset/logo.png\';this.className=\'w-full h-full object-contain p-2.5\';"/>'
+  return '<div class="flex-none w-14 h-14 rounded-xl overflow-hidden border border-zinc-100 bg-zinc-900 shrink-0' + ring + '">'
+    + '<img src="' + src + '" alt="" class="' + imgClass + '" onerror="this.onerror=null;this.src=\'asset/logo.png\';this.className=\'w-full h-full object-cover\';"/>'
     + '</div>';
 }
 
@@ -1362,21 +1362,21 @@ function renderHomeTab() {
       <h3 class="text-base font-bold flex items-center gap-1.5">${icon('music_note','',18)} 이번주 찬양</h3>
       <button data-action="go-worship" class="text-zinc-400 text-xs font-bold">전체보기</button>
     </div>
-    <div class="flex gap-3 overflow-x-auto pb-1 -mx-5 px-5 hide-scrollbar">
+    <div class="flex gap-3 overflow-x-auto pb-1 -mx-5 px-5 hide-scrollbar items-stretch">
       ${latest.songs.map((s,i) => {
         const thumb = getYtThumb(s.url);
-        return `<button data-worship-play="${i}" class="flex-none w-36 bg-white rounded-2xl border border-zinc-200 overflow-hidden active:bg-zinc-50 transition-colors text-left">
-          <div class="w-full h-24 bg-zinc-100 flex items-center justify-center overflow-hidden relative">
+        return `<button data-worship-play="${i}" class="flex-none w-44 flex flex-col bg-white rounded-2xl border border-zinc-200 overflow-hidden active:bg-zinc-50 transition-colors text-left h-full min-h-[188px]">
+          <div class="w-full aspect-video bg-zinc-900 overflow-hidden relative shrink-0">
             ${thumb
-              ? `<img src="${thumb}" class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
-                 <div class="hidden w-full h-full items-center justify-center"><img src="asset/logo.png" class="w-12 h-12 object-contain opacity-30"/></div>
-                 <div class="absolute inset-0 flex items-center justify-center"><div class="w-8 h-8 bg-black/60 rounded-full flex items-center justify-center">${icon('play_arrow','text-white',18)}</div></div>`
-              : `<img src="asset/logo.png" class="w-12 h-12 object-contain opacity-30"/>`
+              ? `<img src="${thumb}" class="w-full h-full object-cover" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+                 <div class="hidden absolute inset-0 w-full h-full flex items-center justify-center bg-zinc-900"><img src="asset/logo.png" class="w-full h-full object-cover" alt=""/></div>
+                 <div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="w-10 h-10 bg-black/55 rounded-full flex items-center justify-center">${icon('play_arrow','text-white',22)}</div></div>`
+              : `<img src="asset/logo.png" class="w-full h-full object-cover" alt=""/>`
             }
           </div>
-          <div class="p-3">
-            <p class="text-xs font-bold leading-tight truncate">${esc(s.title)}</p>
-            <p class="text-[10px] text-zinc-400 mt-0.5">Key: ${esc(s.key)}</p>
+          <div class="p-3.5 flex flex-col flex-1 justify-center min-h-[4.5rem]">
+            <p class="text-xs font-bold leading-snug line-clamp-2">${esc(s.title)}</p>
+            <p class="text-[10px] text-zinc-400 mt-1">Key: ${esc(s.key)}</p>
           </div>
         </button>`;
       }).join('')}
@@ -1391,9 +1391,9 @@ function renderHomeTab() {
       ${notices.slice(0,3).map(n => `
         <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
           ${noticeRowThumbHtml(n)}
-          <div class="flex-1 min-w-0 py-0.5">
-            <p class="text-base font-extrabold leading-snug text-zinc-900 tracking-tight line-clamp-2">${esc(n.title)}</p>
-            <p class="text-[11px] text-zinc-400 mt-1.5 font-medium">${esc((n.at || '').slice(5))}</p>
+          <div class="flex-1 min-w-0 py-0.5 flex items-start justify-between gap-3">
+            <p class="text-lg font-medium leading-snug text-zinc-900 tracking-tight line-clamp-2 flex-1 min-w-0">${esc(n.title)}</p>
+            <p class="text-[11px] text-zinc-400 shrink-0 font-medium tabular-nums whitespace-nowrap pt-0.5">${esc((n.at || '').slice(5))}</p>
           </div>
         </button>`).join('')}
     </div>
@@ -1510,12 +1510,12 @@ function renderBulletinDetail() {
   const dream = b.dream || {};
 
   return `
-  <div class="min-h-screen bg-zinc-50 anim-subtle-left">
+  <div class="min-h-screen bg-zinc-50">
     <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">주보</h1>
     </header>
-    <div class="p-5 pt-20 space-y-4 pb-12">
+    <div class="anim-subtle-left p-5 pt-20 space-y-4 pb-12">
 
       <!-- 헤더 -->
       <div class="bg-black text-white rounded-3xl p-8 text-center relative overflow-hidden dot-pattern">
@@ -1599,9 +1599,9 @@ function renderNoticeTab() {
       ${notices.map(n => `
         <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
           ${noticeRowThumbHtml(n)}
-          <div class="flex-1 min-w-0 py-0.5">
-            <p class="text-base font-extrabold leading-snug text-zinc-900 tracking-tight line-clamp-2">${esc(n.title)}</p>
-            <p class="text-[11px] text-zinc-400 mt-1.5 font-medium">${esc((n.at || '').slice(5))}</p>
+          <div class="flex-1 min-w-0 py-0.5 flex items-start justify-between gap-3">
+            <p class="text-lg font-medium leading-snug text-zinc-900 tracking-tight line-clamp-2 flex-1 min-w-0">${esc(n.title)}</p>
+            <p class="text-[11px] text-zinc-400 shrink-0 font-medium tabular-nums whitespace-nowrap pt-0.5">${esc((n.at || '').slice(5))}</p>
           </div>
         </button>`).join('')}
     </div>
@@ -1725,16 +1725,20 @@ function renderCalendarTab() {
 // ============================================================
 function _renderSongRow(s, i) {
   const dlSrc = esc(s.sheetOrig || s.sheet || '');
+  const yt = getYtThumb(s.url);
+  const thumbInner = yt
+    ? ('<img src="' + yt + '" alt="" class="w-full h-full object-cover" loading="lazy" onerror="this.onerror=null;this.src=\'asset/logo.png\';"/>')
+    : '<img src="asset/logo.png" alt="" class="w-full h-full object-cover"/>';
   const linkBtn = s.url
-    ? '<a href="' + s.url + '" target="_blank" class="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center flex-none">' + icon('play_arrow','text-red-500',20) + '</a>'
+    ? '<a href="' + s.url + '" target="_blank" class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center flex-none shrink-0">' + icon('play_arrow','text-red-500',22) + '</a>'
     : '';
   const sheetBtn = s.sheet
-    ? '<button type="button" data-action="toggle-worship-sheet" data-worship-sheet-idx="' + i + '" aria-expanded="false" class="worship-sheet-toggle w-9 h-9 bg-zinc-100 rounded-xl flex items-center justify-center flex-none active:opacity-80">'
+    ? '<button type="button" data-action="toggle-worship-sheet" data-worship-sheet-idx="' + i + '" aria-expanded="false" class="worship-sheet-toggle w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center flex-none shrink-0 active:opacity-80">'
       + icon('article','text-zinc-700',20)
       + '</button>'
     : '';
   const rowActions = (linkBtn || sheetBtn)
-    ? '<div class="flex items-center gap-2 flex-none">' + linkBtn + sheetBtn + '</div>'
+    ? '<div class="flex items-center gap-2 flex-none self-center">' + linkBtn + sheetBtn + '</div>'
     : '';
   const sheetBlock = s.sheet
     ? '<div id="worship-sheet-panel-' + i + '" class="worship-sheet-outer" aria-hidden="true">'
@@ -1746,10 +1750,10 @@ function _renderSongRow(s, i) {
       + icon('download','text-white',20)
       + '</button></div></div></div></div>'
     : '';
-  return '<div class="bg-white rounded-2xl border border-zinc-100 p-4">'
-    + '<div class="flex items-center gap-3">'
-    + '<div class="w-9 h-9 bg-black rounded-xl flex items-center justify-center flex-none"><span class="text-white font-bold text-sm">' + (i+1) + '</span></div>'
-    + '<div class="flex-1 min-w-0"><p class="font-bold text-sm">' + esc(s.title) + '</p><p class="text-xs text-zinc-400">Key: ' + esc(s.key) + '</p></div>'
+  return '<div class="bg-white rounded-2xl border border-zinc-100 p-3 min-h-[5.75rem]">'
+    + '<div class="flex items-stretch gap-3">'
+    + '<div class="flex-none w-[7.75rem] aspect-video rounded-xl overflow-hidden bg-zinc-900 border border-zinc-100 shrink-0">' + thumbInner + '</div>'
+    + '<div class="flex-1 min-w-0 flex flex-col justify-center py-0.5"><p class="font-bold text-sm leading-snug">' + esc(s.title) + '</p><p class="text-xs text-zinc-400 mt-1">Key: ' + esc(s.key) + '</p></div>'
     + rowActions
     + '</div>'
     + sheetBlock
@@ -1761,12 +1765,12 @@ function renderWorshipDetail() {
   if (!w) return '';
   const songRows = w.songs.map((s,i) => _renderSongRow(s,i)).join('');
   return `
-  <div class="min-h-screen bg-white anim-subtle-left">
+  <div class="min-h-screen bg-white">
     <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">이번주 찬양</h1>
     </header>
-    <div class="p-5 pt-20 space-y-6 pb-12">
+    <div class="anim-subtle-left p-5 pt-20 space-y-6 pb-12">
       <div class="bg-zinc-50 rounded-2xl p-4">
         <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">세트 정보</p>
         <p class="text-sm font-bold mb-1">${w.date}</p>
@@ -1884,9 +1888,9 @@ function renderProfilePage() {
   </header>`;
 
   if (pg === 'edit') {
-    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col anim-subtle-left">
+    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col">
       ${header('프로필 수정')}
-      <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 pt-20 pb-10 space-y-4">
+      <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain anim-subtle-left px-5 py-4 pt-20 pb-10 space-y-4">
         <div class="flex flex-col items-center gap-4">
           <div class="relative">
             <div class="w-24 h-24 rounded-full bg-zinc-200 border-2 border-black overflow-hidden">
@@ -1928,9 +1932,9 @@ function renderProfilePage() {
       {k:'schedule',l:'새 일정',d:'새 일정 등록 시'},
       {k:'duty',l:'담당자 지정',d:'예배 담당 배정 시'},
     ];
-    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col anim-subtle-left">
+    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col">
       ${header('알림 설정')}
-      <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-6 pt-20 pb-10">
+      <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain anim-subtle-left px-5 py-6 pt-20 pb-10">
         <div class="bg-white rounded-2xl border border-zinc-100 divide-y divide-zinc-50">
           ${items.map(it=>`
           <div class="flex items-center justify-between px-5 py-4">
@@ -1948,9 +1952,9 @@ function renderProfilePage() {
   }
 
   if (pg === 'settings') {
-    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col anim-subtle-left">
+    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col">
       ${header('설정')}
-      <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-6 pt-20 pb-10 space-y-4">
+      <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain anim-subtle-left px-5 py-6 pt-20 pb-10 space-y-4">
         <!-- 비밀번호 변경 -->
         <div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
           <button id="toggle-pw-section" class="w-full flex items-center justify-between px-5 py-4">
@@ -2024,12 +2028,12 @@ function renderAdmin() {
   }
 
   return `
-  <div class="min-h-screen bg-zinc-50 anim-subtle-left">
+  <div class="min-h-screen bg-zinc-50">
     <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back-admin" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">${state.adminSub==='dashboard'?'관리자':menu.find(m=>m.k===state.adminSub)?.l||'관리자'}</h1>
     </header>
-    <div class="p-5 pt-20">${content}</div>
+    <div class="anim-subtle-left p-5 pt-20">${content}</div>
   </div>`;
 }
 
