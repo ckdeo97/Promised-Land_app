@@ -188,8 +188,8 @@
     cells.forEach(c => batch.set(doc(db,'cells',c.id), c));
 
     const notices = [
-      { id:'n1', title:'동계 수련회 신청 마감 안내', body:'1월 15일(수)까지 신청을 완료해 주세요.\n장소: 양평 수양관\n참가비: 50,000원', by:'admin1', at:'2026-02-20', pinned:true, images:[] },
-      { id:'n2', title:'12월 섬김이 일정 공유', body:'찬양팀·기도팀·안내팀 스케줄이 확정되었습니다.', by:'admin1', at:'2026-02-19', pinned:false, images:[] },
+      { id:'n1', title:'동계 수련회 신청 마감 안내', body:'1월 15일(수)까지 신청을 완료해 주세요.\n장소: 양평 수양관\n참가비: 50,000원', by:'admin1', at:'2026-02-20', pinned:true, images:[], eventDate:'2026-01-15', alwaysNotice:false },
+      { id:'n2', title:'12월 섬김이 일정 공유', body:'찬양팀·기도팀·안내팀 스케줄이 확정되었습니다.', by:'admin1', at:'2026-02-19', pinned:false, images:[], eventDate:'', alwaysNotice:true },
     ];
     notices.forEach(n => batch.set(doc(db,'notices',n.id), n));
 
@@ -1313,6 +1313,37 @@ function noticeRowThumbHtml(n) {
     + '</div>';
 }
 
+/** 공지 카드·상세에 표시할 일정 문구 (상시 공지 / M월 D일 (요일)) */
+function formatNoticeScheduleLabel(n) {
+  if (n && n.alwaysNotice) return '상시 공지';
+  const d = n && n.eventDate;
+  if (d == null || typeof d !== 'string') return '';
+  const t = d.trim();
+  if (!t) return '';
+  const parts = t.split('-');
+  if (parts.length !== 3) return t;
+  const y = +parts[0], mo = +parts[1], day = +parts[2];
+  if (!y || !mo || !day) return t;
+  const dt = new Date(y, mo - 1, day);
+  if (isNaN(dt.getTime())) return t;
+  const wk = ['일', '월', '화', '수', '목', '금', '토'][dt.getDay()];
+  return mo + '월 ' + day + '일 (' + wk + ')';
+}
+
+function bindNoticeFormScheduleFields() {
+  const dateEl = document.getElementById('nf-event-date');
+  const alwaysEl = document.getElementById('nf-always-notice');
+  if (!dateEl || !alwaysEl) return;
+  const sync = () => {
+    const on = alwaysEl.checked;
+    dateEl.disabled = on;
+    dateEl.classList.toggle('opacity-50', on);
+    dateEl.classList.toggle('cursor-not-allowed', on);
+  };
+  alwaysEl.addEventListener('change', sync);
+  sync();
+}
+
 // ============================================================
 // HOME TAB
 // ============================================================
@@ -1349,7 +1380,7 @@ function renderHomeTab() {
         <div class="flex items-center gap-3 px-5 py-4">
           <div class="w-8 h-8 bg-zinc-100 rounded-lg flex items-center justify-center flex-none">${icon(d.i,'text-zinc-600',16)}</div>
           <span class="text-xs text-zinc-400 w-20 flex-none">${d.l}</span>
-          <span class="text-sm font-bold">${esc(d.v)}</span>
+          <span class="text-sm font-bold flex-1 text-center min-w-0">${esc(d.v)}</span>
         </div>`).join('')}
       </div>
     </div>
@@ -1400,14 +1431,17 @@ function renderHomeTab() {
       <button data-tab="notice" class="text-zinc-400 text-xs font-bold">전체보기</button>
     </div>
     <div class="space-y-3">
-      ${notices.slice(0,3).map(n => `
+      ${notices.slice(0,3).map(n => {
+        const sched = formatNoticeScheduleLabel(n);
+        return `
         <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
           ${noticeRowThumbHtml(n)}
-          <div class="flex-1 min-w-0 py-0.5 flex items-start justify-between gap-3">
-            <p class="text-lg font-medium leading-snug text-zinc-900 tracking-tight line-clamp-2 flex-1 min-w-0">${esc(n.title)}</p>
-            <p class="text-[11px] text-zinc-400 shrink-0 font-medium tabular-nums whitespace-nowrap pt-0.5">${esc((n.at || '').slice(5))}</p>
+          <div class="flex-1 min-w-0 py-0.5">
+            <p class="text-lg font-medium leading-snug text-zinc-900 tracking-tight line-clamp-2">${esc(n.title)}</p>
+            ${sched ? `<p class="text-xs text-zinc-500 mt-1 font-medium">${esc(sched)}</p>` : ''}
           </div>
-        </button>`).join('')}
+        </button>`;
+      }).join('')}
     </div>
   </section>
   <section class="pb-8">
@@ -1425,10 +1459,12 @@ function renderHomeTab() {
             <span class="text-[9px] font-black uppercase ${isW?'text-white/60':'text-zinc-400'}">${m}월</span>
             <span class="text-lg font-bold leading-none ${isW?'text-white':'text-black'}">${day}</span>
           </div>
-          <div class="flex-1">
-            <span class="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded">${esc(ev.cat)}</span>
-            <h4 class="font-bold text-sm text-black mt-0.5">${esc(ev.title)}</h4>
-            ${(ev.loc||ev.time)?`<p class="text-xs text-zinc-400">${[ev.loc,ev.time].filter(Boolean).map(esc).join(' · ')}</p>`:''}
+          <div class="flex-1 min-w-0 flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <h4 class="font-bold text-sm text-black">${esc(ev.title)}</h4>
+              ${(ev.loc||ev.time)?`<p class="text-xs text-zinc-400 mt-0.5">${[ev.loc,ev.time].filter(Boolean).map(esc).join(' · ')}</p>`:''}
+            </div>
+            <span class="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded shrink-0 self-start">${esc(ev.cat)}</span>
           </div>
         </div>`;
       }).join('')}
@@ -1608,14 +1644,17 @@ function renderNoticeTab() {
   <section>
     <h2 class="text-xl font-bold tracking-tight mb-6">공지사항</h2>
     <div class="space-y-3">
-      ${notices.map(n => `
+      ${notices.map(n => {
+        const sched = formatNoticeScheduleLabel(n);
+        return `
         <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
           ${noticeRowThumbHtml(n)}
-          <div class="flex-1 min-w-0 py-0.5 flex items-start justify-between gap-3">
-            <p class="text-lg font-medium leading-snug text-zinc-900 tracking-tight line-clamp-2 flex-1 min-w-0">${esc(n.title)}</p>
-            <p class="text-[11px] text-zinc-400 shrink-0 font-medium tabular-nums whitespace-nowrap pt-0.5">${esc((n.at || '').slice(5))}</p>
+          <div class="flex-1 min-w-0 py-0.5">
+            <p class="text-lg font-medium leading-snug text-zinc-900 tracking-tight line-clamp-2">${esc(n.title)}</p>
+            ${sched ? `<p class="text-xs text-zinc-500 mt-1 font-medium">${esc(sched)}</p>` : ''}
           </div>
-        </button>`).join('')}
+        </button>`;
+      }).join('')}
     </div>
   </section>`;
 }
@@ -1629,6 +1668,7 @@ function renderNoticeDetail() {
   const comments = state.cache.comments[n.id] || [];
   const u = state.user;
   const canDelComment = (c) => u && (c.uid === u.uid || u.role === 'admin');
+  const schedLabel = formatNoticeScheduleLabel(n);
   return `
   <div class="min-h-screen bg-zinc-50">
     <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
@@ -1639,7 +1679,7 @@ function renderNoticeDetail() {
       <div class="bg-white rounded-2xl p-6 border border-zinc-100">
         ${n.pinned?'<span class="text-[10px] font-bold bg-red-50 text-red-500 px-2 py-1 rounded mb-3 inline-block">📌 중요 공지</span>':''}
         <h2 class="text-lg font-bold leading-snug mb-2">${esc(n.title)}</h2>
-        <p class="text-[11px] text-zinc-400 mb-4">${n.at}</p>
+        ${schedLabel ? `<p class="text-sm font-medium text-zinc-600 mb-3">${esc(schedLabel)}</p>` : ''}
         <p class="text-sm leading-relaxed text-zinc-700 whitespace-pre-line">${esc(n.body)}</p>
         ${n.images?.length ? `<div class="mt-4 space-y-2">${n.images.map(img=>`<img src="${esc(img)}" alt="" data-action="zoom-image" data-zoom-src="${esc(img)}" class="w-full rounded-xl cursor-zoom-in active:opacity-90"/>`).join('')}</div>` : ''}
       </div>
@@ -2231,7 +2271,7 @@ function renderAdminNotice() {
   <div id="admin-form-area">
     <button data-action="show-notice-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-4">+ 새 공지</button>
     <div class="space-y-2">${list.map(n=>`<div class="bg-white p-4 rounded-2xl border border-zinc-100 flex items-center justify-between">
-      <div>${n.pinned?'<span class="text-[9px] font-bold bg-red-50 text-red-500 px-1.5 py-0.5 rounded mr-1">중요</span>':''}<span class="font-bold text-sm">${esc(n.title)}</span><p class="text-xs text-zinc-400">${n.at}</p></div>
+      <div>${n.pinned?'<span class="text-[9px] font-bold bg-red-50 text-red-500 px-1.5 py-0.5 rounded mr-1">중요</span>':''}<span class="font-bold text-sm">${esc(n.title)}</span><p class="text-xs text-zinc-400">${esc(formatNoticeScheduleLabel(n) || '일정 미지정')}</p></div>
       <div class="flex gap-1">
         <button data-action="edit-notice" data-nid="${n.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('edit','text-zinc-400',18)}</button>
         <button data-action="del-notice" data-nid="${n.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-red-50">${icon('delete','text-red-400',18)}</button>
@@ -3849,17 +3889,36 @@ function setupDelegation() {
             const area = document.getElementById('admin-form-area'); if (!area) break;
             area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
               ${adminInput('nf-title', '제목', '공지 제목')}${adminTextarea('nf-body', '내용', '', 5)}
+              <div class="flex flex-wrap items-end gap-3">
+                <div class="flex-1 min-w-[160px]">
+                  <label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1" for="nf-event-date">공지 일정</label>
+                  <input id="nf-event-date" type="date" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+                </div>
+                <label class="flex items-center gap-2 pb-3 shrink-0 cursor-pointer select-none">
+                  <input id="nf-always-notice" type="checkbox" class="w-4 h-4 rounded accent-black"/>
+                  <span class="text-sm font-medium">상시 공지</span>
+                </label>
+              </div>
               <label class="flex items-center gap-2"><input id="nf-pinned" type="checkbox" class="w-4 h-4 rounded accent-black"/><span class="text-sm font-medium">중요 공지로 고정</span></label>
               <div class="flex gap-2">
                 <button onclick="state.isEditing=false;state.adminSub='notice';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
                 <button id="update-notice" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
               </div></div>`;
             document.getElementById('nf-title').value = n.title; document.getElementById('nf-body').value = n.body; document.getElementById('nf-pinned').checked = n.pinned;
+            document.getElementById('nf-event-date').value = (n.eventDate && String(n.eventDate).trim()) || '';
+            document.getElementById('nf-always-notice').checked = !!n.alwaysNotice;
+            bindNoticeFormScheduleFields();
             scheduleEditingReset();
             document.getElementById('update-notice')?.addEventListener('click', async () => {
               showLoading('저장 중...');
               try {
-                const updated = { ...n, title: document.getElementById('nf-title').value, body: document.getElementById('nf-body').value, pinned: document.getElementById('nf-pinned').checked };
+                const alwaysNotice = !!document.getElementById('nf-always-notice')?.checked;
+                const eventDate = alwaysNotice ? '' : (document.getElementById('nf-event-date')?.value || '').trim();
+                if (!alwaysNotice && !eventDate) {
+                  showToast('공지 일정을 선택하거나 상시 공지를 체크해 주세요.');
+                  return;
+                }
+                const updated = { ...n, title: document.getElementById('nf-title').value, body: document.getElementById('nf-body').value, pinned: document.getElementById('nf-pinned').checked, eventDate, alwaysNotice };
                 await window.FDB.setDoc('notices', nid, updated);
                 const idx = state.cache.notices.findIndex(x => x.id === nid); if (idx >= 0) state.cache.notices[idx] = updated;
                 state.isEditing = false;
@@ -4011,6 +4070,16 @@ function setupDelegation() {
             let pendingImgs = [];
             area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
               ${adminInput('nf-title','제목','공지 제목')}${adminTextarea('nf-body','내용','공지 내용을 입력하세요',5)}
+              <div class="flex flex-wrap items-end gap-3">
+                <div class="flex-1 min-w-[160px]">
+                  <label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1" for="nf-event-date">공지 일정</label>
+                  <input id="nf-event-date" type="date" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+                </div>
+                <label class="flex items-center gap-2 pb-3 shrink-0 cursor-pointer select-none">
+                  <input id="nf-always-notice" type="checkbox" class="w-4 h-4 rounded accent-black"/>
+                  <span class="text-sm font-medium">상시 공지</span>
+                </label>
+              </div>
               <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">사진 첨부</label>
                 <label class="flex items-center gap-2 px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-400 cursor-pointer w-full">
                   ${icon('attach_file','',18)} 이미지 선택 (여러 장 가능)<input id="nf-images" type="file" accept="image/*" multiple class="hidden"/></label>
@@ -4020,6 +4089,7 @@ function setupDelegation() {
                 <button onclick="state.isEditing=false;state.adminSub='notice';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
                 <button id="save-notice" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
               </div></div>`;
+            bindNoticeFormScheduleFields();
             document.getElementById('nf-images')?.addEventListener('change', async function() {
               const preview = document.getElementById('nf-image-preview');
               const files = Array.from(this.files || []);
@@ -4044,6 +4114,12 @@ function setupDelegation() {
             scheduleEditingReset();
             document.getElementById('save-notice')?.addEventListener('click', async () => {
               const title=document.getElementById('nf-title')?.value; if(!title) return;
+              const alwaysNotice = !!document.getElementById('nf-always-notice')?.checked;
+              const eventDate = alwaysNotice ? '' : (document.getElementById('nf-event-date')?.value || '').trim();
+              if (!alwaysNotice && !eventDate) {
+                showToast('공지 일정을 선택하거나 상시 공지를 체크해 주세요.');
+                return;
+              }
               showLoading('저장 중...');
               try {
                 const imageUrls=[];
@@ -4054,7 +4130,7 @@ function setupDelegation() {
                 }
                 pendingImgs.forEach(({ previewUrl }) => { try { URL.revokeObjectURL(previewUrl); } catch(e) {} });
                 pendingImgs = [];
-                const nid=uid(); const n={id:nid,title,body:document.getElementById('nf-body')?.value||'',pinned:document.getElementById('nf-pinned')?.checked||false,by:state.user.uid,at:today(),images:imageUrls};
+                const nid=uid(); const n={id:nid,title,body:document.getElementById('nf-body')?.value||'',pinned:document.getElementById('nf-pinned')?.checked||false,by:state.user.uid,at:today(),images:imageUrls,eventDate,alwaysNotice};
                 await window.FDB.setDoc('notices',nid,n); state.cache.notices.unshift(n);
                 state.isEditing = false;
                 showToast('공지 저장 완료!'); render();
