@@ -21,7 +21,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, refFromURL, getBlob } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword as fbUpdatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
@@ -150,6 +150,18 @@
         await uploadBytes(storageRef, blob);
         return await getDownloadURL(storageRef);
       } catch(e) { console.error('uploadBase64', e); return null; }
+    },
+
+    async getSheetBlobFromUrl(url) {
+      if (!url || typeof url !== 'string') return null;
+      try {
+        const sref = refFromURL(storage, url);
+        const blob = await getBlob(sref);
+        return blob && blob.size > 0 ? blob : null;
+      } catch (e) {
+        console.warn('getSheetBlobFromUrl', e);
+        return null;
+      }
     }
   };
 
@@ -380,16 +392,36 @@ function isSheetSaveMobile() {
   } catch (e) {}
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
 }
-/** 원격 악보 URL → Blob (canvas 우선, 실패 시 fetch). 새 창 열지 않음 */
+function extFromMime(t) {
+  const m = (t || '').toLowerCase();
+  if (m.includes('png')) return 'png';
+  if (m.includes('webp')) return 'webp';
+  if (m.includes('jpeg') || m.includes('jpg')) return 'jpg';
+  return 'jpg';
+}
+/** 원격 악보 URL → Blob. Firebase SDK 우선(Storage CORS 미설정 PC에서도 동작하는 경우 많음). URL에 임의 쿼리 붙이지 않음(토큰 URL 보호). */
 async function fetchSheetAsBlob(url) {
-  const bust = url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+  if (!url) throw new Error('no url');
+  if (window.FDB && typeof window.FDB.getSheetBlobFromUrl === 'function') {
+    try {
+      const blob = await window.FDB.getSheetBlobFromUrl(url);
+      if (blob) return { blob, ext: extFromMime(blob.type) };
+    } catch (e) { console.warn('getSheetBlobFromUrl', e); }
+  }
+  try {
+    const res = await fetch(url, { mode: 'cors', credentials: 'omit', cache: 'no-store' });
+    if (res.ok) {
+      const blob = await res.blob();
+      if (blob && blob.size > 0) return { blob, ext: extFromMime(blob.type) };
+    }
+  } catch (e) { /* 다음 수단 */ }
   try {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     await new Promise((resolve, reject) => {
       img.onload = resolve;
       img.onerror = reject;
-      img.src = bust;
+      img.src = url;
     });
     const canvas = document.createElement('canvas');
     canvas.width = img.naturalWidth;
@@ -400,13 +432,9 @@ async function fetchSheetAsBlob(url) {
     });
     return { blob, ext: 'jpg' };
   } catch (e) {
-    const res = await fetch(url, { mode: 'cors' });
-    if (!res.ok) throw new Error('fetch');
-    const blob = await res.blob();
-    const t = blob.type || '';
-    const ext = t.includes('png') ? 'png' : (t.includes('webp') ? 'webp' : 'jpg');
-    return { blob, ext };
+    console.warn('fetchSheetAsBlob fallback', e);
   }
+  throw new Error('sheet-load-failed');
 }
 /** PC: 저장 대화상자(또는 브라우저 기본 다운로드). 새 탭 없음 */
 async function saveSheetBlobDesktop(blob, baseFilename, ext) {
