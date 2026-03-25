@@ -466,10 +466,20 @@ function stopListeners() {
   _unsubs.length = 0;
 }
 
+// 여러 onSnapshot이 같은 프레임에 연속으로 발화해도 render는 1회만 실행
+let _listenRenderRAF = null;
+function _scheduleRenderFromListen() {
+  if (_listenRenderRAF !== null) return; // 이미 다음 프레임 예약됨
+  _listenRenderRAF = requestAnimationFrame(() => {
+    _listenRenderRAF = null;
+    render();
+  });
+}
+
 function listenCol(colName, onData) {
   const unsub = window.FDB.listenCol(colName, docs => {
     onData(docs);
-    render();
+    _scheduleRenderFromListen(); // render() 직접 호출 대신 디바운스 경유
   });
   _unsubs.push(unsub);
 }
@@ -2335,236 +2345,13 @@ function bindEvents() {
     state.page='login'; render();
   });
 
-  // ── Tabs ──
-  document.querySelectorAll('[data-tab]').forEach(el => {
-    el.addEventListener('click', () => { state.tab=el.dataset.tab; state.detail=null; render(); });
-  });
-
-  // ── Profile ──
-  document.querySelector('[data-action="open-profile"]')?.addEventListener('click', () => { state.profileOpen=true; render(); });
-  document.querySelector('[data-action="close-profile"]')?.addEventListener('click', () => { state.profileOpen=false; render(); });
-  document.querySelector('[data-action="logout"]')?.addEventListener('click', async () => {
-    await window.FB_signOut().catch(()=>{});
-    state.user=null; state.page='login'; state.profileOpen=false; SESSION.clear(); render();
-  });
-  document.querySelector('[data-action="go-admin"]')?.addEventListener('click', () => {
-    state.page='admin'; state.adminSub='dashboard'; state.profileOpen=false; render();
-  });
-  document.querySelectorAll('[data-profile-page]').forEach(el => {
-    el.addEventListener('click', () => { state.profilePage=el.dataset.profilePage; state.profileOpen=false; render(); });
-  });
-  document.querySelector('[data-action="close-profile-page"]')?.addEventListener('click', () => { state.profilePage=null; render(); });
-
-  // ── Back ──
-  document.querySelectorAll('[data-action="back"]').forEach(el => {
-    el.addEventListener('click', () => { state.detail=null; render(); });
-  });
-  document.querySelector('[data-action="back-admin"]')?.addEventListener('click', () => {
-    if (state.adminSub !== 'dashboard') {
-      state.adminSub = 'dashboard'; render();
-    } else {
-      state.page='main'; state.tab='home'; render();
-    }
-  });
-
-  // ── Details ──
-  document.querySelectorAll('[data-detail]').forEach(el => {
-    el.addEventListener('click', async () => {
-      const [type, id] = el.dataset.detail.split(':');
-      state.detail = { type, id };
-      // Load comments for notice
-      if (type === 'notice') {
-        const snap = await window.FDB.getCol(`notices/${id}/comments`).catch(()=>[]);
-        state.cache.comments[id] = snap.sort((a,b)=>(a.at||'').localeCompare(b.at||''));
-      }
-      render();
-    });
-  });
-
-
-  // ── Worship ──
-  document.querySelectorAll('[data-action="go-worship"]').forEach(el => {
-    el.addEventListener('click', () => { state.detail={type:'worship',id:'latest'}; render(); });
-  });
-  // 홈탭 찬양카드: 유튜브 있으면 바로 재생, 없으면 세트 이동
-  document.querySelectorAll('[data-worship-play]').forEach(el => {
-    el.addEventListener('click', () => {
-      const idx = parseInt(el.dataset.worshipPlay);
-      const worships = state.cache.worshipSets;
-      const latest = worships[worships.length - 1];
-      const song = latest?.songs?.[idx];
-      if (song?.url) {
-        window.open(song.url, '_blank');
-      } else {
-        state.detail={type:'worship',id:'latest'}; render();
-      }
-    });
-  });
-
-  // ── Sheet toggle ──
-  document.querySelectorAll('[data-sheet-toggle]').forEach(el => {
-    el.addEventListener('click', () => {
-      const panel = document.getElementById('sheet-panel-'+el.dataset.sheetToggle);
-      if (panel) panel.classList.toggle('hidden');
-    });
-  });
-
-  // ── Comment ──
-  document.querySelector('[data-action="post-comment"]')?.addEventListener('click', async function() {
-    const input = document.getElementById('comment-input');
-    if (!input?.value.trim()) return;
-    const nid = this.dataset.noticeId;
-    const comment = { id:uid(), uid:state.user.uid, name:state.user.name, body:input.value.trim(), at:today() };
-    await window.FDB.addDoc(`notices/${nid}/comments`, comment);
-    if (!state.cache.comments[nid]) state.cache.comments[nid]=[];
-    state.cache.comments[nid].push(comment);
-    input.value=''; render();
-  });
+  // ── Comment input (keydown) — 위임 불가: input 이벤트 ──
   document.getElementById('comment-input')?.addEventListener('keydown', e => {
     if(e.key==='Enter') document.querySelector('[data-action="post-comment"]')?.click();
   });
 
-  // ── Calendar ──
-  document.querySelectorAll('[data-cal-date]').forEach(el => {
-    el.addEventListener('click', () => { state._calSel=el.dataset.calDate; render(); });
-  });
-  document.querySelector('[data-action="cal-prev"]')?.addEventListener('click', () => {
-    const vm = state._calMonth || { y:new Date().getFullYear(), m:new Date().getMonth() };
-    vm.m--; if(vm.m<0){vm.m=11;vm.y--;}
-    state._calMonth={...vm}; render();
-  });
-  document.querySelector('[data-action="cal-next"]')?.addEventListener('click', () => {
-    const vm = state._calMonth || { y:new Date().getFullYear(), m:new Date().getMonth() };
-    vm.m++; if(vm.m>11){vm.m=0;vm.y++;}
-    state._calMonth={...vm}; render();
-  });
-
-  // ── Admin nav ──
-  document.querySelectorAll('[data-admin]').forEach(el => {
-    el.addEventListener('click', () => { state.adminSub=el.dataset.admin; render(); });
-  });
-
-  // ── Admin: Approve ──
-  document.querySelectorAll('[data-action="approve"]').forEach(el => {
-    el.addEventListener('click', async () => {
-      const targetUid = el.dataset.uid;
-      const u = state.cache.users.find(x=>x.uid===targetUid);
-      // 명부 매칭 재확인 (아직 linkedUid 없을 경우)
-      const rosters = state.cache.rosters;
-      let matchedRoster = rosters.find(r=>r.linkedUid===targetUid);
-      if (!matchedRoster && u) {
-        matchedRoster = rosters.find(r => {
-          const phoneMatch = r.phone && r.phone.replace(/[^\d]/g,'') === (u.phone||'').replace(/[^\d]/g,'');
-          const birthMatch = r.birth && r.birth === u.birth;
-          const nameMatch  = r.name && r.name.replace(/\s/g,'') === (u.name||'').replace(/\s/g,'');
-          return nameMatch && (phoneMatch || birthMatch);
-        });
-        if (matchedRoster) {
-          await window.FDB.setDoc('rosters', matchedRoster.id, { linkedUid: targetUid, joined: true });
-          matchedRoster.linkedUid = targetUid;
-          matchedRoster.joined = true;
-        }
-      }
-      // 명부 없으면 새신자로 자동 생성
-      if (!matchedRoster && u) {
-        const newRid = uid();
-        const newRoster = { id:newRid, name:u.name, phone:u.phone||'', birth:u.birth||'', cellId:'', linkedUid:targetUid, joined:true };
-        await window.FDB.setDoc('rosters', newRid, newRoster);
-        state.cache.rosters.push(newRoster);
-        state.cache.rosters.sort((a,b)=>koSort(a.name,b.name));
-        matchedRoster = newRoster;
-      }
-      // cellId 자동 배정
-      const cellId = matchedRoster ? matchedRoster.cellId : (u?.cellId || '');
-      await window.FDB.setDoc('users', targetUid, { status:'active', cellId });
-      if (u) { u.status='active'; u.cellId=cellId; }
-      showToast('승인 완료!' + (matchedRoster?.cellId ? ` — ${state.cache.cells.find(c=>c.id===cellId)?.name||''}` : ' (새신자 추가됨)')); render();
-    });
-  });
-
-  // ── Admin: Approve withdraw ──
-  document.querySelectorAll('[data-action="approve-withdraw"]').forEach(el => {
-    el.addEventListener('click', () => {
-      const targetUid = el.dataset.uid;
-      const targetUser = state.cache.users.find(u=>u.uid===targetUid);
-      const nm = targetUser?.name ? targetUser.name + '님을 ' : '';
-      showConfirm(nm + '탈퇴 처리하시겠습니까?\n출석·헌금 기록은 유지됩니다.', async () => {
-        // users 문서 삭제
-        await window.FDB.deleteDoc('users', targetUid);
-        state.cache.users = state.cache.users.filter(u=>u.uid!==targetUid);
-        // roster 연결 해제 (roster 문서·출석·헌금은 보존)
-        const linked = state.cache.rosters.find(r=>r.linkedUid===targetUid);
-        if (linked) {
-          linked.linkedUid = null;
-          linked.joined = false;
-          await window.FDB.setDoc('rosters', linked.id, { linkedUid: null, joined: false });
-        }
-        showToast('탈퇴 처리 완료!'); render();
-      }, '탈퇴 처리');
-    });
-  });
-
-  // ── Admin: Delete items ──
-  document.querySelectorAll('[data-action="del-notice"]').forEach(el => {
-    el.addEventListener('click', () => {
-      showConfirm('공지를 삭제하시겠습니까?', async () => {
-        await window.FDB.deleteDoc('notices', el.dataset.nid);
-        state.cache.notices = state.cache.notices.filter(n=>n.id!==el.dataset.nid);
-        render();
-      });
-    });
-  });
-  document.querySelectorAll('[data-action="del-event"]').forEach(el => {
-    el.addEventListener('click', () => {
-      showConfirm('일정을 삭제하시겠습니까?', async () => {
-        await window.FDB.deleteDoc('events', el.dataset.eid);
-        state.cache.events = state.cache.events.filter(e=>e.id!==el.dataset.eid);
-        render();
-      });
-    });
-  });
-  document.querySelectorAll('[data-action="del-bulletin"]').forEach(el => {
-    el.addEventListener('click', () => {
-      showConfirm('주보를 삭제하시겠습니까?', async () => {
-        await window.FDB.deleteDoc('bulletins', el.dataset.bid);
-        state.cache.bulletins = state.cache.bulletins.filter(b=>b.id!==el.dataset.bid);
-        render();
-      });
-    });
-  });
-  document.querySelectorAll('[data-action="del-worship"]').forEach(el => {
-    el.addEventListener('click', () => {
-      showConfirm('찬양 세트를 삭제하시겠습니까?', async () => {
-        await window.FDB.deleteDoc('worshipSets', el.dataset.wid);
-        state.cache.worshipSets = state.cache.worshipSets.filter(w=>w.id!==el.dataset.wid);
-        render();
-      });
-    });
-  });
-  document.querySelectorAll('[data-action="del-cellmeet"]').forEach(el => {
-    el.addEventListener('click', () => {
-      showConfirm('목장 모임 자료를 삭제하시겠습니까?', async () => {
-        await window.FDB.deleteDoc('cellMeetings', el.dataset.mid);
-        state.cache.cellMeetings = state.cache.cellMeetings.filter(m=>m.id!==el.dataset.mid);
-        render();
-      });
-    });
-  });
-  document.querySelectorAll('[data-action="del-offering"]').forEach(el => {
-    el.addEventListener('click', () => {
-      showConfirm('헌금 기록을 삭제하시겠습니까?', async () => {
-        const d = el.dataset.date; const idx = parseInt(el.dataset.idx);
-        const ymw = dateToYMW(d);
-        state._offYr=ymw.yr; state._offMo=ymw.mo; state._offWk=ymw.wk;
-        const offerings = state.cache.offerings;
-        if (offerings[d]) { offerings[d].items.splice(idx,1); await window.FDB.setDoc('offering', d, offerings[d]); }
-        render();
-      });
-    });
-  });
-
-  // ── Admin: Attendance ──
-  // 출석 날짜 드롭다운
+  // ── Admin: Attendance 날짜 드롭다운 (change) ──
+  // ── Admin: Attendance 날짜 드롭다운 (change) ──
   ['att-yr','att-mo','att-wk'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', () => {
       state._attYr = +document.getElementById('att-yr')?.value;
@@ -2573,31 +2360,7 @@ function bindEvents() {
       render();
     });
   });
-  document.querySelectorAll('[data-action="toggle-att"]').forEach(el => {
-    el.addEventListener('click', () => {
-      const def = defaultYMW();
-      const yr = state._attYr||def.yr, mo = state._attMo||def.mo, wk = state._attWk||def.wk;
-      const d = ymwToDate(yr, mo, wk);
-      const att = state.cache.attendance;
-      if (!att[d]) att[d] = { marks:{} };
-      att[d].marks[el.dataset.rid] = !att[d].marks[el.dataset.rid];
-      render();
-    });
-  });
-  document.querySelectorAll('[data-att-tab]').forEach(el => {
-    el.addEventListener('click', () => { state.adminAttTab=el.dataset.attTab; render(); });
-  });
-  document.querySelector('[data-action="save-attendance"]')?.addEventListener('click', async () => {
-    const def = defaultYMW();
-    const yr = state._attYr||def.yr, mo = state._attMo||def.mo, wk = state._attWk||def.wk;
-    const d = ymwToDate(yr, mo, wk);
-    const att = state.cache.attendance;
-    await window.FDB.setDoc('attendance', d, att[d]||{marks:{}});
-    showToast('출석 저장 완료!');
-  });
-
-  // ── Admin: Offering ──
-  // 날짜 드롭다운
+  // ── Admin: Offering 날짜 드롭다운 (change) ──
   ['offd-yr','offd-mo','offd-wk'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', () => {
       state._offYr = +document.getElementById('offd-yr')?.value;
@@ -2617,54 +2380,7 @@ function bindEvents() {
       if (disp) disp.textContent = raw ? formatted + '원' : '';
     });
   }
-  document.querySelector('[data-action="add-offering"]')?.addEventListener('click', async () => {
-    const def = defaultYMW();
-    const yr = state._offYr||def.yr, mo = state._offMo||def.mo, wk = state._offWk||def.wk;
-    const d = ymwToDate(yr, mo, wk);
-    const name = document.getElementById('off-name')?.value.trim();
-    const type = document.getElementById('off-type')?.value;
-    const amount = Number((document.getElementById('off-amount')?.value||'').replace(/,/g,''));
-    if (!name || !amount) { showToast('이름과 금액을 입력해주세요.'); return; }
-    const offerings = state.cache.offerings;
-    if (!offerings[d]) offerings[d] = { items:[] };
-    offerings[d].items.push({ id:uid(), name, type, amount });
-    await window.FDB.setDoc('offering', d, offerings[d]);
-    render();
-  });
-
-  // ── Admin: Send notification ──
-  document.querySelector('[data-action="send-noti"]')?.addEventListener('click', async () => {
-    const title = document.getElementById('noti-title')?.value;
-    const body = document.getElementById('noti-body')?.value;
-    if (!title) return;
-    const nid = uid();
-    const notiData = { id:nid, title, body, type:'etc', at:today() };
-    await window.FDB.setDoc('notifications', nid, notiData);
-    state.cache.notifications.push(notiData);
-    showToast('알림 발송 완료!');
-  });
-
-  // ── Admin: Roster tab ──
-  document.querySelectorAll('[data-roster-tab]').forEach(el => {
-    el.addEventListener('click', () => {
-      state.adminRosterTab=el.dataset.rosterTab;
-      state.rosterSearch='';
-      render();
-    });
-  });
-
-  // 명부 검색
-  // ── 주보 목록 토글 ──
-  document.querySelector('[data-action="toggle-bulletin-list"]')?.addEventListener('click', () => {
-    state._bulletinListOpen = !state._bulletinListOpen;
-    render();
-  });
-
-  // ── 명부 설정 버튼 ──
-  document.querySelector('[data-action="open-cell-settings"]')?.addEventListener('click', () => {
-    openCellSettings();
-  });
-
+  // ── Admin: Roster 검색 (input/composition) ──
   const rosterSearchEl = document.getElementById('roster-search');
   if (rosterSearchEl) {
     let _searchComposing = false;
@@ -2686,375 +2402,9 @@ function bindEvents() {
     render();
   });
 
-  // ── Admin: Roster menu ──
-  document.querySelectorAll('[data-action="roster-menu"]').forEach(el => {
-    el.addEventListener('click', e => {
-      e.stopPropagation();
-      const dd = document.getElementById('roster-dd-'+el.dataset.rid);
-      document.querySelectorAll('[id^="roster-dd-"]').forEach(d=>{ if(d!==dd) d.classList.add('hidden'); });
-      dd?.classList.toggle('hidden');
-    });
-  });
-  // 외부 클릭/터치 시 드롭다운 모두 닫기
-  const closeAllDd = (e) => {
-    if (!e.target.closest('[data-action="roster-menu"]') && !e.target.closest('[id^="roster-dd-"]')) {
-      document.querySelectorAll('[id^="roster-dd-"]').forEach(d=>d.classList.add('hidden'));
-    }
-  };
-  document.removeEventListener('click', window._closeAllDd);
-  window._closeAllDd = closeAllDd;
-  document.addEventListener('click', closeAllDd);
+  // (roster-menu, roster-edit, roster-grant, roster-delete, roster-minister → setupDelegation 처리)
 
-  document.querySelectorAll('[data-action="roster-edit"]').forEach(el => {
-    el.addEventListener('click', e => {
-      e.stopPropagation();
-      const rid = el.dataset.rid;
-      const r = state.cache.rosters.find(x=>x.id===rid); if (!r) return;
-      const cells = state.cache.cells;
-      const dd = document.getElementById('roster-dd-'+rid); dd?.classList.add('hidden');
-      const card = document.getElementById('roster-card-'+rid); if (!card) return;
-      // 다른 열린 인라인 편집 모두 닫기
-      document.querySelectorAll('[id^="roster-inline-edit-"]').forEach(el2 => {
-        if (el2.id !== 'roster-inline-edit-'+rid) el2.remove();
-      });
-      const existing = document.getElementById('roster-inline-edit-'+rid);
-      if (existing) { existing.remove(); return; }
-      const editDiv = document.createElement('div');
-      editDiv.id = 'roster-inline-edit-'+rid;
-      editDiv.className = 'mt-3 space-y-2';
-      editDiv.innerHTML = `
-        <input id="re-name-${rid}" value="${r.name}" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-        <input id="re-phone-${rid}" value="${fmtPhone(r.phone)}" inputmode="numeric" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-        <input id="re-birth-${rid}" value="${fmtDate(r.birth)}" inputmode="numeric" placeholder="YYYY.MM.DD" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-        <select id="re-cell-${rid}" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
-          <option value="">미배정</option>${cells.map(c=>`<option value="${c.id}"${c.id===r.cellId?' selected':''}>${c.name}</option>`).join('')}
-        </select>
-        <button id="re-save-${rid}" class="w-full py-2 bg-black text-white rounded-xl text-xs font-bold">저장</button>`;
-      // 점3개 버튼 숨기기
-      const menuBtn = card.querySelector('[data-action="roster-menu"]');
-      if (menuBtn) menuBtn.style.display = 'none';
-      card.appendChild(editDiv);
-      document.getElementById('re-phone-'+rid)?.addEventListener('input', function() { this.value=fmtPhone(this.value); });
-      document.getElementById('re-birth-'+rid)?.addEventListener('input', function() {
-        const d=this.value.replace(/\D/g,'');
-        if(d.length<=4) this.value=d;
-        else if(d.length<=6) this.value=d.slice(0,4)+'.'+d.slice(4);
-        else this.value=d.slice(0,4)+'.'+d.slice(4,6)+'.'+d.slice(6,8);
-      });
-      document.getElementById('re-save-'+rid)?.addEventListener('click', async () => {
-        const g = id => document.getElementById(id)?.value||'';
-        const rawBirth = g('re-birth-'+rid).replace(/\D/g,'');
-        const updated = { ...r, name:g('re-name-'+rid)||r.name, phone:fmtPhone(g('re-phone-'+rid)||r.phone), birth:rawBirth||r.birth, cellId:g('re-cell-'+rid)||r.cellId };
-        await window.FDB.setDoc('rosters', rid, updated);
-        const idx = state.cache.rosters.findIndex(x=>x.id===rid);
-        if (idx>=0) state.cache.rosters[idx]=updated;
-        showToast('정보가 변경되었습니다.'); render();
-      });
-    });
-  });
-  document.querySelectorAll('[data-action="roster-grant"]').forEach(el => {
-    el.addEventListener('click', async e => {
-      e.stopPropagation();
-      document.querySelectorAll('[id^="roster-dd-"]').forEach(d=>d.classList.add('hidden'));
-      const rid = el.dataset.rid;
-      const r = state.cache.rosters.find(x=>x.id===rid); if (!r) return;
-      if (!r.linkedUid) {
-        showToast('앱 가입된 사용자에게만 관리자 권한을 부여할 수 있습니다.');
-        return;
-      }
-      const u = state.cache.users.find(x=>x.uid===r.linkedUid);
-      if (u) {
-        u.role = u.role==='admin'?'user':'admin';
-        await window.FDB.setDoc('users', u.uid, { role:u.role });
-      }
-      showToast('변경 완료!'); render();
-    });
-  });
-  document.querySelectorAll('[data-action="roster-delete"]').forEach(el => {
-    el.addEventListener('click', e => {
-      e.stopPropagation();
-      showConfirm('명부에서 삭제하시겠습니까?\n출석·헌금 기록은 유지됩니다.', async () => {
-        const rid = el.dataset.rid;
-        // 연결된 user 계정도 정리
-        const rr = state.cache.rosters.find(r=>r.id===rid);
-        if (rr?.linkedUid) {
-          await window.FDB.setDoc('users', rr.linkedUid, { status:'withdraw_pending', withdrawAt:today() });
-        }
-        await window.FDB.deleteDoc('rosters', rid);
-        state.cache.rosters = state.cache.rosters.filter(r=>r.id!==rid);
-        render();
-      });
-    });
-  });
-
-  // 사역자 직분 지정
-  document.querySelectorAll('[data-action="roster-minister"]').forEach(el => {
-    el.addEventListener('click', e => {
-      e.stopPropagation();
-      const rid = el.dataset.rid;
-      const r = state.cache.rosters.find(x=>x.id===rid); if (!r) return;
-      const roles = ['없음','목사','전도사','간사'];
-      let overlay = document.getElementById('minister-overlay');
-      if (!overlay) { overlay = document.createElement('div'); overlay.id='minister-overlay'; document.body.appendChild(overlay); }
-      overlay.className = 'fixed inset-0 z-[400] bg-black/50 flex items-center justify-center px-6';
-      overlay.innerHTML = `<div class="bg-white rounded-3xl p-5 w-full max-w-xs shadow-2xl">
-        <p class="text-sm font-bold mb-3">${r.name} 직분 설정</p>
-        <div class="space-y-1.5">
-          ${roles.map(role=>`<button data-mrole="${role}" class="w-full py-2.5 px-4 rounded-xl text-sm text-left font-medium ${(r.minister||'')===(role==='없음'?'':role)?'bg-black text-white':'bg-zinc-50 hover:bg-zinc-100'}">${role}</button>`).join('')}
-        </div>
-        <button id="minister-cancel" class="w-full mt-3 py-2.5 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
-      </div>`;
-      document.getElementById('minister-cancel').onclick = () => overlay.remove();
-      overlay.querySelectorAll('[data-mrole]').forEach(btn => {
-        btn.onclick = async () => {
-          r.minister = btn.dataset.mrole === '없음' ? '' : btn.dataset.mrole;
-          await window.FDB.setDoc('rosters', rid, r);
-          overlay.remove(); render();
-        };
-      });
-    });
-  });
-
-  // ── Admin: Edit notice ──
-  document.querySelectorAll('[data-action="edit-notice"]').forEach(el => {
-    el.addEventListener('click', () => {
-      const nid = el.dataset.nid;
-      const n = state.cache.notices.find(x=>x.id===nid); if (!n) return;
-      const area = document.getElementById('admin-form-area'); if (!area) return;
-      area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
-        ${adminInput('nf-title','제목','공지 제목')}
-        ${adminTextarea('nf-body','내용','',5)}
-        <label class="flex items-center gap-2"><input id="nf-pinned" type="checkbox" class="w-4 h-4 rounded accent-black"/><span class="text-sm font-medium">중요 공지로 고정</span></label>
-        <div class="flex gap-2">
-          <button onclick="state.adminSub='notice';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
-          <button id="update-notice" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
-        </div>
-      </div>`;
-      document.getElementById('nf-title').value = n.title;
-      document.getElementById('nf-body').value = n.body;
-      document.getElementById('nf-pinned').checked = n.pinned;
-      document.getElementById('update-notice')?.addEventListener('click', async () => {
-        const updated = { ...n, title:document.getElementById('nf-title').value, body:document.getElementById('nf-body').value, pinned:document.getElementById('nf-pinned').checked };
-        await window.FDB.setDoc('notices', nid, updated);
-        const idx = state.cache.notices.findIndex(x=>x.id===nid);
-        if(idx>=0) state.cache.notices[idx]=updated;
-        showToast('공지 수정 완료!'); render();
-      });
-    });
-  });
-
-  // ── Admin: Edit event ──
-  document.querySelectorAll('[data-action="edit-event"]').forEach(el => {
-    el.addEventListener('click', () => {
-      const eid = el.dataset.eid;
-      const ev = state.cache.events.find(x=>x.id===eid); if (!ev) return;
-      const area = document.getElementById('admin-form-area'); if (!area) return;
-      area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
-        ${adminInput('ef-title','제목','')}
-        ${adminInput('ef-date','날짜','')}
-        ${adminInput('ef-time','시간','')}
-        ${adminInput('ef-loc','장소','')}
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">카테고리</label>
-          <select id="ef-cat" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
-            ${['예배','모임','행사','생일','기타'].map(c=>`<option value="${c}"${c===ev.cat?' selected':''}>${c}</option>`).join('')}
-          </select>
-        </div>
-        <div class="flex gap-2">
-          <button onclick="state.adminSub='event';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
-          <button id="update-event" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
-        </div>
-      </div>`;
-      document.getElementById('ef-title').value=ev.title; document.getElementById('ef-date').value=ev.date;
-      document.getElementById('ef-time').value=ev.time||''; document.getElementById('ef-loc').value=ev.loc||'';
-      document.getElementById('update-event')?.addEventListener('click', async () => {
-        const g = id => document.getElementById(id)?.value||'';
-        const updated = { ...ev, title:g('ef-title'), date:g('ef-date'), time:g('ef-time'), loc:g('ef-loc'), cat:g('ef-cat')||'기타' };
-        await window.FDB.setDoc('events', eid, updated);
-        const idx = state.cache.events.findIndex(x=>x.id===eid);
-        if(idx>=0) state.cache.events[idx]=updated;
-        showToast('일정 수정 완료!'); render();
-      });
-    });
-  });
-
-  // ── Admin: Edit bulletin ──
-  document.querySelectorAll('[data-action="edit-bulletin"]').forEach(el => {
-    el.addEventListener('click', () => {
-      const bid = el.dataset.bid;
-      const b = state.cache.bulletins.find(x=>x.id===bid); if (!b) return;
-      openBulletinForm(b);
-    });
-  });
-
-  // ── Admin: Edit worship ──
-  document.querySelectorAll('[data-action="edit-worship"]').forEach(el => {
-    el.addEventListener('click', () => {
-      const wid = el.dataset.wid;
-      const ws = state.cache.worshipSets.find(x=>x.id===wid); if (!ws) return;
-      const KEYS=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-      let songCount = ws.songs.length || 1;
-      const area = document.getElementById('admin-form-area'); if(!area) return;
-      const getSongRows = (songs) => {
-        let rows='';
-        for(let i=0;i<songCount;i++){
-          const s = songs[i]||{title:'',url:'',key:'C',sheet:''};
-          rows+=`<div class="bg-zinc-50 rounded-xl p-3 space-y-2 mb-2">
-            <p class="text-[10px] font-bold text-zinc-400">곡 ${i+1}</p>
-            <input id="ws-title-${i}" value="${s.title||''}" placeholder="곡 제목" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-            <input id="ws-url-${i}" value="${s.url||''}" placeholder="유튜브 링크" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-            <div class="flex gap-2">
-              <div class="flex-1"><label class="block text-[10px] font-bold text-zinc-500 mb-1">키</label>
-                <select id="ws-key-${i}" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm">${KEYS.map(k=>`<option value="${k}"${k===s.key?' selected':''}>${k}</option>`).join('')}</select>
-              </div>
-              <div class="flex-1"><label class="block text-[10px] font-bold text-zinc-500 mb-1">악보 이미지</label>
-                <label class="flex items-center gap-1 px-3 py-2 bg-white border border-zinc-200 rounded-xl text-xs text-zinc-400 cursor-pointer">
-                  📎 ${s.sheet ? '교체' : '파일선택'}
-                  <input id="ws-sheet-${i}" type="file" accept="image/*" class="hidden"/>
-                </label>
-                ${s.sheet ? `<div class="relative mt-1"><img src="${s.sheet}" class="w-full rounded-lg border border-zinc-100 object-cover max-h-24"/><p class="text-[10px] text-emerald-600 mt-0.5">✓ 기존 악보 있음</p></div>` : ''}
-                <p id="ws-sheet-name-${i}" class="text-[10px] text-zinc-400 mt-0.5 truncate"></p>
-              </div>
-            </div>
-          </div>`;
-        }
-        return rows;
-      };
-      area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
-        ${ymwSelectors('wfd', defaultYMW().yr, defaultYMW().mo, defaultYMW().wk)}
-        ${adminInput('wf-leader','인도자','')}
-        <div><label class="block text-xs font-bold text-zinc-600 mb-2 ml-1">곡 목록</label>
-          <div id="song-rows">${getSongRows(ws.songs)}</div>
-          <button id="add-song-row" class="w-full py-2 border border-dashed border-zinc-200 rounded-xl text-xs font-bold text-zinc-400 mt-1">+ 곡 추가</button>
-        </div>
-        <div class="flex gap-2">
-          <button onclick="state.adminSub='worship';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
-          <button id="update-worship" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
-        </div>
-      </div>`;
-      const bindSheets = () => {
-        for(let i=0;i<songCount;i++){
-          document.getElementById('ws-sheet-'+i)?.addEventListener('change', function(){
-            const nm=document.getElementById('ws-sheet-name-'+i);
-            if(nm) nm.textContent = this.files[0]?.name||'';
-          });
-        }
-      };
-      bindSheets();
-      // ymw 초기값 설정
-      const dwmv = ws.date ? (() => { try { return dateToYMW(ws.date); } catch(e) { return defaultYMW(); } })() : defaultYMW();
-      const yrEl=document.getElementById('wfd-yr'); const moEl=document.getElementById('wfd-mo'); const wkEl=document.getElementById('wfd-wk');
-      if(yrEl) yrEl.value=dwmv.yr; if(moEl) moEl.value=dwmv.mo; if(wkEl) wkEl.value=dwmv.wk;
-      document.getElementById('wf-leader').value=ws.leader||'';
-      document.getElementById('add-song-row')?.addEventListener('click',()=>{
-        // 현재 입력된 값 수집
-        const saved = [];
-        for(let i=0;i<songCount;i++){
-          saved.push({
-            title: document.getElementById('ws-title-'+i)?.value||'',
-            url:   document.getElementById('ws-url-'+i)?.value||'',
-            key:   document.getElementById('ws-key-'+i)?.value||'C',
-            sheet: ws.songs[i]?.sheet||'',
-            _sheetName: document.getElementById('ws-sheet-name-'+i)?.textContent||'',
-          });
-        }
-        songCount++;
-        // 저장된 값으로 songs 배열 구성 후 재렌더
-        const mergedSongs = [...ws.songs];
-        saved.forEach((s,i)=>{
-          mergedSongs[i] = { ...(mergedSongs[i]||{}), title:s.title, url:s.url, key:s.key, sheet:s.sheet };
-        });
-        document.getElementById('song-rows').innerHTML=getSongRows(mergedSongs);
-        saved.forEach((s,i)=>{
-          const nEl=document.getElementById('ws-sheet-name-'+i); if(nEl&&s._sheetName) nEl.textContent=s._sheetName;
-        });
-        bindSheets();
-      });
-      document.getElementById('update-worship')?.addEventListener('click', async () => {
-        const g = id => document.getElementById(id)?.value||'';
-        const songs = [];
-        showToast('저장 중...');
-        for(let i=0;i<songCount;i++){
-          const t=g('ws-title-'+i); if(!t) continue;
-          const existing = ws.songs[i]||{};
-          const fileEl=document.getElementById('ws-sheet-'+i); const file=fileEl?.files[0];
-          let sheetUrl = existing.sheet||'';
-          if(file){ sheetUrl = await window.FDB.uploadFile(`sheets/${uid()}`, file)||sheetUrl; }
-          songs.push({title:t, url:g('ws-url-'+i), key:g('ws-key-'+i)||'C', sheet:sheetUrl});
-        }
-        const wfYr=+document.getElementById('wfd-yr')?.value||new Date().getFullYear();
-        const wfMo=+document.getElementById('wfd-mo')?.value||1;
-        const wfWk=+document.getElementById('wfd-wk')?.value||1;
-        const hasNewSheet = songs.some((_,i)=>document.getElementById('ws-sheet-'+i)?.files[0]);
-        const updated = { ...ws, date:ymwToDate(wfYr,wfMo,wfWk), leader:g('wf-leader'), songs,
-          storedAt: hasNewSheet ? today() : (ws.storedAt||today()) };
-        await window.FDB.setDocFull('worshipSets', wid, updated);
-        const idx = state.cache.worshipSets.findIndex(x=>x.id===wid);
-        if(idx>=0) state.cache.worshipSets[idx]=updated;
-        showToast('찬양 수정 완료!'); render();
-      });
-    });
-  });
-
-  // ── Admin: Edit cellmeet ──
-  document.querySelectorAll('[data-action="edit-cellmeet"]').forEach(el => {
-    el.addEventListener('click', () => {
-      const mid = el.dataset.mid;
-      const m = state.cache.cellMeetings.find(x=>x.id===mid); if (!m) return;
-      let qCount = m.questions?.length || 1;
-      const area = document.getElementById('admin-form-area'); if(!area) return;
-      const getQRows = () => {
-        let rows='';
-        for(let i=0;i<qCount;i++){
-          rows+=`<div class="flex gap-2 items-start mb-2"><textarea id="cm-q-${i}" rows="2" placeholder="질문 ${i+1}" class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black resize-none"></textarea></div>`;
-        }
-        return rows;
-      };
-      area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
-        ${adminInput('cm-date','날짜','')} ${adminInput('cm-verse','말씀 구절','')}
-        ${adminTextarea('cm-versetext','말씀 본문 (핵심)','',2)}
-        <div><label class="block text-xs font-bold text-zinc-600 mb-2 ml-1">나눔 질문</label>
-          <div id="cm-q-rows">${getQRows()}</div>
-          <button id="add-question-btn" class="w-full py-2 border border-dashed border-zinc-200 rounded-xl text-xs font-bold text-zinc-400 mt-1">+ 질문 추가</button>
-        </div>
-        ${adminTextarea('cm-prayer','함께 기도 제목','',4)}
-        <div class="flex gap-2">
-          <button onclick="state.adminSub='cellmeet';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
-          <button id="update-cellmeet" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
-        </div>
-      </div>`;
-      const cmP=dateToYMW(m.date||'');
-      if(document.getElementById('cmd-yr')) { document.getElementById('cmd-yr').value=cmP.yr; document.getElementById('cmd-mo').value=cmP.mo; document.getElementById('cmd-wk').value=cmP.wk; }
-      document.getElementById('cm-verse').value=m.verse||'';
-      document.getElementById('cm-versetext').value=m.verseText||''; document.getElementById('cm-prayer').value=m.prayerItems||'';
-      m.questions?.forEach((q,i)=>{ const el=document.getElementById('cm-q-'+i); if(el) el.value=q; });
-      document.getElementById('add-question-btn')?.addEventListener('click',()=>{ qCount++; document.getElementById('cm-q-rows').innerHTML=getQRows(); });
-      document.getElementById('update-cellmeet')?.addEventListener('click', async () => {
-        const g = id => document.getElementById(id)?.value||'';
-        const questions=[];
-        for(let i=0;i<qCount;i++){ const q=g('cm-q-'+i); if(q.trim()) questions.push(q.trim()); }
-        const cmEditYr=+document.getElementById('cmd-yr')?.value||new Date().getFullYear();
-        const cmEditMo=+document.getElementById('cmd-mo')?.value||1;
-        const cmEditWk=+document.getElementById('cmd-wk')?.value||1;
-        const updated = { ...m, date:ymwToDate(cmEditYr,cmEditMo,cmEditWk), verse:g('cm-verse'), verseText:g('cm-versetext'), questions, prayerItems:g('cm-prayer') };
-        await window.FDB.setDoc('cellMeetings', mid, updated);
-        const idx = state.cache.cellMeetings.findIndex(x=>x.id===mid);
-        if(idx>=0) state.cache.cellMeetings[idx]=updated;
-        showToast('목장 나눔 자료 저장 완료!'); render();
-      });
-    });
-  });
-
-  // ── Admin: Noti toggle ──
-  document.querySelectorAll('[data-noti-toggle]').forEach(el => {
-    el.addEventListener('click', async () => {
-      const key = el.dataset.notiToggle;
-      const noti = state.user._noti || {worship:true,notice:true,verse:true,schedule:true,duty:true};
-      noti[key] = !noti[key];
-      state.user._noti = noti;
-      await window.FDB.setDoc('users', state.user.uid, { _noti: noti });
-      SESSION.set(state.user); render();
-    });
-  });
+  // (roster-edit/grant/delete/minister, edit-notice/event/bulletin/worship/cellmeet, noti-toggle → setupDelegation 처리)
 
   // ── Settings ──
   document.getElementById('toggle-pw-section')?.addEventListener('click', () => {
@@ -3204,276 +2554,7 @@ function bindEvents() {
     else this.value=d.slice(0,4)+'.'+d.slice(4,6)+'.'+d.slice(6,8);
   });
 
-  // ── Admin: Show forms ──
-  // Notice form
-  document.querySelector('[data-action="show-notice-form"]')?.addEventListener('click', () => {
-    const area = document.getElementById('admin-form-area'); if (!area) return;
-    let pendingImgs = [];
-    area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
-      ${adminInput('nf-title','제목','공지 제목')}
-      ${adminTextarea('nf-body','내용','공지 내용을 입력하세요',5)}
-      <div>
-        <label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">사진 첨부</label>
-        <label class="flex items-center gap-2 px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-400 cursor-pointer w-full">
-          ${icon('attach_file','',18)} 이미지 선택 (여러 장 가능)
-          <input id="nf-images" type="file" accept="image/*" multiple class="hidden"/>
-        </label>
-        <div id="nf-image-preview" class="flex gap-2 mt-2 flex-wrap"></div>
-      </div>
-      <label class="flex items-center gap-2"><input id="nf-pinned" type="checkbox" class="w-4 h-4 rounded accent-black"/><span class="text-sm font-medium">중요 공지로 고정</span></label>
-      <div class="flex gap-2">
-        <button onclick="state.adminSub='notice';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
-        <button id="save-notice" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
-      </div>
-    </div>`;
-    document.getElementById('nf-images')?.addEventListener('change', function() {
-      const preview = document.getElementById('nf-image-preview');
-      Array.from(this.files).forEach(file => {
-        const r = new FileReader();
-        r.onload = e => {
-          pendingImgs.push({file, dataUrl: e.target.result});
-          if (preview) { const img=document.createElement('img'); img.src=e.target.result; img.className='w-16 h-16 rounded-xl object-cover border border-zinc-200'; preview.appendChild(img); }
-        };
-        r.readAsDataURL(file);
-      });
-    });
-    document.getElementById('save-notice')?.addEventListener('click', async () => {
-      const title = document.getElementById('nf-title')?.value; if (!title) return;
-      showToast('저장 중...');
-      const imageUrls = [];
-      for (const {file} of pendingImgs) {
-        const nid2 = uid();
-        const url = await window.FDB.uploadFile(`notice_images/${nid2}`, file);
-        if (url) imageUrls.push(url);
-      }
-      const nid = uid();
-      const n = { id:nid, title, body:document.getElementById('nf-body')?.value||'', pinned:document.getElementById('nf-pinned')?.checked||false, by:state.user.uid, at:today(), images:imageUrls };
-      await window.FDB.setDoc('notices', nid, n);
-      state.cache.notices.unshift(n);
-      showToast('공지 저장 완료!'); render();
-    });
-  });
-
-  // Event form
-  document.querySelector('[data-action="show-event-form"]')?.addEventListener('click', () => {
-    const area = document.getElementById('admin-form-area'); if (!area) return;
-    area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
-      ${adminInput('ef-title','제목','주일 청년 예배')}
-      ${adminInput('ef-date','날짜',today())}
-      ${adminInput('ef-time','시간','14:00')}
-      ${adminInput('ef-loc','장소','본당')}
-      <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">카테고리</label>
-        <select id="ef-cat" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm">
-          ${['예배','모임','행사','생일','기타'].map(c=>`<option value="${c}">${c}</option>`).join('')}
-        </select>
-      </div>
-      <div class="flex gap-2">
-        <button onclick="state.adminSub='event';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
-        <button id="save-event" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
-      </div>
-    </div>`;
-    document.getElementById('save-event')?.addEventListener('click', async () => {
-      const g = id => document.getElementById(id)?.value||'';
-      const title=g('ef-title'); if (!title) return showToast('제목을 입력해주세요.');
-      const eid = uid();
-      const ev = { id:eid, title, date:g('ef-date'), time:g('ef-time'), loc:g('ef-loc'), cat:g('ef-cat')||'기타' };
-      await window.FDB.setDoc('events', eid, ev);
-      state.cache.events.push(ev); state.cache.events.sort((a,b)=>a.date.localeCompare(b.date));
-      showToast('일정 저장 완료!'); render();
-    });
-  });
-
-  // Roster form
-  // 명부 추가 버튼 제거됨
-
-  // Cell management
-  document.querySelector('[data-action="show-cell-form"]')?.addEventListener('click', () => {
-    const area = document.getElementById('cell-form-area'); if (!area) return;
-    if (area.innerHTML) { area.innerHTML=''; return; }
-    area.innerHTML = `<div class="bg-white p-4 rounded-2xl border border-zinc-100 mb-3 space-y-2 fade-in">
-      <input id="new-cell-name" placeholder="목장 이름" class="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-      <input id="new-cell-leader" placeholder="목자 이름" class="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-      <button id="save-new-cell" class="w-full py-2 bg-black text-white rounded-xl text-xs font-bold">추가</button>
-    </div>`;
-    document.getElementById('save-new-cell')?.addEventListener('click', async () => {
-      const name=document.getElementById('new-cell-name')?.value;
-      const leader=document.getElementById('new-cell-leader')?.value;
-      if (!name) return;
-      const cid=uid();
-      const cell={id:cid,name,leader:leader||'',order:state.cache.cells.length+1};
-      await window.FDB.setDoc('cells', cid, cell);
-      state.cache.cells.push(cell);
-      showToast('목장 추가 완료!'); render();
-    });
-  });
-  document.querySelectorAll('[data-action="cell-edit"]').forEach(el => {
-    el.addEventListener('click', () => { document.getElementById('cell-edit-area-'+el.dataset.cid)?.classList.toggle('hidden'); });
-  });
-  document.querySelectorAll('[data-action="cell-save"]').forEach(el => {
-    el.addEventListener('click', async () => {
-      const cid=el.dataset.cid;
-      const name=document.getElementById('cell-name-'+cid)?.value;
-      const leader=document.getElementById('cell-leader-'+cid)?.value;
-      if (!name) return;
-      await window.FDB.setDoc('cells', cid, { name, leader });
-      const c=state.cache.cells.find(x=>x.id===cid);
-      if(c){c.name=name;c.leader=leader;}
-      showToast('목장 정보 변경 완료!'); render();
-    });
-  });
-  document.querySelectorAll('[data-action="cell-delete"]').forEach(el => {
-    el.addEventListener('click', () => {
-      showConfirm('목장을 삭제하시겠습니까?', async () => {
-        const cid=el.dataset.cid;
-        await window.FDB.deleteDoc('cells', cid);
-        state.cache.cells=state.cache.cells.filter(c=>c.id!==cid);
-        render();
-      });
-    });
-  });
-
-  // CellMeet form
-  document.querySelector('[data-action="show-cellmeet-form"]')?.addEventListener('click', () => {
-    const area = document.getElementById('admin-form-area'); if (!area) return;
-    let qCount=1;
-    const getQRows = () => {
-      let rows='';
-      for(let i=0;i<qCount;i++){
-        rows+=`<div class="flex gap-2 items-start mb-2"><textarea id="cm-q-${i}" rows="2" placeholder="질문 ${i+1}" class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black resize-none"></textarea></div>`;
-      }
-      return rows;
-    };
-    area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
-      ${ymwSelectors('cmd', defaultYMW().yr, defaultYMW().mo, defaultYMW().wk)}
-      ${adminInput('cm-verse','말씀 구절','요한복음 15:1-8')}
-      ${adminTextarea('cm-versetext','말씀 본문 (핵심)','"나는 포도나무요..."',2)}
-      <div>
-        <label class="block text-xs font-bold text-zinc-600 mb-2 ml-1">나눔 질문</label>
-        <div id="cm-q-rows">${getQRows()}</div>
-        <button id="add-question-btn" class="w-full py-2 border border-dashed border-zinc-200 rounded-xl text-xs font-bold text-zinc-400 mt-1">+ 질문 추가</button>
-      </div>
-      ${adminTextarea('cm-prayer','함께 기도 제목','• 목장 지체를 위해',4)}
-      <div class="flex gap-2">
-        <button onclick="state.adminSub='cellmeet';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
-        <button id="save-cellmeet" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
-      </div>
-    </div>`;
-    document.getElementById('add-question-btn')?.addEventListener('click', () => { qCount++; document.getElementById('cm-q-rows').innerHTML=getQRows(); });
-    document.getElementById('save-cellmeet')?.addEventListener('click', async () => {
-      const g = id => document.getElementById(id)?.value||'';
-      const cmYr=+document.getElementById('cmd-yr')?.value||new Date().getFullYear();
-      const cmMo=+document.getElementById('cmd-mo')?.value||1;
-      const cmWk=+document.getElementById('cmd-wk')?.value||1;
-      const date=ymwToDate(cmYr,cmMo,cmWk);
-      const questions=[];
-      for(let i=0;i<qCount;i++){ const q=g('cm-q-'+i); if(q.trim()) questions.push(q.trim()); }
-      const mid=uid();
-      const meeting={ id:mid, date, verse:g('cm-verse'), verseText:g('cm-versetext'), questions, prayerItems:g('cm-prayer'), by:state.user.uid, at:today() };
-      await window.FDB.setDoc('cellMeetings', mid, meeting);
-      state.cache.cellMeetings.unshift(meeting);
-      showToast('목장 나눔 자료 저장 완료!'); render();
-    });
-  });
-
-  // Worship form
-  const worshipFormEl = document.querySelector('[data-action="show-worship-form"]');
-  if (worshipFormEl) {
-    worshipFormEl.removeEventListener('click', worshipFormEl._handler);
-    const KEYS=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-    let songCount=1;
-    const getSongRows = () => {
-      let rows='';
-      for(let i=0;i<songCount;i++){
-        rows+=`<div class="bg-zinc-50 rounded-xl p-3 space-y-2 mb-2">
-          <p class="text-[10px] font-bold text-zinc-400">곡 ${i+1}</p>
-          <input id="ws-title-${i}" placeholder="곡 제목" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-          <input id="ws-url-${i}" placeholder="유튜브 링크" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-          <div class="flex gap-2">
-            <div class="flex-1"><label class="block text-[10px] font-bold text-zinc-500 mb-1">키</label>
-              <select id="ws-key-${i}" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm">${KEYS.map(k=>`<option value="${k}">${k}</option>`).join('')}</select>
-            </div>
-            <div class="flex-1"><label class="block text-[10px] font-bold text-zinc-500 mb-1">악보 (이미지)</label>
-              <label class="flex items-center gap-1 px-3 py-2 bg-white border border-zinc-200 rounded-xl text-xs text-zinc-400 cursor-pointer">
-                📎 파일선택
-                <input id="ws-sheet-${i}" type="file" accept="image/*" class="hidden"/>
-              </label>
-              <p id="ws-sheet-name-${i}" class="text-[10px] text-zinc-400 mt-0.5 truncate"></p>
-            </div>
-          </div>
-        </div>`;
-      }
-      return rows;
-    };
-    worshipFormEl._handler = () => {
-      const area = document.getElementById('admin-form-area'); if (!area) return;
-      songCount=1;
-      const def = defaultYMW();
-      area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
-        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">날짜</label>
-          ${ymwSelectors('wfd', def.yr, def.mo, def.wk)}
-        </div>
-        ${adminInput('wf-leader','인도자','')}
-        <div><label class="block text-xs font-bold text-zinc-600 mb-2 ml-1">곡 목록</label>
-          <div id="song-rows">${getSongRows()}</div>
-          <button id="add-song-row" class="w-full py-2 border border-dashed border-zinc-200 rounded-xl text-xs font-bold text-zinc-400 mt-1">+ 곡 추가</button>
-        </div>
-        <div class="flex gap-2">
-          <button onclick="state.adminSub='worship';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
-          <button id="save-worship" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
-        </div>
-      </div>`;
-      const bindSheets = () => { for(let i=0;i<songCount;i++){ document.getElementById('ws-sheet-'+i)?.addEventListener('change', function(){ const nm=document.getElementById('ws-sheet-name-'+i); if(nm) nm.textContent=this.files[0]?.name||''; }); } };
-      bindSheets();
-      document.getElementById('add-song-row')?.addEventListener('click', () => {
-        // 현재 입력된 값 수집
-        const saved = [];
-        for(let i=0;i<songCount;i++){
-          saved.push({
-            title: document.getElementById('ws-title-'+i)?.value||'',
-            url:   document.getElementById('ws-url-'+i)?.value||'',
-            key:   document.getElementById('ws-key-'+i)?.value||'C',
-            _sheetFile: document.getElementById('ws-sheet-'+i)?.files[0]||null,
-            _sheetName: document.getElementById('ws-sheet-name-'+i)?.textContent||'',
-          });
-        }
-        songCount++;
-        document.getElementById('song-rows').innerHTML=getSongRows();
-        // 저장된 값 복원
-        saved.forEach((s,i)=>{
-          const tEl=document.getElementById('ws-title-'+i); if(tEl) tEl.value=s.title;
-          const uEl=document.getElementById('ws-url-'+i);   if(uEl) uEl.value=s.url;
-          const kEl=document.getElementById('ws-key-'+i);   if(kEl) kEl.value=s.key;
-          const nEl=document.getElementById('ws-sheet-name-'+i); if(nEl&&s._sheetName) nEl.textContent=s._sheetName;
-        });
-        bindSheets();
-      });
-      document.getElementById('save-worship')?.addEventListener('click', async () => {
-        const g = id => document.getElementById(id)?.value||'';
-        const wfYr=+document.getElementById('wfd-yr')?.value||new Date().getFullYear();
-        const wfMo=+document.getElementById('wfd-mo')?.value||1;
-        const wfWk=+document.getElementById('wfd-wk')?.value||1;
-        const date=ymwToDate(wfYr,wfMo,wfWk);
-        showToast('저장 중...');
-        const songs=[];
-        for(let i=0;i<songCount;i++){
-          const title=g('ws-title-'+i); if(!title) continue;
-          const fileEl=document.getElementById('ws-sheet-'+i); const file=fileEl?.files[0];
-          let sheetUrl='';
-          if(file){ sheetUrl=await window.FDB.uploadFile(`sheets/${uid()}`, file); }
-          songs.push({title,url:g('ws-url-'+i),key:g('ws-key-'+i)||'C',sheet:sheetUrl||''});
-        }
-        const wid=uid();
-        const ws={id:wid,date,leader:g('wf-leader'),songs,by:state.user.uid,at:today(),storedAt:today()};
-        await window.FDB.setDocFull('worshipSets', wid, ws);
-        state.cache.worshipSets.push(ws);
-        showToast('찬양 저장 완료!'); render();
-      });
-    };
-    worshipFormEl.addEventListener('click', worshipFormEl._handler);
-  }
-
-  // Bulletin form
-  document.querySelector('[data-action="show-bulletin-form"]')?.addEventListener('click', () => openBulletinForm(null));
+  // (show-notice/event/cell/cellmeet/worship/bulletin forms, cell-edit/save/delete, dl-sheet-btn → setupDelegation 처리)
 
   // 임사 전체 저장
   document.getElementById('svc-save-all')?.addEventListener('click', async () => {
@@ -3492,12 +2573,7 @@ function bindEvents() {
     showToast('임사 저장 완료!');
   });
 
-  // 악보 다운로드
-  document.querySelectorAll('.dl-sheet-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      downloadSheet(btn.dataset.dlSheet, btn.dataset.dlTitle + '_악보');
-    });
-  });
+  // (dl-sheet-btn → setupDelegation 처리)
 }
 
 // ============================================================
@@ -3920,6 +2996,582 @@ function bindCropModal() {
 }
 
 // ============================================================
+// EVENT DELEGATION — initApp에서 딱 1회만 등록
+// data-* 속성 기반 클릭 이벤트를 #app 단 한 곳에서 처리
+// ============================================================
+function setupDelegation() {
+  document.getElementById('app').addEventListener('click', async e => {
+    try {
+      // ── (1) data-tab ──
+      const tabEl = e.target.closest('[data-tab]');
+      if (tabEl) { state.tab = tabEl.dataset.tab; state.detail = null; render(); return; }
+
+      // ── (2) data-action ──
+      const actionEl = e.target.closest('[data-action]');
+      if (actionEl) {
+        const action = actionEl.dataset.action;
+        switch (action) {
+          case 'open-profile':  state.profileOpen = true; render(); break;
+          case 'close-profile': state.profileOpen = false; render(); break;
+          case 'logout':
+            await window.FB_signOut().catch(() => {});
+            state.user = null; state.page = 'login'; state.profileOpen = false; SESSION.clear(); render(); break;
+          case 'go-admin': state.page = 'admin'; state.adminSub = 'dashboard'; state.profileOpen = false; render(); break;
+          case 'close-profile-page': state.profilePage = null; render(); break;
+          case 'back': state.detail = null; render(); break;
+          case 'back-admin':
+            if (state.adminSub !== 'dashboard') { state.adminSub = 'dashboard'; render(); }
+            else { state.page = 'main'; state.tab = 'home'; render(); }
+            break;
+          case 'go-worship': state.detail = { type: 'worship', id: 'latest' }; render(); break;
+          case 'cal-prev': {
+            const vm = state._calMonth || { y: new Date().getFullYear(), m: new Date().getMonth() };
+            vm.m--; if (vm.m < 0) { vm.m = 11; vm.y--; } state._calMonth = { ...vm }; render(); break;
+          }
+          case 'cal-next': {
+            const vm = state._calMonth || { y: new Date().getFullYear(), m: new Date().getMonth() };
+            vm.m++; if (vm.m > 11) { vm.m = 0; vm.y++; } state._calMonth = { ...vm }; render(); break;
+          }
+          case 'toggle-bulletin-list': state._bulletinListOpen = !state._bulletinListOpen; render(); break;
+          case 'open-cell-settings': openCellSettings(); break;
+          case 'toggle-att': {
+            const def = defaultYMW();
+            const yr = state._attYr || def.yr, mo = state._attMo || def.mo, wk = state._attWk || def.wk;
+            const d = ymwToDate(yr, mo, wk);
+            const att = state.cache.attendance;
+            if (!att[d]) att[d] = { marks: {} };
+            att[d].marks[actionEl.dataset.rid] = !att[d].marks[actionEl.dataset.rid];
+            render(); break;
+          }
+          case 'save-attendance': {
+            const def = defaultYMW();
+            const yr = state._attYr || def.yr, mo = state._attMo || def.mo, wk = state._attWk || def.wk;
+            const d = ymwToDate(yr, mo, wk);
+            await window.FDB.setDoc('attendance', d, state.cache.attendance[d] || { marks: {} });
+            showToast('출석 저장 완료!'); break;
+          }
+          case 'add-offering': {
+            const def = defaultYMW();
+            const yr = state._offYr || def.yr, mo = state._offMo || def.mo, wk = state._offWk || def.wk;
+            const d = ymwToDate(yr, mo, wk);
+            const name = document.getElementById('off-name')?.value.trim();
+            const type = document.getElementById('off-type')?.value;
+            const amount = Number((document.getElementById('off-amount')?.value || '').replace(/,/g, ''));
+            if (!name || !amount) { showToast('이름과 금액을 입력해주세요.'); break; }
+            const offerings = state.cache.offerings;
+            if (!offerings[d]) offerings[d] = { items: [] };
+            offerings[d].items.push({ id: uid(), name, type, amount });
+            await window.FDB.setDoc('offering', d, offerings[d]); render(); break;
+          }
+          case 'send-noti': {
+            const title = document.getElementById('noti-title')?.value;
+            const body = document.getElementById('noti-body')?.value;
+            if (!title) break;
+            const nid = uid();
+            const notiData = { id: nid, title, body, type: 'etc', at: today() };
+            await window.FDB.setDoc('notifications', nid, notiData);
+            state.cache.notifications.push(notiData); showToast('알림 발송 완료!'); break;
+          }
+          case 'post-comment': {
+            const input = document.getElementById('comment-input');
+            if (!input?.value.trim()) break;
+            const nid = actionEl.dataset.noticeId;
+            const comment = { id: uid(), uid: state.user.uid, name: state.user.name, body: input.value.trim(), at: today() };
+            await window.FDB.addDoc(`notices/${nid}/comments`, comment);
+            if (!state.cache.comments[nid]) state.cache.comments[nid] = [];
+            state.cache.comments[nid].push(comment); input.value = ''; render(); break;
+          }
+          case 'approve': {
+            const targetUid = actionEl.dataset.uid;
+            const u = state.cache.users.find(x => x.uid === targetUid);
+            const rosters = state.cache.rosters;
+            let matchedRoster = rosters.find(r => r.linkedUid === targetUid);
+            if (!matchedRoster && u) {
+              matchedRoster = rosters.find(r => {
+                const phoneMatch = r.phone && r.phone.replace(/[^\d]/g, '') === (u.phone || '').replace(/[^\d]/g, '');
+                const birthMatch = r.birth && r.birth === u.birth;
+                const nameMatch = r.name && r.name.replace(/\s/g, '') === (u.name || '').replace(/\s/g, '');
+                return nameMatch && (phoneMatch || birthMatch);
+              });
+              if (matchedRoster) {
+                await window.FDB.setDoc('rosters', matchedRoster.id, { linkedUid: targetUid, joined: true });
+                matchedRoster.linkedUid = targetUid; matchedRoster.joined = true;
+              }
+            }
+            if (!matchedRoster && u) {
+              const newRid = uid();
+              const newRoster = { id: newRid, name: u.name, phone: u.phone || '', birth: u.birth || '', cellId: '', linkedUid: targetUid, joined: true };
+              await window.FDB.setDoc('rosters', newRid, newRoster);
+              state.cache.rosters.push(newRoster); state.cache.rosters.sort((a, b) => koSort(a.name, b.name));
+              matchedRoster = newRoster;
+            }
+            const cellId = matchedRoster ? matchedRoster.cellId : (u?.cellId || '');
+            await window.FDB.setDoc('users', targetUid, { status: 'active', cellId });
+            if (u) { u.status = 'active'; u.cellId = cellId; }
+            showToast('승인 완료!' + (matchedRoster?.cellId ? ` — ${state.cache.cells.find(c => c.id === cellId)?.name || ''}` : ' (새신자 추가됨)')); render(); break;
+          }
+          case 'approve-withdraw': {
+            const targetUid = actionEl.dataset.uid;
+            const targetUser = state.cache.users.find(u => u.uid === targetUid);
+            const nm = targetUser?.name ? targetUser.name + '님을 ' : '';
+            showConfirm(nm + '탈퇴 처리하시겠습니까?\n출석·헌금 기록은 유지됩니다.', async () => {
+              await window.FDB.deleteDoc('users', targetUid);
+              state.cache.users = state.cache.users.filter(u => u.uid !== targetUid);
+              const linked = state.cache.rosters.find(r => r.linkedUid === targetUid);
+              if (linked) { linked.linkedUid = null; linked.joined = false; await window.FDB.setDoc('rosters', linked.id, { linkedUid: null, joined: false }); }
+              showToast('탈퇴 처리 완료!'); render();
+            }, '탈퇴 처리'); break;
+          }
+          case 'del-notice':
+            showConfirm('공지를 삭제하시겠습니까?', async () => { await window.FDB.deleteDoc('notices', actionEl.dataset.nid); state.cache.notices = state.cache.notices.filter(n => n.id !== actionEl.dataset.nid); render(); }); break;
+          case 'del-event':
+            showConfirm('일정을 삭제하시겠습니까?', async () => { await window.FDB.deleteDoc('events', actionEl.dataset.eid); state.cache.events = state.cache.events.filter(ev => ev.id !== actionEl.dataset.eid); render(); }); break;
+          case 'del-bulletin':
+            showConfirm('주보를 삭제하시겠습니까?', async () => { await window.FDB.deleteDoc('bulletins', actionEl.dataset.bid); state.cache.bulletins = state.cache.bulletins.filter(b => b.id !== actionEl.dataset.bid); render(); }); break;
+          case 'del-worship':
+            showConfirm('찬양 세트를 삭제하시겠습니까?', async () => { await window.FDB.deleteDoc('worshipSets', actionEl.dataset.wid); state.cache.worshipSets = state.cache.worshipSets.filter(w => w.id !== actionEl.dataset.wid); render(); }); break;
+          case 'del-cellmeet':
+            showConfirm('목장 모임 자료를 삭제하시겠습니까?', async () => { await window.FDB.deleteDoc('cellMeetings', actionEl.dataset.mid); state.cache.cellMeetings = state.cache.cellMeetings.filter(m => m.id !== actionEl.dataset.mid); render(); }); break;
+          case 'del-offering':
+            showConfirm('헌금 기록을 삭제하시겠습니까?', async () => {
+              const d = actionEl.dataset.date; const idx = parseInt(actionEl.dataset.idx);
+              const ymw = dateToYMW(d); state._offYr = ymw.yr; state._offMo = ymw.mo; state._offWk = ymw.wk;
+              const offerings = state.cache.offerings;
+              if (offerings[d]) { offerings[d].items.splice(idx, 1); await window.FDB.setDoc('offering', d, offerings[d]); }
+              render();
+            }); break;
+          case 'roster-menu': {
+            e.stopPropagation();
+            const dd = document.getElementById('roster-dd-' + actionEl.dataset.rid);
+            document.querySelectorAll('[id^="roster-dd-"]').forEach(d => { if (d !== dd) d.classList.add('hidden'); });
+            dd?.classList.toggle('hidden'); break;
+          }
+          case 'roster-edit': {
+            e.stopPropagation();
+            const rid = actionEl.dataset.rid;
+            const r = state.cache.rosters.find(x => x.id === rid); if (!r) break;
+            const cells = state.cache.cells;
+            document.getElementById('roster-dd-' + rid)?.classList.add('hidden');
+            const card = document.getElementById('roster-card-' + rid); if (!card) break;
+            document.querySelectorAll('[id^="roster-inline-edit-"]').forEach(el2 => { if (el2.id !== 'roster-inline-edit-' + rid) el2.remove(); });
+            const existingEdit = document.getElementById('roster-inline-edit-' + rid);
+            if (existingEdit) { existingEdit.remove(); break; }
+            const editDiv = document.createElement('div');
+            editDiv.id = 'roster-inline-edit-' + rid; editDiv.className = 'mt-3 space-y-2';
+            editDiv.innerHTML = `
+              <input id="re-name-${rid}" value="${r.name}" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+              <input id="re-phone-${rid}" value="${fmtPhone(r.phone)}" inputmode="numeric" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+              <input id="re-birth-${rid}" value="${fmtDate(r.birth)}" inputmode="numeric" placeholder="YYYY.MM.DD" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+              <select id="re-cell-${rid}" class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
+                <option value="">미배정</option>${cells.map(c => `<option value="${c.id}"${c.id === r.cellId ? ' selected' : ''}>${c.name}</option>`).join('')}
+              </select>
+              <button id="re-save-${rid}" class="w-full py-2 bg-black text-white rounded-xl text-xs font-bold">저장</button>`;
+            const menuBtn = card.querySelector('[data-action="roster-menu"]'); if (menuBtn) menuBtn.style.display = 'none';
+            card.appendChild(editDiv);
+            document.getElementById('re-phone-' + rid)?.addEventListener('input', function () { this.value = fmtPhone(this.value); });
+            document.getElementById('re-birth-' + rid)?.addEventListener('input', function () {
+              const d = this.value.replace(/\D/g, '');
+              if (d.length <= 4) this.value = d; else if (d.length <= 6) this.value = d.slice(0, 4) + '.' + d.slice(4);
+              else this.value = d.slice(0, 4) + '.' + d.slice(4, 6) + '.' + d.slice(6, 8);
+            });
+            document.getElementById('re-save-' + rid)?.addEventListener('click', async () => {
+              const g = id => document.getElementById(id)?.value || '';
+              const rawBirth = g('re-birth-' + rid).replace(/\D/g, '');
+              const updated = { ...r, name: g('re-name-' + rid) || r.name, phone: fmtPhone(g('re-phone-' + rid) || r.phone), birth: rawBirth || r.birth, cellId: g('re-cell-' + rid) || r.cellId };
+              await window.FDB.setDoc('rosters', rid, updated);
+              const idx = state.cache.rosters.findIndex(x => x.id === rid); if (idx >= 0) state.cache.rosters[idx] = updated;
+              showToast('정보가 변경되었습니다.'); render();
+            }); break;
+          }
+          case 'roster-grant': {
+            e.stopPropagation();
+            document.querySelectorAll('[id^="roster-dd-"]').forEach(d => d.classList.add('hidden'));
+            const rid = actionEl.dataset.rid;
+            const r = state.cache.rosters.find(x => x.id === rid); if (!r) break;
+            if (!r.linkedUid) { showToast('앱 가입된 사용자에게만 관리자 권한을 부여할 수 있습니다.'); break; }
+            const u = state.cache.users.find(x => x.uid === r.linkedUid);
+            if (u) { u.role = u.role === 'admin' ? 'user' : 'admin'; await window.FDB.setDoc('users', u.uid, { role: u.role }); }
+            showToast('변경 완료!'); render(); break;
+          }
+          case 'roster-delete': {
+            e.stopPropagation();
+            const rid = actionEl.dataset.rid;
+            showConfirm('명부에서 삭제하시겠습니까?\n출석·헌금 기록은 유지됩니다.', async () => {
+              const rr = state.cache.rosters.find(r => r.id === rid);
+              if (rr?.linkedUid) { await window.FDB.setDoc('users', rr.linkedUid, { status: 'withdraw_pending', withdrawAt: today() }); }
+              await window.FDB.deleteDoc('rosters', rid);
+              state.cache.rosters = state.cache.rosters.filter(r => r.id !== rid); render();
+            }); break;
+          }
+          case 'roster-minister': {
+            e.stopPropagation();
+            const rid = actionEl.dataset.rid;
+            const r = state.cache.rosters.find(x => x.id === rid); if (!r) break;
+            const roles = ['없음', '목사', '전도사', '간사'];
+            let overlay = document.getElementById('minister-overlay');
+            if (!overlay) { overlay = document.createElement('div'); overlay.id = 'minister-overlay'; document.body.appendChild(overlay); }
+            overlay.className = 'fixed inset-0 z-[400] bg-black/50 flex items-center justify-center px-6';
+            overlay.innerHTML = `<div class="bg-white rounded-3xl p-5 w-full max-w-xs shadow-2xl">
+              <p class="text-sm font-bold mb-3">${r.name} 직분 설정</p>
+              <div class="space-y-1.5">${roles.map(role => `<button data-mrole="${role}" class="w-full py-2.5 px-4 rounded-xl text-sm text-left font-medium ${(r.minister || '') === (role === '없음' ? '' : role) ? 'bg-black text-white' : 'bg-zinc-50 hover:bg-zinc-100'}">${role}</button>`).join('')}</div>
+              <button id="minister-cancel" class="w-full mt-3 py-2.5 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
+            </div>`;
+            document.getElementById('minister-cancel').onclick = () => overlay.remove();
+            overlay.querySelectorAll('[data-mrole]').forEach(btn => {
+              btn.onclick = async () => { r.minister = btn.dataset.mrole === '없음' ? '' : btn.dataset.mrole; await window.FDB.setDoc('rosters', rid, r); overlay.remove(); render(); };
+            }); break;
+          }
+          case 'edit-notice': {
+            const nid = actionEl.dataset.nid;
+            const n = state.cache.notices.find(x => x.id === nid); if (!n) break;
+            const area = document.getElementById('admin-form-area'); if (!area) break;
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
+              ${adminInput('nf-title', '제목', '공지 제목')}${adminTextarea('nf-body', '내용', '', 5)}
+              <label class="flex items-center gap-2"><input id="nf-pinned" type="checkbox" class="w-4 h-4 rounded accent-black"/><span class="text-sm font-medium">중요 공지로 고정</span></label>
+              <div class="flex gap-2">
+                <button onclick="state.adminSub='notice';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
+                <button id="update-notice" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
+              </div></div>`;
+            document.getElementById('nf-title').value = n.title; document.getElementById('nf-body').value = n.body; document.getElementById('nf-pinned').checked = n.pinned;
+            document.getElementById('update-notice')?.addEventListener('click', async () => {
+              const updated = { ...n, title: document.getElementById('nf-title').value, body: document.getElementById('nf-body').value, pinned: document.getElementById('nf-pinned').checked };
+              await window.FDB.setDoc('notices', nid, updated);
+              const idx = state.cache.notices.findIndex(x => x.id === nid); if (idx >= 0) state.cache.notices[idx] = updated;
+              showToast('공지 수정 완료!'); render();
+            }); break;
+          }
+          case 'edit-event': {
+            const eid = actionEl.dataset.eid;
+            const ev = state.cache.events.find(x => x.id === eid); if (!ev) break;
+            const area = document.getElementById('admin-form-area'); if (!area) break;
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
+              ${adminInput('ef-title', '제목', '')}${adminInput('ef-date', '날짜', '')}${adminInput('ef-time', '시간', '')}${adminInput('ef-loc', '장소', '')}
+              <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">카테고리</label>
+                <select id="ef-cat" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black">
+                  ${['예배', '모임', '행사', '생일', '기타'].map(c => `<option value="${c}"${c === ev.cat ? ' selected' : ''}>${c}</option>`).join('')}
+                </select></div>
+              <div class="flex gap-2">
+                <button onclick="state.adminSub='event';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
+                <button id="update-event" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
+              </div></div>`;
+            document.getElementById('ef-title').value = ev.title; document.getElementById('ef-date').value = ev.date;
+            document.getElementById('ef-time').value = ev.time || ''; document.getElementById('ef-loc').value = ev.loc || '';
+            document.getElementById('update-event')?.addEventListener('click', async () => {
+              const g = id => document.getElementById(id)?.value || '';
+              const updated = { ...ev, title: g('ef-title'), date: g('ef-date'), time: g('ef-time'), loc: g('ef-loc'), cat: g('ef-cat') || '기타' };
+              await window.FDB.setDoc('events', eid, updated);
+              const idx = state.cache.events.findIndex(x => x.id === eid); if (idx >= 0) state.cache.events[idx] = updated;
+              showToast('일정 수정 완료!'); render();
+            }); break;
+          }
+          case 'edit-bulletin': {
+            const bid = actionEl.dataset.bid;
+            const b = state.cache.bulletins.find(x => x.id === bid); if (!b) break;
+            openBulletinForm(b); break;
+          }
+          case 'edit-worship': {
+            const wid = actionEl.dataset.wid;
+            const ws = state.cache.worshipSets.find(x => x.id === wid); if (!ws) break;
+            const KEYS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+            let songCount = ws.songs.length || 1;
+            const area = document.getElementById('admin-form-area'); if (!area) break;
+            const getSongRows = (songs) => {
+              let rows = '';
+              for (let i = 0; i < songCount; i++) {
+                const s = songs[i] || { title: '', url: '', key: 'C', sheet: '' };
+                rows += `<div class="bg-zinc-50 rounded-xl p-3 space-y-2 mb-2">
+                  <p class="text-[10px] font-bold text-zinc-400">곡 ${i+1}</p>
+                  <input id="ws-title-${i}" value="${s.title||''}" placeholder="곡 제목" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+                  <input id="ws-url-${i}" value="${s.url||''}" placeholder="유튜브 링크" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+                  <div class="flex gap-2">
+                    <div class="flex-1"><label class="block text-[10px] font-bold text-zinc-500 mb-1">키</label>
+                      <select id="ws-key-${i}" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm">${KEYS.map(k=>`<option value="${k}"${k===s.key?' selected':''}>${k}</option>`).join('')}</select></div>
+                    <div class="flex-1"><label class="block text-[10px] font-bold text-zinc-500 mb-1">악보 이미지</label>
+                      <label class="flex items-center gap-1 px-3 py-2 bg-white border border-zinc-200 rounded-xl text-xs text-zinc-400 cursor-pointer">📎 ${s.sheet?'교체':'파일선택'}<input id="ws-sheet-${i}" type="file" accept="image/*" class="hidden"/></label>
+                      ${s.sheet?`<div class="relative mt-1"><img src="${s.sheet}" class="w-full rounded-lg border border-zinc-100 object-cover max-h-24"/><p class="text-[10px] text-emerald-600 mt-0.5">✓ 기존 악보 있음</p></div>`:''}
+                      <p id="ws-sheet-name-${i}" class="text-[10px] text-zinc-400 mt-0.5 truncate"></p></div>
+                  </div></div>`;
+              }
+              return rows;
+            };
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
+              ${ymwSelectors('wfd', defaultYMW().yr, defaultYMW().mo, defaultYMW().wk)}${adminInput('wf-leader', '인도자', '')}
+              <div><label class="block text-xs font-bold text-zinc-600 mb-2 ml-1">곡 목록</label>
+                <div id="song-rows">${getSongRows(ws.songs)}</div>
+                <button id="add-song-row" class="w-full py-2 border border-dashed border-zinc-200 rounded-xl text-xs font-bold text-zinc-400 mt-1">+ 곡 추가</button></div>
+              <div class="flex gap-2">
+                <button onclick="state.adminSub='worship';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
+                <button id="update-worship" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
+              </div></div>`;
+            const bindSheets = () => { for (let i = 0; i < songCount; i++) { document.getElementById('ws-sheet-'+i)?.addEventListener('change', function(){ const nm=document.getElementById('ws-sheet-name-'+i); if(nm) nm.textContent=this.files[0]?.name||''; }); } };
+            bindSheets();
+            const dwmv = ws.date ? (() => { try { return dateToYMW(ws.date); } catch(e) { return defaultYMW(); } })() : defaultYMW();
+            const yrEl=document.getElementById('wfd-yr'); const moEl=document.getElementById('wfd-mo'); const wkEl=document.getElementById('wfd-wk');
+            if(yrEl) yrEl.value=dwmv.yr; if(moEl) moEl.value=dwmv.mo; if(wkEl) wkEl.value=dwmv.wk;
+            document.getElementById('wf-leader').value = ws.leader || '';
+            document.getElementById('add-song-row')?.addEventListener('click', () => {
+              const saved = [];
+              for (let i = 0; i < songCount; i++) { saved.push({ title:document.getElementById('ws-title-'+i)?.value||'', url:document.getElementById('ws-url-'+i)?.value||'', key:document.getElementById('ws-key-'+i)?.value||'C', sheet:ws.songs[i]?.sheet||'', _sheetName:document.getElementById('ws-sheet-name-'+i)?.textContent||'' }); }
+              songCount++;
+              const mergedSongs = [...ws.songs]; saved.forEach((s,i)=>{ mergedSongs[i]={...(mergedSongs[i]||{}),title:s.title,url:s.url,key:s.key,sheet:s.sheet}; });
+              document.getElementById('song-rows').innerHTML = getSongRows(mergedSongs);
+              saved.forEach((s,i)=>{ const nEl=document.getElementById('ws-sheet-name-'+i); if(nEl&&s._sheetName) nEl.textContent=s._sheetName; });
+              bindSheets();
+            });
+            document.getElementById('update-worship')?.addEventListener('click', async () => {
+              const g = id => document.getElementById(id)?.value||''; const songs = []; showToast('저장 중...');
+              for (let i=0;i<songCount;i++) { const t=g('ws-title-'+i); if(!t) continue; const existing=ws.songs[i]||{}; const fileEl=document.getElementById('ws-sheet-'+i); const file=fileEl?.files[0]; let sheetUrl=existing.sheet||''; if(file){sheetUrl=await window.FDB.uploadFile(`sheets/${uid()}`,file)||sheetUrl;} songs.push({title:t,url:g('ws-url-'+i),key:g('ws-key-'+i)||'C',sheet:sheetUrl}); }
+              const wfYr=+document.getElementById('wfd-yr')?.value||new Date().getFullYear(); const wfMo=+document.getElementById('wfd-mo')?.value||1; const wfWk=+document.getElementById('wfd-wk')?.value||1;
+              const hasNewSheet=songs.some((_,i)=>document.getElementById('ws-sheet-'+i)?.files[0]);
+              const updated={...ws,date:ymwToDate(wfYr,wfMo,wfWk),leader:g('wf-leader'),songs,storedAt:hasNewSheet?today():(ws.storedAt||today())};
+              await window.FDB.setDocFull('worshipSets',wid,updated); const idx=state.cache.worshipSets.findIndex(x=>x.id===wid); if(idx>=0) state.cache.worshipSets[idx]=updated;
+              showToast('찬양 수정 완료!'); render();
+            }); break;
+          }
+          case 'edit-cellmeet': {
+            const mid = actionEl.dataset.mid;
+            const m = state.cache.cellMeetings.find(x => x.id === mid); if (!m) break;
+            let qCount = m.questions?.length || 1;
+            const area = document.getElementById('admin-form-area'); if (!area) break;
+            const getQRows = () => { let rows=''; for(let i=0;i<qCount;i++){rows+=`<div class="flex gap-2 items-start mb-2"><textarea id="cm-q-${i}" rows="2" placeholder="질문 ${i+1}" class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black resize-none"></textarea></div>`;} return rows; };
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
+              ${adminInput('cm-date','날짜','')} ${adminInput('cm-verse','말씀 구절','')}${adminTextarea('cm-versetext','말씀 본문 (핵심)','',2)}
+              <div><label class="block text-xs font-bold text-zinc-600 mb-2 ml-1">나눔 질문</label>
+                <div id="cm-q-rows">${getQRows()}</div>
+                <button id="add-question-btn" class="w-full py-2 border border-dashed border-zinc-200 rounded-xl text-xs font-bold text-zinc-400 mt-1">+ 질문 추가</button></div>
+              ${adminTextarea('cm-prayer','함께 기도 제목','',4)}
+              <div class="flex gap-2">
+                <button onclick="state.adminSub='cellmeet';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
+                <button id="update-cellmeet" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
+              </div></div>`;
+            const cmP=dateToYMW(m.date||'');
+            if(document.getElementById('cmd-yr')){document.getElementById('cmd-yr').value=cmP.yr;document.getElementById('cmd-mo').value=cmP.mo;document.getElementById('cmd-wk').value=cmP.wk;}
+            document.getElementById('cm-verse').value=m.verse||''; document.getElementById('cm-versetext').value=m.verseText||''; document.getElementById('cm-prayer').value=m.prayerItems||'';
+            m.questions?.forEach((q,i)=>{ const el=document.getElementById('cm-q-'+i); if(el) el.value=q; });
+            document.getElementById('add-question-btn')?.addEventListener('click',()=>{qCount++;document.getElementById('cm-q-rows').innerHTML=getQRows();});
+            document.getElementById('update-cellmeet')?.addEventListener('click', async () => {
+              const g=id=>document.getElementById(id)?.value||''; const questions=[];
+              for(let i=0;i<qCount;i++){const q=g('cm-q-'+i);if(q.trim())questions.push(q.trim());}
+              const cmEditYr=+document.getElementById('cmd-yr')?.value||new Date().getFullYear(); const cmEditMo=+document.getElementById('cmd-mo')?.value||1; const cmEditWk=+document.getElementById('cmd-wk')?.value||1;
+              const updated={...m,date:ymwToDate(cmEditYr,cmEditMo,cmEditWk),verse:g('cm-verse'),verseText:g('cm-versetext'),questions,prayerItems:g('cm-prayer')};
+              await window.FDB.setDoc('cellMeetings',mid,updated); const idx=state.cache.cellMeetings.findIndex(x=>x.id===mid); if(idx>=0) state.cache.cellMeetings[idx]=updated;
+              showToast('목장 나눔 자료 저장 완료!'); render();
+            }); break;
+          }
+          case 'show-notice-form': {
+            const area = document.getElementById('admin-form-area'); if (!area) break;
+            let pendingImgs = [];
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
+              ${adminInput('nf-title','제목','공지 제목')}${adminTextarea('nf-body','내용','공지 내용을 입력하세요',5)}
+              <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">사진 첨부</label>
+                <label class="flex items-center gap-2 px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-400 cursor-pointer w-full">
+                  ${icon('attach_file','',18)} 이미지 선택 (여러 장 가능)<input id="nf-images" type="file" accept="image/*" multiple class="hidden"/></label>
+                <div id="nf-image-preview" class="flex gap-2 mt-2 flex-wrap"></div></div>
+              <label class="flex items-center gap-2"><input id="nf-pinned" type="checkbox" class="w-4 h-4 rounded accent-black"/><span class="text-sm font-medium">중요 공지로 고정</span></label>
+              <div class="flex gap-2">
+                <button onclick="state.adminSub='notice';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
+                <button id="save-notice" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
+              </div></div>`;
+            document.getElementById('nf-images')?.addEventListener('change', function() {
+              const preview=document.getElementById('nf-image-preview');
+              Array.from(this.files).forEach(file=>{ const r=new FileReader(); r.onload=e=>{pendingImgs.push({file,dataUrl:e.target.result});if(preview){const img=document.createElement('img');img.src=e.target.result;img.className='w-16 h-16 rounded-xl object-cover border border-zinc-200';preview.appendChild(img);}}; r.readAsDataURL(file); });
+            });
+            document.getElementById('save-notice')?.addEventListener('click', async () => {
+              const title=document.getElementById('nf-title')?.value; if(!title) return;
+              showToast('저장 중...'); const imageUrls=[];
+              for(const {file} of pendingImgs){const nid2=uid();const url=await window.FDB.uploadFile(`notice_images/${nid2}`,file);if(url) imageUrls.push(url);}
+              const nid=uid(); const n={id:nid,title,body:document.getElementById('nf-body')?.value||'',pinned:document.getElementById('nf-pinned')?.checked||false,by:state.user.uid,at:today(),images:imageUrls};
+              await window.FDB.setDoc('notices',nid,n); state.cache.notices.unshift(n); showToast('공지 저장 완료!'); render();
+            }); break;
+          }
+          case 'show-event-form': {
+            const area = document.getElementById('admin-form-area'); if (!area) break;
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
+              ${adminInput('ef-title','제목','주일 청년 예배')}${adminInput('ef-date','날짜',today())}${adminInput('ef-time','시간','14:00')}${adminInput('ef-loc','장소','본당')}
+              <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">카테고리</label>
+                <select id="ef-cat" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm">${['예배','모임','행사','생일','기타'].map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>
+              <div class="flex gap-2">
+                <button onclick="state.adminSub='event';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
+                <button id="save-event" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
+              </div></div>`;
+            document.getElementById('save-event')?.addEventListener('click', async () => {
+              const g=id=>document.getElementById(id)?.value||''; const title=g('ef-title'); if(!title) return showToast('제목을 입력해주세요.');
+              const eid=uid(); const ev={id:eid,title,date:g('ef-date'),time:g('ef-time'),loc:g('ef-loc'),cat:g('ef-cat')||'기타'};
+              await window.FDB.setDoc('events',eid,ev); state.cache.events.push(ev); state.cache.events.sort((a,b)=>a.date.localeCompare(b.date));
+              showToast('일정 저장 완료!'); render();
+            }); break;
+          }
+          case 'show-cell-form': {
+            const area = document.getElementById('cell-form-area'); if (!area) break;
+            if (area.innerHTML) { area.innerHTML = ''; break; }
+            area.innerHTML = `<div class="bg-white p-4 rounded-2xl border border-zinc-100 mb-3 space-y-2 fade-in">
+              <input id="new-cell-name" placeholder="목장 이름" class="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+              <input id="new-cell-leader" placeholder="목자 이름" class="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+              <button id="save-new-cell" class="w-full py-2 bg-black text-white rounded-xl text-xs font-bold">추가</button></div>`;
+            document.getElementById('save-new-cell')?.addEventListener('click', async () => {
+              const name=document.getElementById('new-cell-name')?.value; const leader=document.getElementById('new-cell-leader')?.value; if(!name) return;
+              const cid=uid(); const cell={id:cid,name,leader:leader||'',order:state.cache.cells.length+1};
+              await window.FDB.setDoc('cells',cid,cell); state.cache.cells.push(cell); showToast('목장 추가 완료!'); render();
+            }); break;
+          }
+          case 'cell-edit':
+            document.getElementById('cell-edit-area-' + actionEl.dataset.cid)?.classList.toggle('hidden'); break;
+          case 'cell-save': {
+            const cid=actionEl.dataset.cid; const name=document.getElementById('cell-name-'+cid)?.value; const leader=document.getElementById('cell-leader-'+cid)?.value; if(!name) break;
+            await window.FDB.setDoc('cells',cid,{name,leader}); const c=state.cache.cells.find(x=>x.id===cid); if(c){c.name=name;c.leader=leader;}
+            showToast('목장 정보 변경 완료!'); render(); break;
+          }
+          case 'cell-delete': {
+            const cid=actionEl.dataset.cid;
+            showConfirm('목장을 삭제하시겠습니까?', async () => { await window.FDB.deleteDoc('cells',cid); state.cache.cells=state.cache.cells.filter(c=>c.id!==cid); render(); }); break;
+          }
+          case 'show-cellmeet-form': {
+            const area = document.getElementById('admin-form-area'); if (!area) break;
+            let qCount = 1;
+            const getQRows = () => { let rows=''; for(let i=0;i<qCount;i++){rows+=`<div class="flex gap-2 items-start mb-2"><textarea id="cm-q-${i}" rows="2" placeholder="질문 ${i+1}" class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black resize-none"></textarea></div>`;} return rows; };
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
+              ${ymwSelectors('cmd',defaultYMW().yr,defaultYMW().mo,defaultYMW().wk)}${adminInput('cm-verse','말씀 구절','요한복음 15:1-8')}${adminTextarea('cm-versetext','말씀 본문 (핵심)','"나는 포도나무요..."',2)}
+              <div><label class="block text-xs font-bold text-zinc-600 mb-2 ml-1">나눔 질문</label>
+                <div id="cm-q-rows">${getQRows()}</div>
+                <button id="add-question-btn" class="w-full py-2 border border-dashed border-zinc-200 rounded-xl text-xs font-bold text-zinc-400 mt-1">+ 질문 추가</button></div>
+              ${adminTextarea('cm-prayer','함께 기도 제목','• 목장 지체를 위해',4)}
+              <div class="flex gap-2">
+                <button onclick="state.adminSub='cellmeet';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
+                <button id="save-cellmeet" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
+              </div></div>`;
+            document.getElementById('add-question-btn')?.addEventListener('click',()=>{qCount++;document.getElementById('cm-q-rows').innerHTML=getQRows();});
+            document.getElementById('save-cellmeet')?.addEventListener('click', async () => {
+              const g=id=>document.getElementById(id)?.value||''; const cmYr=+document.getElementById('cmd-yr')?.value||new Date().getFullYear(); const cmMo=+document.getElementById('cmd-mo')?.value||1; const cmWk=+document.getElementById('cmd-wk')?.value||1;
+              const date=ymwToDate(cmYr,cmMo,cmWk); const questions=[];
+              for(let i=0;i<qCount;i++){const q=g('cm-q-'+i);if(q.trim())questions.push(q.trim());}
+              const mid=uid(); const meeting={id:mid,date,verse:g('cm-verse'),verseText:g('cm-versetext'),questions,prayerItems:g('cm-prayer'),by:state.user.uid,at:today()};
+              await window.FDB.setDoc('cellMeetings',mid,meeting); state.cache.cellMeetings.unshift(meeting); showToast('목장 나눔 자료 저장 완료!'); render();
+            }); break;
+          }
+          case 'show-worship-form': {
+            const area = document.getElementById('admin-form-area'); if (!area) break;
+            const KEYS=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+            let songCount = 1;
+            const getSongRows = () => {
+              let rows='';
+              for(let i=0;i<songCount;i++){
+                rows+=`<div class="bg-zinc-50 rounded-xl p-3 space-y-2 mb-2">
+                  <p class="text-[10px] font-bold text-zinc-400">곡 ${i+1}</p>
+                  <input id="ws-title-${i}" placeholder="곡 제목" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+                  <input id="ws-url-${i}" placeholder="유튜브 링크" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
+                  <div class="flex gap-2">
+                    <div class="flex-1"><label class="block text-[10px] font-bold text-zinc-500 mb-1">키</label>
+                      <select id="ws-key-${i}" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm">${KEYS.map(k=>`<option value="${k}">${k}</option>`).join('')}</select></div>
+                    <div class="flex-1"><label class="block text-[10px] font-bold text-zinc-500 mb-1">악보 (이미지)</label>
+                      <label class="flex items-center gap-1 px-3 py-2 bg-white border border-zinc-200 rounded-xl text-xs text-zinc-400 cursor-pointer">📎 파일선택<input id="ws-sheet-${i}" type="file" accept="image/*" class="hidden"/></label>
+                      <p id="ws-sheet-name-${i}" class="text-[10px] text-zinc-400 mt-0.5 truncate"></p></div>
+                  </div></div>`;
+              }
+              return rows;
+            };
+            const def=defaultYMW();
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-zinc-100 mb-4 fade-in">
+              <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">날짜</label>${ymwSelectors('wfd',def.yr,def.mo,def.wk)}</div>
+              ${adminInput('wf-leader','인도자','')}
+              <div><label class="block text-xs font-bold text-zinc-600 mb-2 ml-1">곡 목록</label>
+                <div id="song-rows">${getSongRows()}</div>
+                <button id="add-song-row" class="w-full py-2 border border-dashed border-zinc-200 rounded-xl text-xs font-bold text-zinc-400 mt-1">+ 곡 추가</button></div>
+              <div class="flex gap-2">
+                <button onclick="state.adminSub='worship';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
+                <button id="save-worship" class="flex-1 py-3 bg-black text-white rounded-xl text-sm font-bold">저장</button>
+              </div></div>`;
+            const bindSheets=()=>{for(let i=0;i<songCount;i++){document.getElementById('ws-sheet-'+i)?.addEventListener('change',function(){const nm=document.getElementById('ws-sheet-name-'+i);if(nm) nm.textContent=this.files[0]?.name||'';}); }};
+            bindSheets();
+            document.getElementById('add-song-row')?.addEventListener('click',()=>{
+              const saved=[]; for(let i=0;i<songCount;i++){saved.push({title:document.getElementById('ws-title-'+i)?.value||'',url:document.getElementById('ws-url-'+i)?.value||'',key:document.getElementById('ws-key-'+i)?.value||'C',_sheetName:document.getElementById('ws-sheet-name-'+i)?.textContent||''});}
+              songCount++; document.getElementById('song-rows').innerHTML=getSongRows();
+              saved.forEach((s,i)=>{const tEl=document.getElementById('ws-title-'+i);if(tEl)tEl.value=s.title;const uEl=document.getElementById('ws-url-'+i);if(uEl)uEl.value=s.url;const kEl=document.getElementById('ws-key-'+i);if(kEl)kEl.value=s.key;const nEl=document.getElementById('ws-sheet-name-'+i);if(nEl&&s._sheetName)nEl.textContent=s._sheetName;});
+              bindSheets();
+            });
+            document.getElementById('save-worship')?.addEventListener('click', async () => {
+              const g=id=>document.getElementById(id)?.value||''; const wfYr=+document.getElementById('wfd-yr')?.value||new Date().getFullYear(); const wfMo=+document.getElementById('wfd-mo')?.value||1; const wfWk=+document.getElementById('wfd-wk')?.value||1;
+              const date=ymwToDate(wfYr,wfMo,wfWk); showToast('저장 중...'); const songs=[];
+              for(let i=0;i<songCount;i++){const title=g('ws-title-'+i);if(!title) continue;const fileEl=document.getElementById('ws-sheet-'+i);const file=fileEl?.files[0];let sheetUrl='';if(file){sheetUrl=await window.FDB.uploadFile(`sheets/${uid()}`,file);}songs.push({title,url:g('ws-url-'+i),key:g('ws-key-'+i)||'C',sheet:sheetUrl||''});}
+              const wid=uid(); const ws={id:wid,date,leader:g('wf-leader'),songs,by:state.user.uid,at:today(),storedAt:today()};
+              await window.FDB.setDocFull('worshipSets',wid,ws); state.cache.worshipSets.push(ws); showToast('찬양 저장 완료!'); render();
+            }); break;
+          }
+          case 'show-bulletin-form': openBulletinForm(null); break;
+        }
+        return;
+      }
+
+      // ── (3) data-profile-page ──
+      const profilePageEl = e.target.closest('[data-profile-page]');
+      if (profilePageEl) { state.profilePage = profilePageEl.dataset.profilePage; state.profileOpen = false; render(); return; }
+
+      // ── (4) data-detail ──
+      const detailEl = e.target.closest('[data-detail]');
+      if (detailEl) {
+        const [type, id] = detailEl.dataset.detail.split(':');
+        state.detail = { type, id };
+        if (type === 'notice') {
+          const snap = await window.FDB.getCol(`notices/${id}/comments`).catch(() => []);
+          state.cache.comments[id] = snap.sort((a, b) => (a.at || '').localeCompare(b.at || ''));
+        }
+        render(); return;
+      }
+
+      // ── (5) data-worship-play ──
+      const worshipPlayEl = e.target.closest('[data-worship-play]');
+      if (worshipPlayEl) {
+        const idx = parseInt(worshipPlayEl.dataset.worshipPlay);
+        const latest = state.cache.worshipSets[state.cache.worshipSets.length - 1];
+        const song = latest?.songs?.[idx];
+        if (song?.url) { window.open(song.url, '_blank'); } else { state.detail = { type: 'worship', id: 'latest' }; render(); }
+        return;
+      }
+
+      // ── (6) data-sheet-toggle ──
+      const sheetToggleEl = e.target.closest('[data-sheet-toggle]');
+      if (sheetToggleEl) { const panel = document.getElementById('sheet-panel-' + sheetToggleEl.dataset.sheetToggle); if (panel) panel.classList.toggle('hidden'); return; }
+
+      // ── (7) data-cal-date ──
+      const calDateEl = e.target.closest('[data-cal-date]');
+      if (calDateEl) { state._calSel = calDateEl.dataset.calDate; render(); return; }
+
+      // ── (8) data-admin ──
+      const adminEl = e.target.closest('[data-admin]');
+      if (adminEl) { state.adminSub = adminEl.dataset.admin; render(); return; }
+
+      // ── (9) data-att-tab ──
+      const attTabEl = e.target.closest('[data-att-tab]');
+      if (attTabEl) { state.adminAttTab = attTabEl.dataset.attTab; render(); return; }
+
+      // ── (10) data-noti-toggle ──
+      const notiToggleEl = e.target.closest('[data-noti-toggle]');
+      if (notiToggleEl) {
+        const key = notiToggleEl.dataset.notiToggle;
+        const noti = state.user._noti || { worship: true, notice: true, verse: true, schedule: true, duty: true };
+        noti[key] = !noti[key]; state.user._noti = noti;
+        await window.FDB.setDoc('users', state.user.uid, { _noti: noti }); SESSION.set(state.user); render(); return;
+      }
+
+      // ── (11) data-roster-tab ──
+      const rosterTabEl = e.target.closest('[data-roster-tab]');
+      if (rosterTabEl) { state.adminRosterTab = rosterTabEl.dataset.rosterTab; state.rosterSearch = ''; render(); return; }
+
+      // ── (12) .dl-sheet-btn ──
+      const dlBtn = e.target.closest('.dl-sheet-btn');
+      if (dlBtn) { downloadSheet(dlBtn.dataset.dlSheet, dlBtn.dataset.dlTitle + '_악보'); return; }
+
+    } catch (err) { console.error('delegation click error', err); }
+  });
+
+  // ── 드롭다운 외부 클릭 닫기 (document 레벨, 1회만 등록) ──
+  document.addEventListener('click', e => {
+    if (!e.target.closest('[data-action="roster-menu"]') && !e.target.closest('[id^="roster-dd-"]')) {
+      document.querySelectorAll('[id^="roster-dd-"]').forEach(d => d.classList.add('hidden'));
+    }
+  });
+}
+
+// ============================================================
 // GLOBAL GESTURES — initApp에서 딱 1회만 등록 (bindEvents 반복 호출로 인한 누수 방지)
 // ============================================================
 function setupPTR() {
@@ -3988,8 +3640,9 @@ function setupSwipeBack() {
 // ============================================================
 let _gesturesSetup = false;
 async function initApp(firebaseUser) {
-  // 제스처 리스너: 앱 생애주기 동안 딱 1회만 등록
+  // 제스처·이벤트위임 리스너: 앱 생애주기 동안 딱 1회만 등록
   if (!_gesturesSetup) {
+    setupDelegation();
     setupPTR();
     setupSwipeBack();
     _gesturesSetup = true;
