@@ -284,7 +284,13 @@ tailwind.config = {
   .hide-scrollbar::-webkit-scrollbar { display: none; }
   .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-  /* ── 모션/전환: 필요 시 여기에 @keyframes 를 이름과 함께 정의 ── */
+  /* ── 모션/전환: ── */
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes slideInRight { from { transform: translateX(30%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .anim-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+  .anim-slide-up { animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  .anim-slide-in-right { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
   .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   input, textarea, select { font-family: 'Inter', sans-serif; }
@@ -443,6 +449,22 @@ function compressNoticeImageFile(file) {
   });
 }
 
+/** 찬양 악보: 원본 + 압축본 동시 업로드 (표시용 URL / 원본 URL) */
+async function uploadWorshipSheetDual(file) {
+  const m = /\.([a-z0-9]+)$/i.exec(file.name || '');
+  const ext = m ? '.' + m[1].toLowerCase() : '.jpg';
+  const sheetOrig = await window.FDB.uploadFile(`sheets/orig_${uid()}${ext}`, file) || '';
+  let sheetUrl = '';
+  try {
+    const blob = await compressNoticeImageFile(file);
+    sheetUrl = await window.FDB.uploadFile(`sheets/comp_${uid()}.webp`, blob) || '';
+  } catch (e) {
+    console.warn('uploadWorshipSheetDual compress', e);
+  }
+  if (!sheetUrl && sheetOrig) sheetUrl = sheetOrig;
+  return { sheetUrl, sheetOrig };
+}
+
 // localStorage: 현재 로그인 유저만 유지
 const SESSION = {
   get() { try { return JSON.parse(localStorage.getItem('jmc_session') || 'null'); } catch { return null; } },
@@ -596,9 +618,9 @@ function showConfirm(msg, onYes, yesLabel='삭제', yesClass='bg-red-500 text-wh
     overlay.id = 'confirm-overlay';
     document.body.appendChild(overlay);
   }
-  overlay.className = 'fixed inset-0 z-[300] bg-black/50 flex items-center justify-center px-6 overlay-scroll-lock';
+  overlay.className = 'fixed inset-0 z-[300] bg-black/50 flex items-center justify-center px-6 overlay-scroll-lock anim-fade-in';
   overlay.style.touchAction = 'none';
-  overlay.innerHTML = `<div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl allow-scroll max-h-[min(85vh,520px)] overflow-y-auto overscroll-contain">
+  overlay.innerHTML = `<div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl allow-scroll max-h-[min(85vh,520px)] overflow-y-auto overscroll-contain anim-slide-up">
     <p class="text-base font-bold text-center mb-2">확인</p>
     <p class="text-sm text-zinc-500 text-center leading-relaxed mb-6">${msg}</p>
     <div class="flex gap-3">
@@ -622,8 +644,8 @@ function renderCropModal() {
   // 슬라이더 값: origW 기준 배율 (100~350%)
   const scaleVal = Math.max(100, Math.min(350, Math.round((state._cropModal.w / state._cropModal.origW) * 100)));
   return `
-  <div id="crop-modal" class="fixed inset-0 z-[310] bg-black/75 flex items-center justify-center px-4 overlay-scroll-lock" style="touch-action:none">
-    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl allow-scroll max-h-[min(92vh,720px)] overflow-y-auto overflow-x-hidden overscroll-contain">
+  <div id="crop-modal" class="fixed inset-0 z-[310] bg-black/75 flex items-center justify-center px-4 overlay-scroll-lock anim-fade-in" style="touch-action:none">
+    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl allow-scroll max-h-[min(92vh,720px)] overflow-y-auto overflow-x-hidden overscroll-contain anim-slide-up">
       <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
         <button id="crop-cancel" class="text-sm text-zinc-500 font-medium py-1 px-2">취소</button>
         <p class="text-sm font-bold">프로필 사진 설정</p>
@@ -972,7 +994,7 @@ function renderMain() {
       </div>
     </header>
 
-    <main class="px-5 pt-20 pb-8"><div class="tab-content space-y-4">${content}</div></main>
+    <main class="px-5 pt-20 pb-8"><div class="tab-content space-y-4 anim-fade-in">${content}</div></main>
 
     <!-- Bottom Nav -->
     <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white/90 backdrop-blur-xl border-t border-zinc-100">
@@ -998,8 +1020,8 @@ function renderProfileSheet() {
   const cells = state.cache.cells;
   const cell = cells.find(c => c.id === u.cellId);
   return `
-  <div data-action="close-profile" class="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm modal-overlay overlay-scroll-lock" style="touch-action:none"></div>
-  <div class="fixed bottom-0 left-0 right-0 z-[101] bg-white rounded-t-3xl shadow-2xl modal-sheet overlay-scroll-lock flex flex-col max-h-[90vh]" style="touch-action:none">
+  <div data-action="close-profile" class="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm modal-overlay overlay-scroll-lock anim-fade-in" style="touch-action:none"></div>
+  <div class="fixed bottom-0 left-0 right-0 z-[101] bg-white rounded-t-3xl shadow-2xl modal-sheet overlay-scroll-lock flex flex-col max-h-[90vh] anim-slide-up" style="touch-action:none">
     <div class="flex justify-center pt-3 pb-1 flex-none"><div class="w-10 h-1 bg-zinc-200 rounded-full"></div></div>
     <div class="flex items-center gap-4 px-6 py-5 border-b border-zinc-100 flex-none">
       ${u.profileImg ? `<div class="w-14 h-14 rounded-full bg-zinc-200 flex items-center justify-center border-2 border-black overflow-hidden"><img src="${u.profileImg}" class="w-full h-full object-cover"/></div>` :
@@ -1064,7 +1086,7 @@ function renderHomeTab() {
     <div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
       <div class="bg-black px-5 py-3 flex items-center gap-2">
         ${icon('church','text-white',18)}
-        <span class="text-white text-xs font-bold">${dutyYmw.mo}월 ${dutyYmw.wk}째주 주일 예배</span>
+        <span class="text-white text-xs font-bold">${dutyYmw.mo}월 ${dutyYmw.wk}째주</span>
       </div>
       <div class="divide-y divide-zinc-50">
         ${[
@@ -1259,7 +1281,7 @@ function renderBulletinDetail() {
   const dream = b.dream || {};
 
   return `
-  <div class="min-h-screen bg-zinc-50">
+  <div class="min-h-screen bg-zinc-50 anim-slide-in-right">
     <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">주보</h1>
@@ -1377,7 +1399,7 @@ function renderNoticeDetail() {
   const u = state.user;
   const canDelComment = (c) => u && (c.uid === u.uid || u.role === 'admin');
   return `
-  <div class="min-h-screen bg-zinc-50">
+  <div class="min-h-screen bg-zinc-50 anim-slide-in-right">
     <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">공지사항</h1>
@@ -1483,6 +1505,7 @@ function renderCalendarTab() {
 // WORSHIP DETAIL
 // ============================================================
 function _renderSongRow(s, i) {
+  const dlSrc = esc(s.sheetOrig || s.sheet || '');
   const linkBtn = s.url
     ? '<a href="' + s.url + '" target="_blank" class="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center flex-none">' + icon('play_arrow','text-red-500',20) + '</a>'
     : '';
@@ -1490,7 +1513,7 @@ function _renderSongRow(s, i) {
     ? '<div class="mt-3 rounded-2xl overflow-hidden border border-zinc-100">'
       + '<div class="relative group bg-zinc-50">'
       + '<img src="' + s.sheet + '" class="w-full block" loading="lazy"/>'
-      + '<button data-dl-sheet="' + s.sheet + '" data-dl-title="' + esc(s.title) + '" class="dl-sheet-btn absolute bottom-3 right-3 w-10 h-10 bg-black/70 rounded-full flex items-center justify-center active:bg-black/90">'
+      + '<button data-dl-sheet="' + dlSrc + '" data-dl-title="' + esc(s.title) + '" class="dl-sheet-btn absolute bottom-3 right-3 w-10 h-10 bg-black/70 rounded-full flex items-center justify-center active:bg-black/90">'
       + icon('download','text-white',20)
       + '</button></div></div>'
     : '';
@@ -1509,7 +1532,7 @@ function renderWorshipDetail() {
   if (!w) return '';
   const songRows = w.songs.map((s,i) => _renderSongRow(s,i)).join('');
   return `
-  <div class="min-h-screen bg-white">
+  <div class="min-h-screen bg-white anim-slide-in-right">
     <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">이번주 찬양</h1>
@@ -1521,7 +1544,7 @@ function renderWorshipDetail() {
         <div class="text-xs"><span class="text-zinc-400">인도:</span> <span class="font-bold">${esc(w.leader)}</span></div>
       </div>
       <div>
-        <h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">곡 목록 · 악보</h3>
+        <div class="flex items-center justify-between mb-3"><h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider">곡 목록 · 악보</h3><button data-action="download-all-sheets" class="flex items-center gap-1 px-3 py-1.5 bg-zinc-100 rounded-full text-[10px] font-bold text-zinc-600 active:bg-zinc-200">${icon('download','text-zinc-500',14)} 전체 다운로드</button></div>
         <div class="space-y-2">${songRows}</div>
       </div>
     </div>
@@ -1543,13 +1566,48 @@ function renderCellTab() {
     </div>
   </div>`;
   const questions = latest.questions || [];
+  const pp = (latest.prayerPersonal || '').trim();
+  const pc = (latest.prayerCommunity || '').trim();
+  const legacy = (latest.prayerItems || '').trim();
+  const prayerBlock = (() => {
+    if (pp || pc) {
+      return `
+    <div>
+      ${pp ? `<div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center flex-none shrink-0">${icon('person','text-zinc-800',20)}</div>
+        <div class="min-w-0 flex-1">
+          <p class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">개인 기도제목</p>
+          <p class="text-sm text-zinc-700 leading-relaxed whitespace-pre-line">${esc(pp)}</p>
+        </div>
+      </div>` : ''}
+      ${pc ? `<div class="flex items-start gap-3 ${pp ? 'border-t border-zinc-100 pt-4 mt-4' : ''}">
+        <div class="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center flex-none shrink-0">${icon('groups','text-zinc-800',20)}</div>
+        <div class="min-w-0 flex-1">
+          <p class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">공동체 기도제목</p>
+          <p class="text-sm text-zinc-700 leading-relaxed whitespace-pre-line">${esc(pc)}</p>
+        </div>
+      </div>` : ''}
+    </div>`;
+    }
+    if (legacy) {
+      return `<div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center flex-none shrink-0">${icon('volunteer_activism','text-zinc-800',20)}</div>
+        <div class="min-w-0 flex-1">
+          <p class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">함께 기도</p>
+          <p class="text-sm text-zinc-700 leading-relaxed whitespace-pre-line">${esc(legacy)}</p>
+        </div>
+      </div>`;
+    }
+    return '';
+  })();
+
   return `<div class="space-y-4">
     <div class="pb-3 border-b border-zinc-200/80">
       <h1 class="text-xl font-bold tracking-tight">목장 모임 자료</h1>
       <p class="text-sm text-zinc-400 mt-1">${esc(latest.date)}</p>
     </div>
 
-    <div class="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5 flex flex-col gap-4">
+    <div class="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5">
       <div class="flex items-start gap-4">
         <div class="w-11 h-11 rounded-2xl bg-zinc-100 flex items-center justify-center flex-none shrink-0">${icon('menu_book','text-zinc-800',22)}</div>
         <div class="min-w-0 flex-1 pt-0.5">
@@ -1557,38 +1615,28 @@ function renderCellTab() {
           <p class="text-base font-bold text-zinc-900 leading-snug">${esc(latest.verse || '')}</p>
         </div>
       </div>
-      ${latest.verseText ? `<p class="text-sm text-zinc-600 leading-relaxed pl-[3.75rem] -mt-1">${esc(latest.verseText)}</p>` : ''}
+      ${latest.verseText ? `<div class="mt-4 pt-4 border-t border-zinc-100">
+        <p class="text-sm text-zinc-600 leading-relaxed">${esc(latest.verseText)}</p>
+      </div>` : ''}
     </div>
 
-    ${questions.length ? questions.map((q, qi) => `
-    <div class="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5 flex flex-col gap-4">
-      <div class="flex items-start gap-4">
+    ${questions.length ? `<div class="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5">
+      <div class="flex items-start gap-4 mb-4">
         <div class="w-11 h-11 rounded-2xl bg-zinc-100 flex items-center justify-center flex-none shrink-0">${icon('chat_bubble','text-zinc-800',22)}</div>
-        <div class="min-w-0 flex-1">
-          <p class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">나눔 질문 ${qi + 1}</p>
+        <div class="min-w-0 flex-1 pt-0.5">
+          <p class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">나눔 질문</p>
+        </div>
+      </div>
+      <div class="space-y-0">
+        ${questions.map((q, qi) => `
+        <div class="${qi > 0 ? 'border-t border-zinc-100 pt-4 mt-4' : ''}">
+          <p class="text-[10px] font-bold text-zinc-400 mb-1.5">질문 ${qi + 1}</p>
           <p class="text-[15px] text-zinc-800 leading-relaxed font-medium">${esc(q)}</p>
-        </div>
+        </div>`).join('')}
       </div>
-    </div>`).join('') : ''}
+    </div>` : ''}
 
-    ${(() => {
-      const pp = (latest.prayerPersonal || '').trim();
-      const pc = (latest.prayerCommunity || '').trim();
-      const legacy = (latest.prayerItems || '').trim();
-      const card = (icn, title, body) => `
-    <div class="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5 flex flex-col gap-4">
-      <div class="flex items-start gap-4">
-        <div class="w-11 h-11 rounded-2xl bg-zinc-100 flex items-center justify-center flex-none shrink-0">${icon(icn,'text-zinc-800',22)}</div>
-        <div class="min-w-0 flex-1">
-          <p class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">${esc(title)}</p>
-          <p class="text-sm text-zinc-700 leading-relaxed whitespace-pre-line">${esc(body)}</p>
-        </div>
-      </div>
-    </div>`;
-      if (pp || pc) return (pp ? card('person', '개인 기도제목', pp) : '') + (pc ? card('groups', '공동체 기도제목', pc) : '');
-      if (legacy) return card('volunteer_activism', '함께 기도', legacy);
-      return '';
-    })()}
+    ${prayerBlock ? `<div class="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5">${prayerBlock}</div>` : ''}
   </div>`;
 }
 
@@ -1607,7 +1655,7 @@ function renderProfilePage() {
   </header>`;
 
   if (pg === 'edit') {
-    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col">
+    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col anim-slide-in-right">
       ${header('프로필 수정')}
       <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 pt-20 pb-10 space-y-4">
         <div class="flex flex-col items-center gap-4">
@@ -1651,7 +1699,7 @@ function renderProfilePage() {
       {k:'schedule',l:'새 일정',d:'새 일정 등록 시'},
       {k:'duty',l:'담당자 지정',d:'예배 담당 배정 시'},
     ];
-    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col">
+    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col anim-slide-in-right">
       ${header('알림 설정')}
       <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-6 pt-20 pb-10">
         <div class="bg-white rounded-2xl border border-zinc-100 divide-y divide-zinc-50">
@@ -1671,7 +1719,7 @@ function renderProfilePage() {
   }
 
   if (pg === 'settings') {
-    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col">
+    return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col anim-slide-in-right">
       ${header('설정')}
       <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-6 pt-20 pb-10 space-y-4">
         <!-- 비밀번호 변경 -->
@@ -1747,7 +1795,7 @@ function renderAdmin() {
   }
 
   return `
-  <div class="min-h-screen bg-zinc-50">
+  <div class="min-h-screen bg-zinc-50 anim-slide-in-right">
     <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back-admin" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">${state.adminSub==='dashboard'?'관리자':menu.find(m=>m.k===state.adminSub)?.l||'관리자'}</h1>
@@ -3195,6 +3243,20 @@ function setupDelegation() {
             });
             break;
           case 'go-worship': state.detail = { type: 'worship', id: 'latest' }; render(); break;
+          case 'download-all-sheets': {
+            const worships = state.cache.worshipSets;
+            const w = worships[worships.length - 1];
+            const list = (w && w.songs) ? w.songs.filter(s => s.sheetOrig || s.sheet) : [];
+            if (!list.length) { showToast('다운로드할 악보가 없습니다.'); break; }
+            showToast('악보 전체 다운로드를 시작합니다.');
+            (async () => {
+              for (const s of list) {
+                await new Promise(r => setTimeout(r, 500));
+                await downloadSheet(s.sheetOrig || s.sheet, s.title + '_악보');
+              }
+            })();
+            break;
+          }
           case 'cal-prev': {
             const vm = state._calMonth || { y: new Date().getFullYear(), m: new Date().getMonth() };
             vm.m--; if (vm.m < 0) { vm.m = 11; vm.y--; } state._calMonth = { ...vm }; render(); break;
@@ -3551,7 +3613,7 @@ function setupDelegation() {
             const getSongRows = (songs) => {
               let rows = '';
               for (let i = 0; i < songCount; i++) {
-                rows += worshipSongRowHtml(i, songs[i] || { title: '', url: '', key: 'C', sheet: '' }, KEYS);
+                rows += worshipSongRowHtml(i, songs[i] || { title: '', url: '', key: 'C', sheet: '', sheetOrig: '' }, KEYS);
               }
               return rows;
             };
@@ -3574,7 +3636,7 @@ function setupDelegation() {
             document.getElementById('add-song-row')?.addEventListener('click', () => {
               songCount++;
               const idx = songCount - 1;
-              const s = ws.songs[idx] || { title: '', url: '', key: 'C', sheet: '' };
+              const s = ws.songs[idx] || { title: '', url: '', key: 'C', sheet: '', sheetOrig: '' };
               document.getElementById('song-rows').insertAdjacentHTML('beforeend', worshipSongRowHtml(idx, s, KEYS));
               bindWsSheet(idx);
             });
@@ -3582,7 +3644,7 @@ function setupDelegation() {
               showLoading('저장 중...');
               try {
                 const g = id => document.getElementById(id)?.value||''; const songs = [];
-                for (let i=0;i<songCount;i++) { const t=g('ws-title-'+i); if(!t) continue; const existing=ws.songs[i]||{}; const fileEl=document.getElementById('ws-sheet-'+i); const file=fileEl?.files[0]; let sheetUrl=existing.sheet||''; if(file){sheetUrl=await window.FDB.uploadFile(`sheets/${uid()}`,file)||sheetUrl;} songs.push({title:t,url:g('ws-url-'+i),key:g('ws-key-'+i)||'C',sheet:sheetUrl}); }
+                for (let i=0;i<songCount;i++) { const t=g('ws-title-'+i); if(!t) continue; const existing=ws.songs[i]||{}; const fileEl=document.getElementById('ws-sheet-'+i); const file=fileEl?.files[0]; let sheetUrl=existing.sheet||''; let sheetOrig=existing.sheetOrig||''; if(file){const up=await uploadWorshipSheetDual(file); sheetUrl=up.sheetUrl||existing.sheet||''; sheetOrig=up.sheetOrig||existing.sheetOrig||'';} songs.push({title:t,url:g('ws-url-'+i),key:g('ws-key-'+i)||'C',sheet:sheetUrl,sheetOrig}); }
                 const wfYr=+document.getElementById('wfd-yr')?.value||new Date().getFullYear(); const wfMo=+document.getElementById('wfd-mo')?.value||1; const wfWk=+document.getElementById('wfd-wk')?.value||1;
                 const hasNewSheet=songs.some((_,i)=>document.getElementById('ws-sheet-'+i)?.files[0]);
                 const updated={...ws,date:ymwToDate(wfYr,wfMo,wfWk),leader:g('wf-leader'),songs,storedAt:hasNewSheet?today():(ws.storedAt||today())};
@@ -3804,7 +3866,7 @@ function setupDelegation() {
             const getSongRows = () => {
               let rows = '';
               for (let i = 0; i < songCount; i++) {
-                rows += worshipSongRowHtml(i, { title: '', url: '', key: 'C', sheet: '' }, KEYS);
+                rows += worshipSongRowHtml(i, { title: '', url: '', key: 'C', sheet: '', sheetOrig: '' }, KEYS);
               }
               return rows;
             };
@@ -3825,7 +3887,7 @@ function setupDelegation() {
             document.getElementById('add-song-row')?.addEventListener('click',()=>{
               songCount++;
               const idx = songCount - 1;
-              document.getElementById('song-rows')?.insertAdjacentHTML('beforeend', worshipSongRowHtml(idx, { title: '', url: '', key: 'C', sheet: '' }, KEYS));
+              document.getElementById('song-rows')?.insertAdjacentHTML('beforeend', worshipSongRowHtml(idx, { title: '', url: '', key: 'C', sheet: '', sheetOrig: '' }, KEYS));
               bindWsSheet(idx);
             });
             document.getElementById('save-worship')?.addEventListener('click', async () => {
@@ -3833,7 +3895,7 @@ function setupDelegation() {
               try {
                 const g=id=>document.getElementById(id)?.value||''; const wfYr=+document.getElementById('wfd-yr')?.value||new Date().getFullYear(); const wfMo=+document.getElementById('wfd-mo')?.value||1; const wfWk=+document.getElementById('wfd-wk')?.value||1;
                 const date=ymwToDate(wfYr,wfMo,wfWk); const songs=[];
-                for(let i=0;i<songCount;i++){const title=g('ws-title-'+i);if(!title) continue;const fileEl=document.getElementById('ws-sheet-'+i);const file=fileEl?.files[0];let sheetUrl='';if(file){sheetUrl=await window.FDB.uploadFile(`sheets/${uid()}`,file);}songs.push({title,url:g('ws-url-'+i),key:g('ws-key-'+i)||'C',sheet:sheetUrl||''});}
+                for(let i=0;i<songCount;i++){const title=g('ws-title-'+i);if(!title) continue;const fileEl=document.getElementById('ws-sheet-'+i);const file=fileEl?.files[0];let sheetUrl='';let sheetOrig='';if(file){const up=await uploadWorshipSheetDual(file);sheetUrl=up.sheetUrl||'';sheetOrig=up.sheetOrig||'';}songs.push({title,url:g('ws-url-'+i),key:g('ws-key-'+i)||'C',sheet:sheetUrl,sheetOrig});}
                 const wid=uid(); const ws={id:wid,date,leader:g('wf-leader'),songs,by:state.user.uid,at:today(),storedAt:today()};
                 await window.FDB.setDocFull('worshipSets',wid,ws); state.cache.worshipSets.push(ws);
                 state.isEditing = false;
