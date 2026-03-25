@@ -1288,6 +1288,17 @@ function renderProfileSheet() {
   </div>`;
 }
 
+/** 공지 목록 행 — 왼쪽 썸네일(첫 이미지 없으면 로고) */
+function noticeRowThumbHtml(n) {
+  const url = (n.images && n.images[0]) || '';
+  const src = url ? esc(url) : 'asset/logo.png';
+  const imgClass = url ? 'w-full h-full object-cover' : 'w-full h-full object-contain p-2.5';
+  const ring = n.pinned ? ' ring-2 ring-zinc-900 ring-offset-2 ring-offset-white' : '';
+  return '<div class="flex-none w-14 h-14 rounded-xl overflow-hidden border border-zinc-100 bg-zinc-50 shrink-0' + ring + '">'
+    + '<img src="' + src + '" alt="" class="' + imgClass + '" onerror="this.onerror=null;this.src=\'asset/logo.png\';this.className=\'w-full h-full object-contain p-2.5\';"/>'
+    + '</div>';
+}
+
 // ============================================================
 // HOME TAB
 // ============================================================
@@ -1375,24 +1386,14 @@ function renderHomeTab() {
       <button data-tab="notice" class="text-zinc-400 text-xs font-bold">전체보기</button>
     </div>
     <div class="space-y-3">
-      ${notices.slice(0,3).map(n => {
-        const thumb = (n.images && n.images[0]) ? n.images[0] : '';
-        return `
-        <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
-          <div class="w-8 h-8 ${n.pinned?'bg-black':'bg-zinc-100'} rounded-lg flex items-center justify-center flex-none">
-            ${icon(n.pinned?'priority_high':'info','',16,false)}
+      ${notices.slice(0,3).map(n => `
+        <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
+          ${noticeRowThumbHtml(n)}
+          <div class="flex-1 min-w-0 py-0.5">
+            <p class="text-base font-extrabold leading-snug text-zinc-900 tracking-tight line-clamp-2">${esc(n.title)}</p>
+            <p class="text-[11px] text-zinc-400 mt-1.5 font-medium">${esc((n.at || '').slice(5))}</p>
           </div>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-bold leading-tight">${esc(n.title)}</p>
-            <p class="text-[10px] text-zinc-300 mt-1">${esc((n.at || '').slice(5))}</p>
-          </div>
-          ${thumb
-            ? `<div class="flex-none w-14 h-14 rounded-xl overflow-hidden border border-zinc-100 bg-zinc-50">
-                <img src="${esc(thumb)}" alt="" class="w-full h-full object-cover"/>
-              </div>`
-            : ''}
-        </button>`;
-      }).join('')}
+        </button>`).join('')}
     </div>
   </section>
   <section class="pb-8">
@@ -1593,24 +1594,14 @@ function renderNoticeTab() {
   <section>
     <h2 class="text-xl font-bold tracking-tight mb-6">공지사항</h2>
     <div class="space-y-3">
-      ${notices.map(n => {
-        const thumb = (n.images && n.images[0]) ? n.images[0] : '';
-        return `
-        <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
-          <div class="w-8 h-8 ${n.pinned?'bg-black':'bg-zinc-100'} rounded-lg flex items-center justify-center flex-none">
-            ${icon(n.pinned?'priority_high':'info','',16,false)}
+      ${notices.map(n => `
+        <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
+          ${noticeRowThumbHtml(n)}
+          <div class="flex-1 min-w-0 py-0.5">
+            <p class="text-base font-extrabold leading-snug text-zinc-900 tracking-tight line-clamp-2">${esc(n.title)}</p>
+            <p class="text-[11px] text-zinc-400 mt-1.5 font-medium">${esc((n.at || '').slice(5))}</p>
           </div>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-bold leading-tight line-clamp-2">${esc(n.title)}</p>
-            <p class="text-[10px] text-zinc-300 mt-1">${esc((n.at || '').slice(5))}</p>
-          </div>
-          ${thumb
-            ? `<div class="flex-none w-14 h-14 rounded-xl overflow-hidden border border-zinc-100 bg-zinc-50 shrink-0">
-                <img src="${esc(thumb)}" alt="" class="w-full h-full object-cover"/>
-              </div>`
-            : ''}
-        </button>`;
-      }).join('')}
+        </button>`).join('')}
     </div>
   </section>`;
 }
@@ -1625,12 +1616,12 @@ function renderNoticeDetail() {
   const u = state.user;
   const canDelComment = (c) => u && (c.uid === u.uid || u.role === 'admin');
   return `
-  <div class="min-h-screen bg-zinc-50 anim-subtle-left">
+  <div class="min-h-screen bg-zinc-50">
     <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">공지사항</h1>
     </header>
-    <div class="p-5 pt-20 space-y-4">
+    <div class="anim-subtle-left p-5 pt-20 space-y-4">
       <div class="bg-white rounded-2xl p-6 border border-zinc-100">
         ${n.pinned?'<span class="text-[10px] font-bold bg-red-50 text-red-500 px-2 py-1 rounded mb-3 inline-block">📌 중요 공지</span>':''}
         <h2 class="text-lg font-bold leading-snug mb-2">${esc(n.title)}</h2>
