@@ -590,6 +590,19 @@ async function ensureLinkedRosterForActiveUser() {
   const u = state.user;
   if (!u || u.status !== 'active') return;
   if (state.cache.rosters.some(r => r.linkedUid === u.uid)) return;
+
+  let existing;
+  try {
+    existing = await window.FDB.getCol('rosters');
+  } catch (e) {
+    console.warn('ensureLinkedRosterForActiveUser getCol', e);
+    return;
+  }
+  if (!Array.isArray(existing)) return;
+
+  state.cache.rosters = existing.sort((a, b) => koSort(a.name, b.name));
+  if (state.cache.rosters.some(r => r.linkedUid === u.uid)) return;
+
   const rid = uid();
   const roster = {
     id: rid,
