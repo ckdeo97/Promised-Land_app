@@ -851,11 +851,23 @@ function renderCropModal() {
 // ============================================================
 // LOGO
 // ============================================================
-// YouTube 썸네일 추출
+/** 유튜브 URL에서 비디오 ID(11자)만 추출. 없거나 형식 불일치 시 null */
+function getYoutubeVideoId(url) {
+  if (url == null || typeof url !== 'string') return null;
+  const u = url.trim();
+  if (!u) return null;
+  let m = u.match(/youtu\.be\/([\w-]{11})(?=[?#&/]|$)/i);
+  if (m) return m[1];
+  m = u.match(/[?&]v=([\w-]{11})(?=[&#]|$)/i);
+  if (m) return m[1];
+  m = u.match(/youtube\.com\/(?:embed\/|shorts\/|v\/)([\w-]{11})(?=[?#&/]|$)/i);
+  if (m) return m[1];
+  return null;
+}
+// YouTube 썸네일 URL
 function getYtThumb(url) {
-  if (!url) return null;
-  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
-  return m ? `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg` : null;
+  const id = getYoutubeVideoId(url);
+  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null;
 }
 
 function logoImg(cls='w-10 h-10') {
@@ -1775,6 +1787,7 @@ function renderWorshipDetail() {
         <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">세트 정보</p>
         <p class="text-sm font-bold mb-1">${w.date}</p>
         <div class="text-xs"><span class="text-zinc-400">인도:</span> <span class="font-bold">${esc(w.leader)}</span></div>
+        <button type="button" data-action="play-all-songs" class="w-full mt-2 py-3 bg-red-600 text-white rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:bg-red-700">${icon('play_circle','text-white',20)} 전체 곡 연속 재생</button>
       </div>
       <div>
         <div class="flex items-center justify-between mb-3"><h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider">곡 목록 · 악보</h3><button data-action="download-all-sheets" class="flex items-center gap-1 px-3 py-1.5 bg-zinc-100 rounded-full text-[10px] font-bold text-zinc-600 active:bg-zinc-200">${icon('download','text-zinc-500',14)} 전체 악보 다운로드</button></div>
@@ -3510,6 +3523,36 @@ function setupDelegation() {
             });
             break;
           case 'go-worship': state.detail = { type: 'worship', id: 'latest' }; render(); break;
+          case 'play-all-songs': {
+            const worships = state.cache.worshipSets;
+            const set = worships[worships.length - 1];
+            if (!set || !Array.isArray(set.songs)) {
+              showToast('재생할 찬양이 없습니다.');
+              break;
+            }
+            const ids = [];
+            const seen = new Set();
+            for (const song of set.songs) {
+              const raw = song.url;
+              if (raw == null || typeof raw !== 'string') continue;
+              const trimmed = raw.trim();
+              if (!trimmed) continue;
+              const vid = getYoutubeVideoId(trimmed);
+              if (vid && !seen.has(vid)) {
+                seen.add(vid);
+                ids.push(vid);
+              }
+            }
+            if (!ids.length) {
+              showToast('유튜브 링크가 있는 곡이 없습니다.');
+              break;
+            }
+            const combinedIds = ids.join(',');
+            const openUrl = 'https://www.youtube.com/watch_videos?video_ids=' + combinedIds;
+            const win = window.open(openUrl, '_blank', 'noopener,noreferrer');
+            if (!win) showToast('팝업이 차단되었습니다. 팝업을 허용해 주세요.');
+            break;
+          }
           case 'download-all-sheets': {
             const worships = state.cache.worshipSets;
             const w = worships[worships.length - 1];
