@@ -21,9 +21,9 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, refFromURL, getBlob } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, getBlob } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword as fbUpdatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword as fbUpdatePassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCsc6xD7mTAnSwPbz7iSGB9NjniFub97wY",
@@ -155,7 +155,7 @@
     async getSheetBlobFromUrl(url) {
       if (!url || typeof url !== 'string') return null;
       try {
-        const sref = refFromURL(storage, url);
+        const sref = ref(storage, url);
         const blob = await getBlob(sref);
         return blob && blob.size > 0 ? blob : null;
       } catch (e) {
@@ -236,8 +236,6 @@
   // ============================================================
   // Firebase Auth 상태 변화 감지 → 세션을 Firebase가 직접 관리
   // (IndexedDB 기반이라 캐시 삭제에 영향받지 않음)
-  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
   onAuthStateChanged(auth, async (firebaseUser) => {
     if (!window._authListenerReady) {
       window._authListenerReady = true;
@@ -662,7 +660,7 @@ function listenCol(colName, onData) {
 
 /** Firestore에 유저 없음·비활성 등 — Auth만 남은 유령 세션 차단 */
 function forceLogoutInvalidSession() {
-  window.FB_signOut().catch(()=>{});
+  try { window.FB_signOut?.().catch(() => {}); } catch (e) {}
   SESSION.clear();
   state.user = null;
   state.page = 'login';
@@ -672,6 +670,10 @@ function forceLogoutInvalidSession() {
 }
 
 async function loadAll() {
+  if (!window.FDB || typeof window.FDB.getCol !== 'function') {
+    console.error('loadAll: Firebase 모듈(FDB)이 로드되지 않았습니다.');
+    return;
+  }
   stopListeners();
 
   try {
@@ -4331,65 +4333,96 @@ function setupSwipeBack() {
 // ============================================================
 let _gesturesSetup = false;
 async function initApp(firebaseUser) {
-  // 제스처·이벤트위임 리스너: 앱 생애주기 동안 딱 1회만 등록
-  if (!_gesturesSetup) {
-    document.addEventListener('touchmove', e => {
-      if (document.body.classList.contains('no-scroll') && !e.target.closest('.allow-scroll')) {
-        e.preventDefault();
-      }
-    }, { passive: false });
-    setupDelegation();
-    setupEditDirtyTracking();
-    setupPTR();
-    setupSwipeBack();
-    _gesturesSetup = true;
-  }
-  // Firebase Auth가 로그인된 유저를 알고 있으면 → 세션 복원
-  // (localStorage가 날아가도 Firebase Auth IndexedDB는 살아있음)
-  const session = SESSION.get();
-  const hasAuth = !!firebaseUser;
-  const hasSession = !!(session && session.uid);
-
-  if (hasAuth || hasSession) {
-    // 로컬 캐시로 즉시 렌더링 (Firebase 로드 전)
-    if (hasSession) {
-      state.user = session;
-      try {
-        const lc = localStorage.getItem('jmc_cache');
-        if (lc) {
-          const parsed = JSON.parse(lc);
-          if (parsed.users) state.cache.users = parsed.users;
-          if (parsed.cells) state.cache.cells = parsed.cells;
-          if (parsed.rosters) state.cache.rosters = parsed.rosters;
-          if (parsed.bulletins) state.cache.bulletins = parsed.bulletins;
-          if (parsed.notices) state.cache.notices = parsed.notices;
-          state.page = 'main';
-          render(); // 캐시 데이터로 즉시 표시
+  try {
+    // 제스처·이벤트위임 리스너: 앱 생애주기 동안 딱 1회만 등록
+    if (!_gesturesSetup) {
+      document.addEventListener('touchmove', e => {
+        if (document.body.classList.contains('no-scroll') && !e.target.closest('.allow-scroll')) {
+          e.preventDefault();
         }
-      } catch(e) {}
+      }, { passive: false });
+      setupDelegation();
+      setupEditDirtyTracking();
+      setupPTR();
+      setupSwipeBack();
+      _gesturesSetup = true;
     }
+    // Firebase Auth가 로그인된 유저를 알고 있으면 → 세션 복원
+    // (localStorage가 날아가도 Firebase Auth IndexedDB는 살아있음)
+    const session = SESSION.get();
+    const hasAuth = !!firebaseUser;
+    const hasSession = !!(session && session.uid);
 
-    await loadAll();
-
-    const lookupUid = firebaseUser?.uid || session?.uid;
-    const freshUser = lookupUid ? state.cache.users.find(u => u.uid === lookupUid) : null;
-
-    if (freshUser && freshUser.status === 'active') {
-      state.user = freshUser;
-      SESSION.set(freshUser);
+    if (hasAuth || hasSession) {
+      if (hasSession) {
+        state.user = session;
+        try {
+          const lc = localStorage.getItem('jmc_cache');
+          if (lc) {
+            const parsed = JSON.parse(lc);
+            if (parsed.users) state.cache.users = parsed.users;
+            if (parsed.cells) state.cache.cells = parsed.cells;
+            if (parsed.rosters) state.cache.rosters = parsed.rosters;
+            if (parsed.bulletins) state.cache.bulletins = parsed.bulletins;
+            if (parsed.notices) state.cache.notices = parsed.notices;
+          }
+        } catch (e) {}
+      } else if (firebaseUser) {
+        const em = firebaseUser.email || '';
+        state.user = {
+          uid: firebaseUser.uid,
+          name: firebaseUser.displayName || (em ? em.split('@')[0] : '회원'),
+          role: 'member',
+          status: 'active',
+          cellId: '',
+          phone: '',
+          birth: '',
+          profileImg: '',
+        };
+      }
+      // jmc_cache 없거나 Firestore 지연 시에도 로딩 스피너에 갇히지 않도록 메인 껍데기 즉시 표시
       state.page = 'main';
-      await ensureLinkedRosterForActiveUser();
+      render();
+
+      await loadAll();
+
+      const lookupUid = firebaseUser?.uid || session?.uid;
+      const freshUser = lookupUid ? state.cache.users.find(u => u.uid === lookupUid) : null;
+
+      if (freshUser && freshUser.status === 'active') {
+        state.user = freshUser;
+        SESSION.set(freshUser);
+        state.page = 'main';
+        await ensureLinkedRosterForActiveUser();
+      } else {
+        forceLogoutInvalidSession();
+      }
     } else {
-      forceLogoutInvalidSession();
+      state.page = 'login';
     }
-  } else {
+    render();
+  } catch (e) {
+    console.error('initApp', e);
+    state.user = null;
     state.page = 'login';
+    render();
   }
-  render();
 }
 
 window._appInit = initApp;
 if (window._fbReady) initApp();
+
+// Firebase 모듈 실패·init 미호출 등으로 로딩에 멈춘 경우 최후 수단
+setTimeout(() => {
+  try {
+    if (state.page === 'loading') {
+      console.warn('부트 타임아웃: 로그인 화면으로 전환합니다.');
+      state.user = null;
+      state.page = 'login';
+      render();
+    }
+  } catch (e) {}
+}, 12000);
 </script>
 </body>
 </html>
