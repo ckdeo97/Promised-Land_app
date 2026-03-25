@@ -256,7 +256,17 @@ tailwind.config = {
   body { font-family: 'Inter', sans-serif; overscroll-behavior: none; background: #f4f4f5; }
   html { background: #f4f4f5; }
   #app { background: #f4f4f5; min-height: 100vh; }
-  body.no-scroll { overflow: hidden; position: fixed; width: 100%; height: 100%; }
+  body.no-scroll {
+    overflow: hidden !important;
+    touch-action: none;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+  }
+  .overlay-scroll-lock {
+    touch-action: none;
+    overscroll-behavior: none;
+  }
   .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
   .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
   ::-webkit-scrollbar { display: none; }
@@ -566,6 +576,30 @@ async function loadAll() {
   });
 }
 
+/** active 유저인데 linkedUid 명부가 없을 때(수동 승인 누락 등) 자동 명부 행 생성 */
+async function ensureLinkedRosterForActiveUser() {
+  const u = state.user;
+  if (!u || u.status !== 'active') return;
+  if (state.cache.rosters.some(r => r.linkedUid === u.uid)) return;
+  const rid = uid();
+  const roster = {
+    id: rid,
+    name: u.name || '',
+    phone: u.phone || '',
+    birth: u.birth || '',
+    cellId: u.cellId || '',
+    linkedUid: u.uid,
+    joined: true
+  };
+  try {
+    await window.FDB.setDoc('rosters', rid, roster);
+    state.cache.rosters.push(roster);
+    state.cache.rosters.sort((a, b) => koSort(a.name, b.name));
+  } catch (e) {
+    console.warn('ensureLinkedRosterForActiveUser', e);
+  }
+}
+
 // ============================================================
 // CONFIRM MODAL
 // ============================================================
@@ -577,7 +611,7 @@ function showConfirm(msg, onYes, yesLabel='삭제', yesClass='bg-red-500 text-wh
     overlay.id = 'confirm-overlay';
     document.body.appendChild(overlay);
   }
-  overlay.className = 'fixed inset-0 z-[300] bg-black/50 flex items-center justify-center px-6';
+  overlay.className = 'fixed inset-0 z-[300] bg-black/50 flex items-center justify-center px-6 overlay-scroll-lock';
   overlay.innerHTML = `<div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
     <p class="text-base font-bold text-center mb-2">확인</p>
     <p class="text-sm text-zinc-500 text-center leading-relaxed mb-6">${msg}</p>
@@ -602,7 +636,7 @@ function renderCropModal() {
   // 슬라이더 값: origW 기준 배율 (100~350%)
   const scaleVal = Math.max(100, Math.min(350, Math.round((state._cropModal.w / state._cropModal.origW) * 100)));
   return `
-  <div id="crop-modal" class="fixed inset-0 z-[310] bg-black/75 flex items-center justify-center px-4">
+  <div id="crop-modal" class="fixed inset-0 z-[310] bg-black/75 flex items-center justify-center px-4 overlay-scroll-lock">
     <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden">
       <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
         <button id="crop-cancel" class="text-sm text-zinc-500 font-medium py-1 px-2">취소</button>
@@ -752,13 +786,14 @@ function showLoading(msg) {
   if (!el) {
     el = document.createElement('div');
     el.id = '_global-loading';
-    el.className = 'fixed inset-0 z-[600] bg-black/55 flex items-center justify-center px-8';
+    el.className = 'fixed inset-0 z-[600] bg-black/55 flex items-center justify-center px-8 overlay-scroll-lock';
     el.innerHTML = `<div class="flex flex-col items-center gap-4 max-w-xs text-center">
       <div class="w-11 h-11 border-[3px] border-white border-t-transparent rounded-full animate-spin"></div>
       <p class="_gl-msg text-white text-sm font-bold leading-snug"></p>
     </div>`;
     document.body.appendChild(el);
   }
+  el.classList.add('overlay-scroll-lock');
   const m = el.querySelector('._gl-msg');
   if (m) m.textContent = msg || '잠시만 기다려주세요…';
   el.style.display = 'flex';
@@ -899,7 +934,7 @@ function renderMain() {
   return `
   <div class="min-h-screen pb-36" style="background:#f4f4f5">
     <!-- Header -->
-    <header class="sticky top-0 z-50 px-5 pt-3 pb-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100">
+    <header class="fixed top-0 left-0 right-0 z-50 px-5 pt-3 pb-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100">
       <div class="flex justify-between items-center">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl overflow-hidden bg-black flex items-center justify-center">
@@ -918,7 +953,7 @@ function renderMain() {
       </div>
     </header>
 
-    <main class="px-5 mt-3 pb-8"><div class="tab-content space-y-4">${content}</div></main>
+    <main class="px-5 pt-20 pb-8"><div class="tab-content space-y-4">${content}</div></main>
 
     <!-- Bottom Nav -->
     <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white/90 backdrop-blur-xl border-t border-zinc-100">
@@ -944,8 +979,8 @@ function renderProfileSheet() {
   const cells = state.cache.cells;
   const cell = cells.find(c => c.id === u.cellId);
   return `
-  <div data-action="close-profile" class="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm modal-overlay"></div>
-  <div class="fixed bottom-0 left-0 right-0 z-[101] bg-white rounded-t-3xl shadow-2xl modal-sheet">
+  <div data-action="close-profile" class="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm modal-overlay overlay-scroll-lock"></div>
+  <div class="fixed bottom-0 left-0 right-0 z-[101] bg-white rounded-t-3xl shadow-2xl modal-sheet overlay-scroll-lock">
     <div class="flex justify-center pt-3 pb-1"><div class="w-10 h-1 bg-zinc-200 rounded-full"></div></div>
     <div class="flex items-center gap-4 px-6 py-5 border-b border-zinc-100">
       ${u.profileImg ? `<div class="w-14 h-14 rounded-full bg-zinc-200 flex items-center justify-center border-2 border-black overflow-hidden"><img src="${u.profileImg}" class="w-full h-full object-cover"/></div>` :
@@ -1210,11 +1245,11 @@ function renderBulletinDetail() {
 
   return `
   <div class="min-h-screen bg-zinc-50">
-    <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
+    <header class="fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">주보</h1>
     </header>
-    <div class="p-5 space-y-4 pb-12">
+    <div class="p-5 pt-20 space-y-4 pb-12">
 
       <!-- 헤더 -->
       <div class="bg-black text-white rounded-3xl p-8 text-center relative overflow-hidden dot-pattern">
@@ -1322,11 +1357,11 @@ function renderNoticeDetail() {
   const canDelComment = (c) => u && (c.uid === u.uid || u.role === 'admin');
   return `
   <div class="min-h-screen bg-zinc-50">
-    <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
+    <header class="fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">공지사항</h1>
     </header>
-    <div class="p-5 space-y-4">
+    <div class="p-5 pt-20 space-y-4">
       <div class="bg-white rounded-2xl p-6 border border-zinc-100">
         ${n.pinned?'<span class="text-[10px] font-bold bg-red-50 text-red-500 px-2 py-1 rounded mb-3 inline-block">📌 중요 공지</span>':''}
         <h2 class="text-lg font-bold leading-snug mb-2">${esc(n.title)}</h2>
@@ -1424,50 +1459,44 @@ function _renderSongRow(s, i) {
   const linkBtn = s.url
     ? '<a href="' + s.url + '" target="_blank" class="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center flex-none">' + icon('play_arrow','text-red-500',20) + '</a>'
     : '';
-  return '<div class="bg-white rounded-2xl border border-zinc-100 p-4 flex items-center gap-3">'
+  const sheetBlock = s.sheet
+    ? '<div class="mt-3 rounded-2xl overflow-hidden border border-zinc-100">'
+      + '<div class="relative group bg-zinc-50">'
+      + '<img src="' + s.sheet + '" class="w-full block" loading="lazy"/>'
+      + '<button data-dl-sheet="' + s.sheet + '" data-dl-title="' + esc(s.title) + '" class="dl-sheet-btn absolute bottom-3 right-3 w-10 h-10 bg-black/70 rounded-full flex items-center justify-center active:bg-black/90">'
+      + icon('download','text-white',20)
+      + '</button></div></div>'
+    : '';
+  return '<div class="bg-white rounded-2xl border border-zinc-100 p-4">'
+    + '<div class="flex items-center gap-3">'
     + '<div class="w-9 h-9 bg-black rounded-xl flex items-center justify-center flex-none"><span class="text-white font-bold text-sm">' + (i+1) + '</span></div>'
     + '<div class="flex-1 min-w-0"><p class="font-bold text-sm">' + esc(s.title) + '</p><p class="text-xs text-zinc-400">Key: ' + esc(s.key) + '</p></div>'
     + linkBtn
+    + '</div>'
+    + sheetBlock
     + '</div>';
-}
-function _renderSheetCard(s) {
-  const parts = [];
-  parts.push('<div class="rounded-2xl overflow-hidden border border-zinc-100">');
-  parts.push('<div class="px-4 py-2.5 bg-zinc-50 border-b border-zinc-100">');
-  parts.push('<p class="text-xs font-bold">' + esc(s.title) + ' <span class="text-zinc-400 font-normal">· Key ' + esc(s.key) + '</span></p></div>');
-  parts.push('<div class="relative group bg-zinc-50">');
-  parts.push('<img src="' + s.sheet + '" class="w-full block" loading="lazy"/>');
-  parts.push('<button data-dl-sheet="' + s.sheet + '" data-dl-title="' + esc(s.title) + '" class="dl-sheet-btn absolute bottom-3 right-3 w-10 h-10 bg-black/70 rounded-full flex items-center justify-center active:bg-black/90">');
-  parts.push(icon('download','text-white',20));
-  parts.push('</button></div></div>');
-  return parts.join('');
 }
 function renderWorshipDetail() {
   const worships = state.cache.worshipSets;
   const w = worships[worships.length - 1];
   if (!w) return '';
-  const songsWithSheet = w.songs.filter(s => s.sheet);
   const songRows = w.songs.map((s,i) => _renderSongRow(s,i)).join('');
-  const sheetSection = songsWithSheet.length
-    ? '<div><h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">악보</h3><div class="space-y-4">' + songsWithSheet.map(_renderSheetCard).join('') + '</div></div>'
-    : '';
   return `
   <div class="min-h-screen bg-white">
-    <header class="sticky top-0 z-50 px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
+    <header class="fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">이번주 찬양</h1>
     </header>
-    <div class="p-5 space-y-6 pb-12">
+    <div class="p-5 pt-20 space-y-6 pb-12">
       <div class="bg-zinc-50 rounded-2xl p-4">
         <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">세트 정보</p>
         <p class="text-sm font-bold mb-1">${w.date}</p>
         <div class="text-xs"><span class="text-zinc-400">인도:</span> <span class="font-bold">${esc(w.leader)}</span></div>
       </div>
       <div>
-        <h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">곡 목록</h3>
+        <h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">곡 목록 · 악보</h3>
         <div class="space-y-2">${songRows}</div>
       </div>
-      ${sheetSection}
     </div>
   </div>`;
 }
@@ -1515,15 +1544,15 @@ function renderProfilePage() {
   const pg = state.profilePage;
   const noti = u._noti || {worship:true,notice:true,verse:true,schedule:true,duty:true};
 
-  const header = (title) => `<div class="sticky top-0 bg-white border-b border-zinc-100 px-5 py-4 flex items-center gap-3 z-10">
+  const header = (title) => `<header class="fixed top-0 left-0 right-0 z-50 bg-white border-b border-zinc-100 px-5 py-4 flex items-center gap-3">
     <button data-action="close-profile-page" class="w-9 h-9 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
     <h1 class="font-bold text-base">${title}</h1>
-  </div>`;
+  </header>`;
 
   if (pg === 'edit') {
     return `<div class="min-h-screen bg-zinc-50">
       ${header('프로필 수정')}
-      <div class="px-5 py-4 space-y-4">
+      <div class="px-5 py-4 pt-20 space-y-4">
         <div class="flex flex-col items-center gap-4">
           <div class="relative">
             <div class="w-24 h-24 rounded-full bg-zinc-200 border-2 border-black overflow-hidden">
@@ -1572,7 +1601,7 @@ function renderProfilePage() {
     ];
     return `<div class="min-h-screen bg-zinc-50">
       ${header('알림 설정')}
-      <div class="px-5 py-6">
+      <div class="px-5 py-6 pt-20">
         <div class="bg-white rounded-2xl border border-zinc-100 divide-y divide-zinc-50">
           ${items.map(it=>`
           <div class="flex items-center justify-between px-5 py-4">
@@ -1590,10 +1619,9 @@ function renderProfilePage() {
   }
 
   if (pg === 'settings') {
-    const canChangeId = !u.idChangedAt;
     return `<div class="min-h-screen bg-zinc-50">
       ${header('설정')}
-      <div class="px-5 py-6 space-y-4">
+      <div class="px-5 py-6 pt-20 space-y-4">
         <!-- 비밀번호 변경 -->
         <div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
           <button id="toggle-pw-section" class="w-full flex items-center justify-between px-5 py-4">
@@ -1606,25 +1634,6 @@ function renderProfilePage() {
             <input id="pw-confirm" type="password" placeholder="새 비밀번호 확인" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
             <button id="save-pw" class="w-full py-3 bg-black text-white rounded-xl text-sm font-bold">변경</button>
           </div>
-        </div>
-        <!-- 아이디 변경 (1회 가능) -->
-        <div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
-          <button id="toggle-id-section" class="w-full flex items-center justify-between px-5 py-4">
-            <div class="flex items-center gap-3">
-              ${icon('badge','',20)}
-              <div class="text-left">
-                <span class="text-sm font-bold">아이디 변경</span>
-                ${!canChangeId?`<p class="text-[10px] text-zinc-400">이미 변경하셨습니다 (1회 제한)</p>`:`<p class="text-[10px] text-zinc-400">1회만 변경 가능합니다</p>`}
-              </div>
-            </div>
-            ${canChangeId ? icon('expand_more','text-zinc-400',20) : icon('lock','text-zinc-300',18)}
-          </button>
-          ${canChangeId ? `<div id="id-section" class="hidden border-t border-zinc-100 px-5 py-4 space-y-3">
-            <p class="text-xs text-zinc-500 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">아이디는 1회만 변경 가능하며, 변경 후 이전 아이디로 로그인할 수 없습니다.</p>
-            <input id="id-pw-verify" type="password" placeholder="현재 비밀번호 확인" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-            <input id="id-new" placeholder="새 아이디" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black"/>
-            <button id="save-id" class="w-full py-3 bg-black text-white rounded-xl text-sm font-bold">변경</button>
-          </div>` : ''}
         </div>
         <!-- 앱 버전 -->
         <div class="bg-white rounded-2xl border border-zinc-100 divide-y divide-zinc-50">
@@ -1687,11 +1696,11 @@ function renderAdmin() {
 
   return `
   <div class="min-h-screen bg-zinc-50">
-    <header class="sticky top-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
+    <header class="fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back-admin" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">${state.adminSub==='dashboard'?'관리자':menu.find(m=>m.k===state.adminSub)?.l||'관리자'}</h1>
     </header>
-    <div class="p-5">${content}</div>
+    <div class="p-5 pt-20">${content}</div>
   </div>`;
 }
 
@@ -2172,7 +2181,7 @@ function openCellSettings() {
   let overlay = document.getElementById('cell-settings-overlay');
   if (!overlay) { overlay = document.createElement('div'); overlay.id='cell-settings-overlay'; document.body.appendChild(overlay); }
   const renderContent = () => {
-    overlay.className = 'fixed inset-0 z-[500] bg-black/50 flex items-end justify-center';
+    overlay.className = 'fixed inset-0 z-[500] bg-black/50 flex items-end justify-center overlay-scroll-lock';
     overlay.innerHTML = `<div class="bg-white rounded-t-3xl w-full max-w-lg p-5 pb-8 shadow-2xl">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-base font-bold">목장 설정</h3>
@@ -2478,9 +2487,6 @@ function bindEvents() {
   document.getElementById('toggle-pw-section')?.addEventListener('click', () => {
     document.getElementById('pw-section')?.classList.toggle('hidden');
   });
-  document.getElementById('toggle-id-section')?.addEventListener('click', () => {
-    document.getElementById('id-section')?.classList.toggle('hidden');
-  });
   document.getElementById('save-pw')?.addEventListener('click', async () => {
     const cur=document.getElementById('pw-current')?.value||'';
     const nw=document.getElementById('pw-new')?.value||'';
@@ -2503,33 +2509,6 @@ function bindEvents() {
       showToast('비밀번호 변경 완료!');
     } catch(e) {
       const msg = (e.code==='auth/invalid-credential'||e.code==='auth/wrong-password') ? '현재 비밀번호가 틀렸습니다.' : '오류가 발생했습니다. 다시 시도해주세요.';
-      showToast(msg);
-    } finally {
-      hideLoading();
-      if (btnEl) { btnEl.disabled=false; btnEl.textContent='변경'; }
-    }
-  });
-  document.getElementById('save-id')?.addEventListener('click', async () => {
-    const pwVerify=document.getElementById('id-pw-verify')?.value||'';
-    const newId=document.getElementById('id-new')?.value?.trim()||'';
-    if (!pwVerify) return showToast('현재 비밀번호를 입력해주세요.');
-    if (!newId) return showToast('새 아이디를 입력해주세요.');
-    if (newId.length<3) return showToast('아이디는 3자 이상이어야 합니다.');
-    if (state.cache.users.find(x=>x.id===newId&&x.uid!==state.user.uid)) return showToast('이미 사용 중인 아이디입니다.');
-    const btnEl = document.getElementById('save-id');
-    if (btnEl) { btnEl.disabled=true; btnEl.textContent='변경 중...'; }
-    showLoading('처리 중...');
-    try {
-      const u = state.cache.users.find(x=>x.uid===state.user.uid);
-      const email = (u?.id || state.user.id) + '@promisedland.com';
-      await window.FB_reauth(email, pwVerify);
-      u.id=newId; u.idChangedAt=today();
-      await window.FDB.setDoc('users', u.uid, { id:newId, idChangedAt:today() });
-      state.user=u; SESSION.set(u);
-      showToast('아이디 변경 완료! 다음 로그인 시 새 아이디를 사용해주세요.');
-      render();
-    } catch(e) {
-      const msg = (e.code==='auth/invalid-credential'||e.code==='auth/wrong-password') ? '비밀번호가 틀렸습니다.' : '오류가 발생했습니다. 다시 시도해주세요.';
       showToast(msg);
     } finally {
       hideLoading();
@@ -3236,7 +3215,7 @@ function setupDelegation() {
             if (!src) break;
             const lb = document.createElement('div');
             lb.id = 'image-zoom-overlay';
-            lb.className = 'fixed inset-0 z-[620] bg-black/85 flex items-center justify-center p-3';
+            lb.className = 'fixed inset-0 z-[620] bg-black/85 flex items-center justify-center p-3 overlay-scroll-lock';
             lb.setAttribute('role', 'presentation');
             const im = document.createElement('img');
             im.src = src;
@@ -3404,7 +3383,7 @@ function setupDelegation() {
             const roles = ['없음', '목사', '전도사', '간사'];
             let overlay = document.getElementById('minister-overlay');
             if (!overlay) { overlay = document.createElement('div'); overlay.id = 'minister-overlay'; document.body.appendChild(overlay); }
-            overlay.className = 'fixed inset-0 z-[400] bg-black/50 flex items-center justify-center px-6';
+            overlay.className = 'fixed inset-0 z-[400] bg-black/50 flex items-center justify-center px-6 overlay-scroll-lock';
             overlay.innerHTML = `<div class="bg-white rounded-3xl p-5 w-full max-w-xs shadow-2xl">
               <p class="text-sm font-bold mb-3">${esc(r.name)} 직분 설정</p>
               <div class="space-y-1.5">${roles.map(role => `<button data-mrole="${role}" class="w-full py-2.5 px-4 rounded-xl text-sm text-left font-medium ${(r.minister || '') === (role === '없음' ? '' : role) ? 'bg-black text-white' : 'bg-zinc-50 hover:bg-zinc-100'}">${role}</button>`).join('')}</div>
@@ -3797,15 +3776,11 @@ function setupDelegation() {
         return;
       }
 
-      // ── (6) data-sheet-toggle ──
-      const sheetToggleEl = e.target.closest('[data-sheet-toggle]');
-      if (sheetToggleEl) { const panel = document.getElementById('sheet-panel-' + sheetToggleEl.dataset.sheetToggle); if (panel) panel.classList.toggle('hidden'); return; }
-
-      // ── (7) data-cal-date ──
+      // ── (6) data-cal-date ──
       const calDateEl = e.target.closest('[data-cal-date]');
       if (calDateEl) { state._calSel = calDateEl.dataset.calDate; render(); return; }
 
-      // ── (8) data-admin ──
+      // ── (7) data-admin ──
       const adminEl = e.target.closest('[data-admin]');
       if (adminEl) {
         const sub = adminEl.dataset.admin;
@@ -3813,7 +3788,7 @@ function setupDelegation() {
         return;
       }
 
-      // ── (9) data-att-tab ──
+      // ── (8) data-att-tab ──
       const attTabEl = e.target.closest('[data-att-tab]');
       if (attTabEl) {
         const t = attTabEl.dataset.attTab;
@@ -3821,7 +3796,7 @@ function setupDelegation() {
         return;
       }
 
-      // ── (10) data-noti-toggle ──
+      // ── (9) data-noti-toggle ──
       const notiToggleEl = e.target.closest('[data-noti-toggle]');
       if (notiToggleEl) {
         const key = notiToggleEl.dataset.notiToggle;
@@ -3834,7 +3809,7 @@ function setupDelegation() {
         return;
       }
 
-      // ── (11) data-roster-tab ──
+      // ── (10) data-roster-tab ──
       const rosterTabEl = e.target.closest('[data-roster-tab]');
       if (rosterTabEl) {
         const rt = rosterTabEl.dataset.rosterTab;
@@ -3842,7 +3817,7 @@ function setupDelegation() {
         return;
       }
 
-      // ── (12) .dl-sheet-btn ──
+      // ── (11) .dl-sheet-btn ──
       const dlBtn = e.target.closest('.dl-sheet-btn');
       if (dlBtn) { downloadSheet(dlBtn.dataset.dlSheet, dlBtn.dataset.dlTitle + '_악보'); return; }
 
@@ -3969,6 +3944,7 @@ async function initApp(firebaseUser) {
       state.user = freshUser;
       SESSION.set(freshUser);
       state.page = 'main';
+      await ensureLinkedRosterForActiveUser();
     } else {
       forceLogoutInvalidSession();
     }

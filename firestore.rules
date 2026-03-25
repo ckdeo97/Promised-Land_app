@@ -95,8 +95,11 @@ service cloud.firestore {
     match /rosters/{rosterId} {
       // 앱 전체 기능(출석·목장 탭 등)에 명부 조회가 필요
       allow read:   if isActive();
-      // 추가·수정·삭제는 관리자만
-      allow write:  if isAdmin();
+      // 수동 승인만 받고 명부가 없는 활성 유저: 본인 linkedUid로 자가 등록 1회 생성
+      allow create: if isActive()
+        && request.resource.data.linkedUid == request.auth.uid;
+      // 수정·삭제는 관리자만
+      allow update, delete: if isAdmin();
     }
 
     // ────────────────────────────────────────────────────────────
