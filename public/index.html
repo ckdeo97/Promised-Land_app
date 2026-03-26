@@ -1639,37 +1639,90 @@ function renderHomeTab() {
 // ============================================================
 // BULLETIN TAB
 // ============================================================
+function renderBulletinInline(b) {
+  if (!b) return '';
+  let orderItems = b.orderItems || [];
+  if (!orderItems.length && b.order) {
+    orderItems = String(b.order).split('\n').filter(Boolean).map(line => {
+      const m = line.match(/^\d+\.\s*(.+)$/);
+      return { name: m ? m[1].trim() : line.trim(), participant: '', scripture: '' };
+    });
+  }
+  let announcements = b.announcements || [];
+  if (!announcements.length && b.announce) {
+    announcements = String(b.announce).split('\n').filter(s=>s.trim()).map(s=>({ title:s.replace(/^[-\s]*/,'').trim(), body:'' }));
+  }
+  const dream = b.dream || {};
+  const parts = [];
+
+  // 헤더 - 날짜 + 제목만 심플하게
+  parts.push('<div class="mb-4"><p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">약속의 땅 청년부 · 주일예배</p><h2 class="text-xl font-bold tracking-tight">' + esc(b.title||b.date) + '</h2></div>');
+
+  // 예배순서
+  if (orderItems.length) {
+    parts.push('<div class="bg-white rounded-3xl overflow-hidden border border-zinc-100 mb-4">');
+    parts.push('<div class="px-5 pt-4 pb-3 border-b border-zinc-100 flex items-center gap-2">' + icon('format_list_numbered','text-zinc-400',16) + '<h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">예배순서</h3></div>');
+    parts.push('<div class="divide-y divide-zinc-50">');
+    orderItems.forEach(item => {
+      parts.push('<div class="flex items-center px-4 py-3 gap-2"><span class="text-sm font-medium text-zinc-500 w-[6.5rem] flex-none">' + esc(item.name) + '</span><span class="flex-1 text-sm font-bold text-black text-center">' + esc(item.scripture||'') + '</span><span class="text-xs text-zinc-500 text-right w-[5rem] flex-none">' + esc(item.participant||'') + '</span></div>');
+    });
+    parts.push('</div></div>');
+  }
+
+  // 광고
+  if (announcements.length) {
+    parts.push('<div class="bg-white rounded-3xl overflow-hidden border border-zinc-100 mb-4">');
+    parts.push('<div class="px-5 pt-4 pb-3 border-b border-zinc-100 flex items-center gap-2">' + icon('campaign','text-zinc-400',16) + '<h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">광고</h3></div>');
+    parts.push('<div class="divide-y divide-zinc-50">');
+    announcements.forEach((a,i) => {
+      parts.push('<div class="px-5 py-4"><div class="flex items-start gap-2.5"><span class="w-5 h-5 bg-zinc-900 text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-none mt-0.5">'+(i+1)+'</span><div><p class="text-sm font-bold">'+esc(a.title)+'</p>'+(a.body?'<p class="text-xs text-zinc-500 mt-1 leading-relaxed whitespace-pre-line">'+esc(a.body)+'</p>':'')+'</div></div></div>');
+    });
+    parts.push('</div></div>');
+  }
+
+  // 우리의 드림
+  if (dream.weekly||dream.tithe||dream.thanks) {
+    parts.push('<div class="bg-white rounded-3xl overflow-hidden border border-zinc-100 mb-4">');
+    parts.push('<div class="px-5 pt-4 pb-3 border-b border-zinc-100 flex items-center gap-2">' + icon('volunteer_activism','text-zinc-400',16) + '<h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">우리의 드림</h3></div>');
+    parts.push('<div class="p-5 space-y-2">');
+    if (dream.weekly) parts.push('<div class="flex justify-between text-sm"><span class="text-zinc-400">주정헌금</span><span class="font-medium">'+(typeof dream.weekly==='number'?dream.weekly.toLocaleString()+'원':esc(String(dream.weekly)))+'</span></div>');
+    if (dream.tithe)  parts.push('<div class="flex justify-between text-sm"><span class="text-zinc-400">십일조</span><span class="font-medium">'+(typeof dream.tithe==='number'?dream.tithe.toLocaleString()+'원':esc(String(dream.tithe)))+'</span></div>');
+    if (dream.thanks) parts.push('<div class="flex justify-between text-sm"><span class="text-zinc-400">감사헌금</span><span class="font-medium">'+(typeof dream.thanks==='number'?dream.thanks.toLocaleString()+'원':esc(String(dream.thanks)))+'</span></div>');
+    parts.push('<div class="pt-1 border-t border-zinc-50"><p class="text-xs text-zinc-400">온라인 헌금: 우리은행 1005-003-875918</p></div>');
+    parts.push('</div></div>');
+  }
+
+  parts.push('<div class="text-center py-2"><p class="text-[10px] text-zinc-300 font-bold uppercase tracking-[0.2em]">약속의 땅 청년부</p></div>');
+  return parts.join('');
+}
+
 function renderBulletinTab() {
   const bulletins = [...state.cache.bulletins].sort((a,b)=>b.date.localeCompare(a.date));
   if (!bulletins.length) return `<section><h2 class="text-xl font-bold tracking-tight mb-6">주보</h2><p class="text-zinc-400 text-sm text-center py-10">등록된 주보가 없습니다.</p></section>`;
 
+  const latest = bulletins[0];
+  const rest = bulletins.slice(1);
+  const listOpen = state._bulletinListOpen;
+
   return `
   <section>
-    <h2 class="text-xl font-bold tracking-tight mb-5">주보</h2>
-    <div class="space-y-2">
-      ${bulletins.map((b, idx) => idx === 0 ? `
-      <button data-detail="bulletin:${b.id}" class="w-full text-left bg-white rounded-3xl border border-zinc-200 overflow-hidden active:bg-zinc-50 mb-2">
-        <div class="bg-gradient-to-br from-zinc-900 to-black p-6 text-white relative overflow-hidden dot-pattern">
-          <div class="relative z-10">
-            <div class="flex items-center gap-2 mb-3">
-              <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">${icon('menu_book','text-white',18)}</div>
-              <span class="text-[10px] font-bold uppercase tracking-wider text-white/60">최신 주보</span>
-            </div>
-            <h3 class="text-lg font-bold">${esc(b.title)}</h3>
-            <p class="text-white/50 text-xs mt-1">${b.date}</p>
-          </div>
-        </div>
-      </button>` : `
-      <button data-detail="bulletin:${b.id}" class="w-full text-left bg-white rounded-2xl border border-zinc-100 p-4 flex items-center gap-3 active:bg-zinc-50">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold tracking-tight">주보</h2>
+      ${rest.length ? `<button data-action="toggle-bulletin-list" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 rounded-full text-xs font-bold text-zinc-600 active:bg-zinc-200">
+        ${icon('list','text-zinc-500',14)} 이전 목록
+      </button>` : ''}
+    </div>
+    ${renderBulletinInline(latest)}
+    ${listOpen && rest.length ? `<div class="space-y-2 mt-4">
+      ${rest.map(b=>`<button data-detail="bulletin:${b.id}" class="w-full text-left bg-white rounded-2xl border border-zinc-100 p-4 flex items-center gap-3 active:bg-zinc-50">
         <div class="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center flex-none">${icon('menu_book','text-white',16)}</div>
         <div class="flex-1 min-w-0">
           <p class="font-bold text-sm truncate">${esc(b.title)}</p>
           <p class="text-xs text-zinc-400">${b.date}</p>
         </div>
         ${icon('chevron_right','text-zinc-300',18)}
-      </button>`
-      ).join('')}
-    </div>
+      </button>`).join('')}
+    </div>` : ''}
   </section>`;
 }
 
@@ -3365,11 +3418,16 @@ function openBulletinForm(existing) {
       <div id="bf-ann-rows">${renderAnnRows()}</div>
     </div>
 
-    <!-- 우리의 드림 (지난 주 헌금 자동 표기) -->
+    <!-- 우리의 드림 (헌금 주 선택) -->
     <div id="bf-dream-section">
-      <p class="text-xs font-bold text-zinc-600 mb-2 ml-0.5">우리의 드림 <span class="text-zinc-400 font-normal text-[10px]">— 지난 주 헌금 자동 반영</span></p>
+      <p class="text-xs font-bold text-zinc-600 mb-2 ml-0.5">우리의 드림</p>
+      <div class="flex gap-2 mb-2">
+        <select id="bf-off-yr" class="flex-1 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black">${[defYr-1,defYr,defYr+1].map(y=>`<option value="${y}"${y===defYr?' selected':''}>${y}년</option>`).join('')}</select>
+        <select id="bf-off-mo" class="flex-1 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black">${Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}"${m===defMo?' selected':''}>${m}월</option>`).join('')}</select>
+        <select id="bf-off-wk" class="flex-1 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black">${[1,2,3,4,5].map(w=>`<option value="${w}"${w===defWk?' selected':''}>${w}째주</option>`).join('')}</select>
+      </div>
       <div id="bf-dream-preview" class="rounded-xl border border-zinc-100 overflow-hidden">
-        <p class="text-xs text-zinc-400 px-3 py-3 text-center">날짜를 선택하면 자동으로 불러옵니다</p>
+        <p class="text-xs text-zinc-400 px-3 py-3 text-center">위에서 헌금 주를 선택하세요</p>
       </div>
       <p class="text-[11px] text-zinc-400 pl-1 mt-2">온라인 헌금: 우리은행 1005-003-875918</p>
     </div>
@@ -3386,29 +3444,33 @@ function openBulletinForm(existing) {
     if (!selId) return;
     const loaded = state.cache.bulletins.find(b=>b.id===selId);
     if (!loaded) return;
-    openBulletinForm({...loaded, id: bid}); // 내용 불러오기 (id는 새로 유지)
+    // 날짜·id 제외하고 내용만 복사 → 항상 새 주보로 생성 (isEdit=false)
+    const { id: _id, date: _date, title: _title, at: _at, by: _by, ...contents } = loaded;
+    openBulletinForm(contents); // id 없으므로 isEdit=false, 날짜는 기본값(다음 일요일)
   });
 
   // 날짜 변경 시 임사 갱신
-  const updateDreamPreview = (yr, mo, wk) => {
+  const updateDreamPreview = () => {
     const preview = document.getElementById('bf-dream-preview');
     if (!preview) return;
-    const sunDay = String(sundayFromYMW(yr,mo,wk)).padStart(2,'0');
-    const curDate = yr+'-'+String(mo).padStart(2,'0')+'-'+sunDay;
-    const prev = new Date(curDate+'T00:00:00'); prev.setDate(prev.getDate()-7);
-    const prevDate = prev.toISOString().split('T')[0];
-    const off = state.cache.offerings[prevDate] || { items: [] };
+    const oyr = +document.getElementById('bf-off-yr')?.value || defYr;
+    const omo = +document.getElementById('bf-off-mo')?.value || defMo;
+    const owk = +document.getElementById('bf-off-wk')?.value || defWk;
+    const offDate = ymwToDate(oyr, omo, owk);
+    const off = state.cache.offerings[offDate] || { items: [] };
     const calcT = (type) => (off.items||[]).filter(i=>i.type===type).reduce((s,i)=>s+(+i.amount||0),0);
     const weekly = calcT('주정'), tithe = calcT('십일조'), thanks = calcT('감사');
+    const total = weekly + tithe + thanks;
     const rows = [
       {l:'주정헌금', v:weekly},
       {l:'십일조',   v:tithe},
       {l:'감사헌금', v:thanks},
     ].filter(r=>r.v>0);
     if (!rows.length) {
-      preview.innerHTML = '<p class="text-xs text-zinc-400 px-3 py-3 text-center">'+prevDate+' 헌금 기록 없음</p>';
+      preview.innerHTML = '<p class="text-xs text-zinc-400 px-3 py-3 text-center">' + oyr + '년 ' + omo + '월 ' + owk + '째주 헌금 기록 없음</p>';
     } else {
-      preview.innerHTML = rows.map(r=>'<div class="flex justify-between items-center px-3 py-2.5 border-b border-zinc-50 last:border-0"><span class="text-xs text-zinc-500">'+r.l+'</span><span class="text-xs font-bold">'+r.v.toLocaleString()+'원</span></div>').join('');
+      preview.innerHTML = rows.map(r=>'<div class="flex justify-between items-center px-3 py-2.5 border-b border-zinc-50 last:border-0"><span class="text-xs text-zinc-500">'+r.l+'</span><span class="text-xs font-bold">'+r.v.toLocaleString()+'원</span></div>').join('')
+        + '<div class="flex justify-between items-center px-3 py-2.5 bg-zinc-50"><span class="text-xs font-bold text-zinc-600">합계</span><span class="text-xs font-bold">'+total.toLocaleString()+'원</span></div>';
     }
   };
   const updateSvc = () => {
@@ -3417,10 +3479,14 @@ function openBulletinForm(existing) {
     const pp=document.getElementById('bf-prayer-p'), fp=document.getElementById('bf-fellow-p');
     if(pp && !pp.value) pp.placeholder = svc.prayer||'담당자';
     if(fp && !fp.value) fp.placeholder = svc.fellowship||'담당자';
-    updateDreamPreview(yr, mo, wk);
+    updateDreamPreview();
   };
+  // 드림 드롭다운 이벤트
+  ['bf-off-yr','bf-off-mo','bf-off-wk'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', updateDreamPreview);
+  });
   // 초기 미리보기
-  updateDreamPreview(defYr, defMo, defWk);
+  updateDreamPreview();
   ['bf-yr','bf-mo','bf-wk'].forEach(id=>document.getElementById(id)?.addEventListener('change',updateSvc));
 
   const bindBfAnnIndex = (i) => {
@@ -3480,19 +3546,18 @@ function openBulletinForm(existing) {
       {name:'결단의 찬양',  participant:'다같이',              scripture:g('bf-resolve-s')||'주님 말씀 앞에선', fixed:true},
       {name:'축도',         participant:g('bf-blessing-p')||mp},
     ];
-    // 지난 주 헌금 자동 집계
-    const prevSunday = (() => {
-      const cur = new Date(date+'T00:00:00');
-      cur.setDate(cur.getDate() - 7);
-      return cur.toISOString().split('T')[0];
-    })();
-    const prevOffering = state.cache.offerings[prevSunday] || { items: [] };
-    const calcTotal = (type) => (prevOffering.items||[]).filter(i=>i.type===type).reduce((s,i)=>s+(+i.amount||0),0);
+    // 선택한 주 헌금 집계
+    const offYr=+document.getElementById('bf-off-yr')?.value||yr;
+    const offMo=+document.getElementById('bf-off-mo')?.value||mo;
+    const offWk=+document.getElementById('bf-off-wk')?.value||wk;
+    const offDate = ymwToDate(offYr, offMo, offWk);
+    const selOffering = state.cache.offerings[offDate] || { items: [] };
+    const calcTotal = (type) => (selOffering.items||[]).filter(i=>i.type===type).reduce((s,i)=>s+(+i.amount||0),0);
     const dream = {
       weekly: calcTotal('주정') || undefined,
       tithe:  calcTotal('십일조') || undefined,
       thanks: calcTotal('감사') || undefined,
-      _prevDate: prevSunday,
+      _offDate: offDate,
     };
     const b = {id:bid,title,date,orderItems,announcements,dream,by:state.user.uid,at:today()};
     await window.FDB.setDoc('bulletins',bid,b);
