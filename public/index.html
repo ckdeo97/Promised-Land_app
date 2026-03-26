@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <meta name="apple-mobile-web-app-title" content="약속의 땅"/>
-<meta name="theme-color" content="#000000"/>
+<meta name="theme-color" content="#ffffff"/>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -1292,7 +1292,7 @@ function renderMain() {
   return `
   <div class="min-h-screen pb-24" style="background:#f4f4f5">
     <!-- Header -->
-    <header class="fixed top-0 left-0 right-0 z-[100] px-5 pt-3 pb-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100">
+    <header class="fixed top-0 left-0 right-0 z-[100] px-5 pt-3 pb-3 bg-white border-b border-zinc-100">
       <div class="flex justify-between items-center">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl overflow-hidden bg-black flex items-center justify-center">
@@ -1314,7 +1314,7 @@ function renderMain() {
     <main class="px-5 pt-20 pb-4"><div class="tab-content space-y-4">${content}</div></main>
 
     <!-- Bottom Nav -->
-    <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white/90 backdrop-blur-xl border-t border-zinc-100">
+    <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white border-t border-zinc-100">
       <div class="flex justify-around items-center max-w-md mx-auto">
         ${tabs.map(t => `
           <button data-tab="${t.key}" class="flex flex-col items-center gap-0.5 px-4 py-1 transition-colors ${state.tab===t.key?'text-black':'text-zinc-400'}">
@@ -1723,7 +1723,7 @@ function renderBulletinDetail() {
 
   return `
   <div class="min-h-screen bg-zinc-50">
-    <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
+    <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">주보</h1>
     </header>
@@ -1835,7 +1835,7 @@ function renderNoticeDetail() {
   const schedLabel = formatNoticeScheduleLabel(n);
   return `
   <div class="min-h-screen bg-zinc-50">
-    <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
+    <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">공지사항</h1>
     </header>
@@ -2249,7 +2249,7 @@ function renderAdmin() {
 
   return `
   <div class="min-h-screen bg-zinc-50">
-    <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100 flex items-center gap-3">
+    <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white border-b border-zinc-100 flex items-center gap-3">
       <button data-action="back-admin" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">${state.adminSub==='dashboard'?'관리자':menu.find(m=>m.k===state.adminSub)?.l||'관리자'}</h1>
     </header>
