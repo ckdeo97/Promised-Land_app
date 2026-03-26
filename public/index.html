@@ -1512,18 +1512,18 @@ function renderHomeTab() {
     // 좌측: 아이콘+항목 자리 (투명)
     '<div class="w-[5.5rem] flex items-center justify-center py-3">' + icon('church','text-white',18) + '</div>',
     // 이번주 컬럼 헤더
-    '<div class="flex-1 flex flex-col items-center justify-center py-2.5 border-l border-white/10">',
+    '<div class="flex-1 flex flex-col items-center justify-center py-2.5">',
     '<span class="text-[10px] font-bold text-white/60 uppercase tracking-wider">이번주</span>',
     '<span class="text-xs font-bold text-white mt-0.5">' + dutyYmwThis.mo + '월 ' + dutyYmwThis.wk + '째주</span>',
     '</div>',
     // 다음주 컬럼 헤더
-    '<div class="flex-1 flex flex-col items-center justify-center py-2.5 border-l border-white/10">',
+    '<div class="flex-1 flex flex-col items-center justify-center py-2.5">',
     '<span class="text-[10px] font-bold text-white/60 uppercase tracking-wider">다음주</span>',
     '<span class="text-xs font-bold text-white/60 mt-0.5">' + dutyYmwNext.mo + '월 ' + dutyYmwNext.wk + '째주</span>',
     '</div>',
     '</div>',
     // 데이터 행
-    '<div class="divide-y divide-zinc-50">',
+    '<div>',
     dutyRows.map(function(r) {
       return [
         '<div class="flex items-center min-w-0">',
@@ -1533,11 +1533,11 @@ function renderHomeTab() {
         '<span class="text-[10px] text-zinc-400 font-medium leading-tight text-center mt-0.5">' + r.l + '</span>',
         '</div>',
         // 이번주 이름 - 굵고 선명
-        '<div class="flex-1 flex items-center justify-center py-4 border-l border-zinc-50">',
+        '<div class="flex-1 flex items-center justify-center py-4">',
         '<span class="text-sm font-bold text-black text-center leading-tight">' + esc(r.v1) + '</span>',
         '</div>',
-        // 다음주 이름 - 약간 연하게 (읽기는 충분히)
-        '<div class="flex-1 flex items-center justify-center py-4 border-l border-zinc-50">',
+        // 다음주 이름 - 약간 연하게
+        '<div class="flex-1 flex items-center justify-center py-4">',
         '<span class="text-sm font-bold text-zinc-400 text-center leading-tight">' + esc(r.v2) + '</span>',
         '</div>',
         '</div>'
@@ -1643,45 +1643,33 @@ function renderBulletinTab() {
   const bulletins = [...state.cache.bulletins].sort((a,b)=>b.date.localeCompare(a.date));
   if (!bulletins.length) return `<section><h2 class="text-xl font-bold tracking-tight mb-6">주보</h2><p class="text-zinc-400 text-sm text-center py-10">등록된 주보가 없습니다.</p></section>`;
 
-  const listOpen = state._bulletinListOpen;
-  const latest = bulletins[0];
-  const rest = bulletins.slice(1);
-
   return `
   <section>
-    <div class="flex items-center justify-between mb-5">
-      <h2 class="text-xl font-bold tracking-tight">주보</h2>
-      ${rest.length ? `<button data-action="toggle-bulletin-list" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 rounded-full text-xs font-bold text-zinc-600 active:bg-zinc-200">
-        ${icon('list','text-zinc-500',14)} 목록 (${rest.length+1}개)
-      </button>` : ''}
-    </div>
-    <!-- 최신 주보 -->
-    <button data-detail="bulletin:${latest.id}" class="w-full text-left bg-white rounded-3xl border border-zinc-200 overflow-hidden active:bg-zinc-50 mb-4">
-      <div class="bg-gradient-to-br from-zinc-900 to-black p-6 text-white relative overflow-hidden dot-pattern">
-        <div class="relative z-10">
-          <div class="flex items-center gap-2 mb-3">
-            <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">${icon('menu_book','text-white',18)}</div>
-            <span class="text-[10px] font-bold uppercase tracking-wider text-white/60">최신 주보</span>
+    <h2 class="text-xl font-bold tracking-tight mb-5">주보</h2>
+    <div class="space-y-2">
+      ${bulletins.map((b, idx) => idx === 0 ? `
+      <button data-detail="bulletin:${b.id}" class="w-full text-left bg-white rounded-3xl border border-zinc-200 overflow-hidden active:bg-zinc-50 mb-2">
+        <div class="bg-gradient-to-br from-zinc-900 to-black p-6 text-white relative overflow-hidden dot-pattern">
+          <div class="relative z-10">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">${icon('menu_book','text-white',18)}</div>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-white/60">최신 주보</span>
+            </div>
+            <h3 class="text-lg font-bold">${esc(b.title)}</h3>
+            <p class="text-white/50 text-xs mt-1">${b.date}</p>
           </div>
-          <h3 class="text-lg font-bold">${esc(latest.title)}</h3>
-          <p class="text-white/50 text-xs mt-1">${latest.date}</p>
         </div>
-      </div>
-      <div class="p-4 flex items-center gap-1 text-zinc-400">
-        ${icon('chevron_right','',16)}<span class="text-xs font-bold">자세히 보기</span>
-      </div>
-    </button>
-    <!-- 이전 주보 목록 -->
-    ${listOpen && rest.length ? `<div class="space-y-2">
-      ${rest.map(b=>`<button data-detail="bulletin:${b.id}" class="w-full text-left bg-white rounded-2xl border border-zinc-100 p-4 flex items-center gap-3 active:bg-zinc-50">
+      </button>` : `
+      <button data-detail="bulletin:${b.id}" class="w-full text-left bg-white rounded-2xl border border-zinc-100 p-4 flex items-center gap-3 active:bg-zinc-50">
         <div class="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center flex-none">${icon('menu_book','text-white',16)}</div>
         <div class="flex-1 min-w-0">
           <p class="font-bold text-sm truncate">${esc(b.title)}</p>
           <p class="text-xs text-zinc-400">${b.date}</p>
         </div>
         ${icon('chevron_right','text-zinc-300',18)}
-      </button>`).join('')}
-    </div>` : ''}
+      </button>`
+      ).join('')}
+    </div>
   </section>`;
 }
 
@@ -1747,8 +1735,8 @@ function renderBulletinDetail() {
         <div class="divide-y divide-zinc-50">
           ${orderItems.map(item=>`
           <div class="flex items-center px-4 py-3 gap-2">
-            <span class="text-sm font-medium text-zinc-800 w-[6.5rem] flex-none">${esc(item.name)}</span>
-            <span class="flex-1 text-xs text-zinc-400 text-center">${esc(item.scripture||'')}</span>
+            <span class="text-sm font-medium text-zinc-500 w-[6.5rem] flex-none">${esc(item.name)}</span>
+            <span class="flex-1 text-sm font-bold text-black text-center">${esc(item.scripture||'')}</span>
             <span class="text-xs text-zinc-500 text-right w-[5rem] flex-none">${esc(item.participant||'')}</span>
           </div>`).join('')}
         </div>
@@ -1783,9 +1771,9 @@ function renderBulletinDetail() {
           <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">우리의 드림</h3>
         </div>
         <div class="p-5 space-y-2">
-          ${dream.weekly?`<div class="flex justify-between text-sm"><span class="text-zinc-400">주정헌금</span><span class="font-medium">${esc(dream.weekly)}</span></div>`:''}
-          ${dream.tithe?`<div class="flex justify-between text-sm"><span class="text-zinc-400">십일조</span><span class="font-medium">${esc(dream.tithe)}</span></div>`:''}
-          ${dream.thanks?`<div class="flex justify-between text-sm"><span class="text-zinc-400">감사헌금</span><span class="font-medium">${esc(dream.thanks)}</span></div>`:''}
+          ${dream.weekly?`<div class="flex justify-between text-sm"><span class="text-zinc-400">주정헌금</span><span class="font-medium">${typeof dream.weekly==='number'?dream.weekly.toLocaleString()+'원':esc(String(dream.weekly))}</span></div>`:''}
+          ${dream.tithe?`<div class="flex justify-between text-sm"><span class="text-zinc-400">십일조</span><span class="font-medium">${typeof dream.tithe==='number'?dream.tithe.toLocaleString()+'원':esc(String(dream.tithe))}</span></div>`:''}
+          ${dream.thanks?`<div class="flex justify-between text-sm"><span class="text-zinc-400">감사헌금</span><span class="font-medium">${typeof dream.thanks==='number'?dream.thanks.toLocaleString()+'원':esc(String(dream.thanks))}</span></div>`:''}
           <div class="pt-1 border-t border-zinc-50">
             <p class="text-xs text-zinc-400">온라인 헌금: 우리은행 1005-003-875918</p>
           </div>
@@ -3338,7 +3326,7 @@ function openBulletinForm(existing) {
       <p class="text-xs font-bold text-zinc-600 mb-1.5 ml-0.5">예배순서</p>
       <div class="rounded-xl border border-zinc-100 overflow-hidden px-3">
         ${rowWrap('예배의 부름',
-          fixedPerson(ministerName||'전도사/목사') +
+          inpPerson('bf-call-p', findOI('예배의 부름').participant||ministerName, '전도사/목사') +
           inp('bf-call-s', findOI('예배의 부름').scripture||'', '말씀구절')
         )}
         ${rowWrap('경배와 찬양', fixedPerson('드림찬양단') + fixed('드림찬양단'))}
@@ -3356,13 +3344,13 @@ function openBulletinForm(existing) {
         )}
         ${rowWrap('봉헌과 찬양', fixedPerson('다같이') + fixed('주님 말씀 앞에선'))}
         ${rowWrap('메시지',
-          fixedPerson(ministerName||'전도사/목사') +
+          inpPerson('bf-msg-p', findOI('메시지').participant||ministerName, '전도사/목사') +
           inp('bf-msg-s', findOI('메시지').scripture||findOI('말씀').scripture||'', '말씀제목')
         )}
         ${rowWrap('결단의 찬양', fixedPerson('다같이') + inp('bf-resolve-s', findOI('결단의 찬양').scripture||'주님 말씀 앞에선', '찬양 제목'))}
         <div class="flex items-center gap-2 py-2">
           <span class="text-[11px] text-zinc-400 w-16 flex-none">축도</span>
-          ${fixedPerson(ministerName||'전도사/목사')}
+          ${inpPerson('bf-blessing-p', findOI('축도').participant||ministerName, '전도사/목사')}
           <span class="flex-[7]"></span>
         </div>
       </div>
@@ -3377,27 +3365,13 @@ function openBulletinForm(existing) {
       <div id="bf-ann-rows">${renderAnnRows()}</div>
     </div>
 
-    <!-- 우리의 드림 -->
-    <div>
-      <p class="text-xs font-bold text-zinc-600 mb-2 ml-0.5">우리의 드림</p>
-      <div class="space-y-2">
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-zinc-400 w-16 flex-none">주정헌금</span>
-          <input id="bf-dream-weekly" value="${esc(existingDream.weekly||'')}" placeholder="담당자 이름"
-            class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-zinc-400 w-16 flex-none">십일조</span>
-          <input id="bf-dream-tithe" value="${esc(existingDream.tithe||'')}" placeholder="담당자 이름"
-            class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-zinc-400 w-16 flex-none">감사헌금</span>
-          <input id="bf-dream-thanks" value="${esc(existingDream.thanks||'')}" placeholder="담당자 이름"
-            class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
-        </div>
-        <p class="text-[11px] text-zinc-400 pl-1">온라인 헌금: 우리은행 1005-003-875918</p>
+    <!-- 우리의 드림 (지난 주 헌금 자동 표기) -->
+    <div id="bf-dream-section">
+      <p class="text-xs font-bold text-zinc-600 mb-2 ml-0.5">우리의 드림 <span class="text-zinc-400 font-normal text-[10px]">— 지난 주 헌금 자동 반영</span></p>
+      <div id="bf-dream-preview" class="rounded-xl border border-zinc-100 overflow-hidden">
+        <p class="text-xs text-zinc-400 px-3 py-3 text-center">날짜를 선택하면 자동으로 불러옵니다</p>
       </div>
+      <p class="text-[11px] text-zinc-400 pl-1 mt-2">온라인 헌금: 우리은행 1005-003-875918</p>
     </div>
 
     <div class="flex gap-2 pt-1">
@@ -3416,13 +3390,37 @@ function openBulletinForm(existing) {
   });
 
   // 날짜 변경 시 임사 갱신
+  const updateDreamPreview = (yr, mo, wk) => {
+    const preview = document.getElementById('bf-dream-preview');
+    if (!preview) return;
+    const sunDay = String(sundayFromYMW(yr,mo,wk)).padStart(2,'0');
+    const curDate = yr+'-'+String(mo).padStart(2,'0')+'-'+sunDay;
+    const prev = new Date(curDate+'T00:00:00'); prev.setDate(prev.getDate()-7);
+    const prevDate = prev.toISOString().split('T')[0];
+    const off = state.cache.offerings[prevDate] || { items: [] };
+    const calcT = (type) => (off.items||[]).filter(i=>i.type===type).reduce((s,i)=>s+(+i.amount||0),0);
+    const weekly = calcT('주정'), tithe = calcT('십일조'), thanks = calcT('감사');
+    const rows = [
+      {l:'주정헌금', v:weekly},
+      {l:'십일조',   v:tithe},
+      {l:'감사헌금', v:thanks},
+    ].filter(r=>r.v>0);
+    if (!rows.length) {
+      preview.innerHTML = '<p class="text-xs text-zinc-400 px-3 py-3 text-center">'+prevDate+' 헌금 기록 없음</p>';
+    } else {
+      preview.innerHTML = rows.map(r=>'<div class="flex justify-between items-center px-3 py-2.5 border-b border-zinc-50 last:border-0"><span class="text-xs text-zinc-500">'+r.l+'</span><span class="text-xs font-bold">'+r.v.toLocaleString()+'원</span></div>').join('');
+    }
+  };
   const updateSvc = () => {
     const yr=+document.getElementById('bf-yr').value, mo=+document.getElementById('bf-mo').value, wk=+document.getElementById('bf-wk').value;
     svc = getSvc(yr,mo,wk);
     const pp=document.getElementById('bf-prayer-p'), fp=document.getElementById('bf-fellow-p');
     if(pp && !pp.value) pp.placeholder = svc.prayer||'담당자';
     if(fp && !fp.value) fp.placeholder = svc.fellowship||'담당자';
+    updateDreamPreview(yr, mo, wk);
   };
+  // 초기 미리보기
+  updateDreamPreview(defYr, defMo, defWk);
   ['bf-yr','bf-mo','bf-wk'].forEach(id=>document.getElementById(id)?.addEventListener('change',updateSvc));
 
   const bindBfAnnIndex = (i) => {
@@ -3472,20 +3470,29 @@ function openBulletinForm(existing) {
     const g = id => document.getElementById(id)?.value||'';
     const mp = ministerPerson?.name || '';
     const orderItems = [
-      {name:'예배의 부름',  participant:mp,               scripture:g('bf-call-s')},
-      {name:'경배와 찬양',  participant:'드림찬양단',       fixed:true},
+      {name:'예배의 부름',  participant:g('bf-call-p')||mp,  scripture:g('bf-call-s')},
+      {name:'경배와 찬양',  participant:'드림찬양단',          fixed:true},
       {name:'오늘의 기도',  participant:g('bf-prayer-p')||svcNow.prayer||''},
       {name:'성도의 교제',  participant:g('bf-fellow-p')||svcNow.fellowship||''},
-      {name:'성경봉독',     participant:g('bf-bible-p'),   scripture:g('bf-bible-s')},
-      {name:'봉헌과 찬양',  participant:'다같이',           scripture:'주님 말씀 앞에선', fixed:true},
-      {name:'메시지',       participant:mp,                scripture:g('bf-msg-s')},
-      {name:'결단의 찬양',  participant:'다같이',           scripture:g('bf-resolve-s')||'주님 말씀 앞에선', fixed:true},
-      {name:'축도',         participant:mp},
+      {name:'성경봉독',     participant:g('bf-bible-p'),      scripture:g('bf-bible-s')},
+      {name:'봉헌과 찬양',  participant:'다같이',              scripture:'주님 말씀 앞에선', fixed:true},
+      {name:'메시지',       participant:g('bf-msg-p')||mp,   scripture:g('bf-msg-s')},
+      {name:'결단의 찬양',  participant:'다같이',              scripture:g('bf-resolve-s')||'주님 말씀 앞에선', fixed:true},
+      {name:'축도',         participant:g('bf-blessing-p')||mp},
     ];
+    // 지난 주 헌금 자동 집계
+    const prevSunday = (() => {
+      const cur = new Date(date+'T00:00:00');
+      cur.setDate(cur.getDate() - 7);
+      return cur.toISOString().split('T')[0];
+    })();
+    const prevOffering = state.cache.offerings[prevSunday] || { items: [] };
+    const calcTotal = (type) => (prevOffering.items||[]).filter(i=>i.type===type).reduce((s,i)=>s+(+i.amount||0),0);
     const dream = {
-      weekly: g('bf-dream-weekly'),
-      tithe:  g('bf-dream-tithe'),
-      thanks: g('bf-dream-thanks'),
+      weekly: calcTotal('주정') || undefined,
+      tithe:  calcTotal('십일조') || undefined,
+      thanks: calcTotal('감사') || undefined,
+      _prevDate: prevSunday,
     };
     const b = {id:bid,title,date,orderItems,announcements,dream,by:state.user.uid,at:today()};
     await window.FDB.setDoc('bulletins',bid,b);
