@@ -1516,9 +1516,9 @@ function renderHomeTab() {
           <div class="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-4 min-w-0">
             <div class="w-7 h-7 sm:w-8 sm:h-8 bg-zinc-100 rounded-lg flex items-center justify-center flex-none shrink-0">${icon(r.i,'text-zinc-600',16)}</div>
             <span class="text-[11px] sm:text-xs text-zinc-400 w-[4.25rem] sm:w-24 flex-none shrink-0 text-left leading-tight">${r.l}</span>
-            <div class="flex-1 min-w-0 flex flex-col items-start">
-              <span class="text-sm font-bold text-black/90 leading-tight truncate">${esc(r.v1)}</span>
-              <span class="text-sm font-bold text-zinc-400 leading-tight truncate">${esc(r.v2)}</span>
+            <div class="flex-1 min-w-0 flex flex-col items-end text-right pr-1">
+              <span class="text-sm font-bold text-black/90 leading-tight truncate max-w-full">${esc(r.v1)}</span>
+              <span class="text-sm font-bold text-zinc-400 leading-tight truncate max-w-full">${esc(r.v2)}</span>
             </div>
           </div>`).join('')}
       </div>
@@ -2046,7 +2046,7 @@ function renderCellTab() {
         </div>
       </div>
       ${latest.verseText ? `<div class="mt-4 pt-4 border-t border-zinc-100">
-        <p class="text-sm text-zinc-600 leading-relaxed">${esc(latest.verseText)}</p>
+        <p class="text-sm text-zinc-600 leading-relaxed whitespace-pre-line">${esc(latest.verseText)}</p>
       </div>` : ''}
     </div>
 
@@ -2061,7 +2061,7 @@ function renderCellTab() {
         ${questions.map((q, qi) => `
         <div class="${qi > 0 ? 'border-t border-zinc-100 pt-4 mt-4' : ''}">
           <p class="text-[10px] font-bold text-zinc-400 mb-1.5">질문 ${qi + 1}</p>
-          <p class="text-[15px] text-zinc-800 leading-relaxed font-medium">${esc(q)}</p>
+          <p class="text-[15px] text-zinc-800 leading-relaxed font-medium whitespace-pre-line">${esc(q)}</p>
         </div>`).join('')}
       </div>
     </div>` : ''}
