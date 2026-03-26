@@ -63,34 +63,35 @@
 
   // ── FCM 토큰 등록 ──
   window.registerFcmToken = async () => {
-    if (!window.FMESSAGING) return false;
-    if (typeof Notification === 'undefined') return false;
-    if (Notification.permission !== 'granted') return false;
-    if (!('serviceWorker' in navigator)) return false;
+    if (!window.FMESSAGING) { console.warn('[FCM] FMESSAGING 없음'); return false; }
+    if (typeof Notification === 'undefined') { console.warn('[FCM] Notification 미지원'); return false; }
+    if (Notification.permission !== 'granted') { console.warn('[FCM] 권한 없음:', Notification.permission); return false; }
+    if (!('serviceWorker' in navigator)) { console.warn('[FCM] SW 미지원'); return false; }
+    if (!state?.user?.uid) { console.warn('[FCM] 유저 없음'); return false; }
     try {
-      // 서비스워커 등록 대기
       let sw;
       try {
         sw = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
         await navigator.serviceWorker.ready;
       } catch(swErr) {
-        console.warn('SW 등록 실패 (로컬 환경에서는 정상):', swErr);
+        console.warn('[FCM] SW 등록 실패:', swErr.message);
         return false;
       }
       const token = await getToken(window.FMESSAGING, {
         vapidKey: 'BJ3imv5tyh8HpiX38GNH02LudQStbmuvi-XDp5nxNiASHAD_lv3mmeWF0DtDQIWoJqjYGuspEDtckCdEhwCqm80',
         serviceWorkerRegistration: sw
       });
-      if (token && state?.user?.uid) {
+      if (token) {
         await window.FDB.setDoc('users', state.user.uid, { fcmToken: token });
         state.user.fcmToken = token;
         SESSION.set(state.user);
         render();
         return true;
       }
+      console.warn('[FCM] 토큰 발급 실패 - 빈 토큰');
       return false;
     } catch (e) {
-      console.warn('FCM 토큰 등록 실패:', e.code || e.message);
+      console.warn('[FCM] 오류:', e.code || e.message);
       return false;
     }
   };
@@ -113,11 +114,20 @@
     }
   };
 
-  // 포그라운드 메시지 수신
+  // 포그라운드 메시지 수신 - 네이티브 알림으로 표시
   if (window.FMESSAGING) {
     onMessage(window.FMESSAGING, (payload) => {
-      if (typeof showToast === 'function') {
-        showToast('🔔 ' + (payload.notification?.title || '새 알림'));
+      const title = payload.notification?.title || '약속의 땅';
+      const body = payload.notification?.body || '';
+      // 브라우저 네이티브 알림 (포그라운드 상태에서도 시스템 알림 표시)
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        new Notification(title, {
+          body,
+          icon: '/asset/logo.png',
+          badge: '/asset/logo.png',
+        });
+      } else if (typeof showToast === 'function') {
+        showToast('🔔 ' + title);
       }
     });
   }
