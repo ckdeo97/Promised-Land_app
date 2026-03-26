@@ -61,14 +61,22 @@
     return fbUpdatePassword(user, newPw);
   };
 
-  // ── FCM 푸시 권한 요청 및 토큰 저장 ──
-  // FCM 토큰 등록 (조용히 - 팝업 없이 이미 허용된 권한만 사용)
+  // ── FCM 토큰 등록 ──
   window.registerFcmToken = async () => {
-    if (!window.FMESSAGING) return;
-    if (typeof Notification === 'undefined') return;
-    if (Notification.permission !== 'granted') return; // 허용 안 됐으면 스킵
+    if (!window.FMESSAGING) return false;
+    if (typeof Notification === 'undefined') return false;
+    if (Notification.permission !== 'granted') return false;
+    if (!('serviceWorker' in navigator)) return false;
     try {
-      const sw = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      // 서비스워커 등록 대기
+      let sw;
+      try {
+        sw = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        await navigator.serviceWorker.ready;
+      } catch(swErr) {
+        console.warn('SW 등록 실패 (로컬 환경에서는 정상):', swErr);
+        return false;
+      }
       const token = await getToken(window.FMESSAGING, {
         vapidKey: 'BJ3imv5tyh8HpiX38GNH02LudQStbmuvi-XDp5nxNiASHAD_lv3mmeWF0DtDQIWoJqjYGuspEDtckCdEhwCqm80',
         serviceWorkerRegistration: sw
@@ -80,19 +88,31 @@
           if (typeof SESSION !== 'undefined') SESSION.set(window.state.user);
           if (typeof render === 'function') render();
         }
+        return true;
       }
-    } catch (e) { console.warn('FCM 토큰 등록 실패:', e); }
+      return false;
+    } catch (e) {
+      console.warn('FCM 토큰 등록 실패:', e.code || e.message);
+      return false;
+    }
   };
 
-  // 권한 요청 + 토큰 등록 (토글 켤 때 명시적으로 호출)
+  // 권한 요청 + 토큰 등록
   window.requestPushPermission = async () => {
-    if (!window.FMESSAGING) return;
-    if (typeof Notification === 'undefined') return;
-    if (Notification.permission === 'denied') return;
+    if (typeof Notification === 'undefined') return false;
+    if (Notification.permission === 'denied') return false;
     try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') await window.registerFcmToken();
-    } catch (e) { console.warn('푸시 권한 요청 실패:', e); }
+      const permission = Notification.permission === 'granted'
+        ? 'granted'
+        : await Notification.requestPermission();
+      if (permission === 'granted') {
+        return await window.registerFcmToken();
+      }
+      return false;
+    } catch (e) {
+      console.warn('푸시 권한 요청 실패:', e);
+      return false;
+    }
   };
 
   // 포그라운드 메시지 수신
@@ -4798,10 +4818,21 @@ function setupDelegation() {
             showToast('푸시 알림을 껐습니다.');
             render();
           } else {
-            // 켜기: 권한 요청 → 토큰 등록 (registerFcmToken 내부에서 render 호출)
+            // 켜기: 권한 요청 → 토큰 등록
             if (typeof window.requestPushPermission === 'function') {
-              await window.requestPushPermission();
-              if (!state.user?.fcmToken) showToast('알림 권한을 허용해주세요.');
+              const ok = await window.requestPushPermission();
+              if (ok) {
+                showToast('푸시 알림을 켰습니다!');
+              } else {
+                const perm = typeof Notification !== 'undefined' ? Notification.permission : '';
+                if (perm === 'denied') {
+                  showToast('브라우저 설정에서 알림을 허용해주세요.');
+                } else if (perm !== 'granted') {
+                  showToast('알림 권한을 허용해주세요.');
+                } else {
+                  showToast('알림 등록에 실패했습니다. 배포 환경에서 시도해주세요.');
+                }
+              }
             }
           }
         } catch(e2) { showToast('알림 설정 중 오류가 발생했습니다.'); render(); }
