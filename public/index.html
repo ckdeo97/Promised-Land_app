@@ -81,13 +81,11 @@
         vapidKey: 'BJ3imv5tyh8HpiX38GNH02LudQStbmuvi-XDp5nxNiASHAD_lv3mmeWF0DtDQIWoJqjYGuspEDtckCdEhwCqm80',
         serviceWorkerRegistration: sw
       });
-      if (token && window.state?.user?.uid) {
-        await window.FDB.setDoc('users', window.state.user.uid, { fcmToken: token });
-        if (window.state.user) {
-          window.state.user.fcmToken = token;
-          if (typeof SESSION !== 'undefined') SESSION.set(window.state.user);
-          if (typeof render === 'function') render();
-        }
+      if (token && state?.user?.uid) {
+        await window.FDB.setDoc('users', state.user.uid, { fcmToken: token });
+        state.user.fcmToken = token;
+        SESSION.set(state.user);
+        render();
         return true;
       }
       return false;
