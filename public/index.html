@@ -3344,9 +3344,9 @@ function openBulletinForm(existing, _forceNew) {
     `<input id="${id}" value="${esc(val||'')}" placeholder="${ph}"
       class="flex-[3] min-w-0 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>`;
   const fixed = (txt) =>
-    `<span class="flex-[7] min-w-0 px-2.5 py-2 text-center bg-zinc-100 rounded-lg text-[11px] text-zinc-500 font-medium">${txt}</span>`;
+    `<span class="flex-[7] min-w-0 px-2.5 py-2 text-center text-[11px] text-zinc-600 font-semibold">${txt}</span>`;
   const fixedPerson = (txt) =>
-    `<span class="flex-[3] min-w-0 px-2.5 py-2 text-center bg-zinc-100 rounded-lg text-[11px] text-zinc-500 font-medium">${txt}</span>`;
+    `<span class="flex-[3] min-w-0 px-2.5 py-2 text-center text-[11px] text-zinc-600 font-semibold">${txt}</span>`;
   const rowWrap = (label, content) =>
     `<div class="flex items-center gap-2 py-2 border-b border-zinc-50">
       <span class="text-[11px] text-zinc-400 w-16 flex-none leading-tight">${label}</span>
@@ -3395,7 +3395,7 @@ function openBulletinForm(existing, _forceNew) {
           inpPerson('bf-call-p', findOI('예배의 부름').participant||ministerName, '전도사/목사') +
           inp('bf-call-s', findOI('예배의 부름').scripture||'', '말씀구절')
         )}
-        ${rowWrap('경배와 찬양', fixedPerson('드림찬양단') + fixed('드림찬양단'))}
+        ${rowWrap('경배와 찬양', fixedPerson('드림찬양단') + `<span class="flex-[7]"></span>`)}
         ${rowWrap('오늘의 기도',
           inpPerson('bf-prayer-p', findOI('오늘의 기도').participant||svc.prayer||'') +
           `<span class="flex-[7]"></span>`
