@@ -284,7 +284,7 @@ tailwind.config = {
   /* body.no-scroll 일 때 터치 스크롤 허용 구역 (JS touchmove 예외와 함께 사용) */
   .allow-scroll {
     touch-action: pan-y;
-    overscroll-behavior: contain;
+    overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
   }
   .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
@@ -4618,6 +4618,34 @@ function setupPTR() {
     }
     if (indicator && dy > threshold) indicator.textContent = '↑ 놓으면 새로고침';
     else if (indicator) indicator.textContent = '↓ 당겨서 새로고침';
+  }, { passive: true });
+  // 스크롤 경계 오버스크롤 10px로 제한 (iOS rubber band 억제)
+  document.addEventListener('touchmove', e => {
+    const el = e.target.closest('.allow-scroll') || (document.scrollingElement || document.documentElement);
+    if (!el) return;
+    const isScrollEl = el.classList && el.classList.contains('allow-scroll');
+    const target = isScrollEl ? el : null;
+    if (!target) {
+      // window 스크롤 경계 제한
+      const st = window.scrollY;
+      const maxScroll = document.body.scrollHeight - window.innerHeight;
+      if (st < 0) window.scrollTo(0, 0);
+      if (st > maxScroll + 10) window.scrollTo(0, maxScroll);
+      return;
+    }
+    const { scrollTop, scrollHeight, clientHeight } = target;
+    const atTop = scrollTop <= 0;
+    const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+    const touch = e.touches[0];
+    if (!target._ovTs) return;
+    const dy = touch.clientY - target._ovTs;
+    // 위 끝에서 더 위로, 아래 끝에서 더 아래로 → 10px까지만 허용
+    if (atTop && dy > 10) { e.preventDefault(); target.scrollTop = 0; }
+    if (atBottom && dy < -10) { e.preventDefault(); target.scrollTop = scrollHeight; }
+  }, { passive: false });
+  document.addEventListener('touchstart', e => {
+    const el = e.target.closest('.allow-scroll');
+    if (el) el._ovTs = e.touches[0].clientY;
   }, { passive: true });
   document.addEventListener('touchend', async e => {
     if (!pulling) return;
