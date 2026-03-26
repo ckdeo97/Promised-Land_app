@@ -24,6 +24,7 @@
   import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, getBlob } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword as fbUpdatePassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCsc6xD7mTAnSwPbz7iSGB9NjniFub97wY",
@@ -40,6 +41,9 @@
   const storage = getStorage(app);
   const auth = getAuth(app);
   try { getAnalytics(app); } catch(e) {}
+  // FCM Messaging
+  let _messaging = null;
+  try { _messaging = getMessaging(app); window.FMESSAGING = _messaging; } catch(e) { console.warn('FCM 초기화 실패:', e); }
   window.FAUTH = auth;
   window.FB_createUser = (email, pw) => createUserWithEmailAndPassword(auth, email, pw);
   window.FB_signIn     = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
@@ -54,6 +58,37 @@
     if (!user) throw new Error('not-logged-in');
     return fbUpdatePassword(user, newPw);
   };
+
+  // ── FCM 푸시 권한 요청 및 토큰 저장 ──
+  window.requestPushPermission = async () => {
+    if (!window.FMESSAGING) return;
+    // 이미 거부된 경우 재요청 안 함
+    if (Notification.permission === 'denied') return;
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        const token = await getToken(window.FMESSAGING, {
+          vapidKey: 'BJ3imv5tyh8HpiX38GNH02LudQStbmuvi-XDp5nxNiASHAD_lv3mmeWF0DtDQIWoJqjYGuspEDtckCdEhwCqm80',
+          serviceWorkerRegistration: await navigator.serviceWorker.register('/firebase-messaging-sw.js')
+        });
+        if (token && window.state?.user?.uid) {
+          await window.FDB.setDoc('users', window.state.user.uid, { fcmToken: token });
+          if (window.state.user) window.state.user.fcmToken = token;
+        }
+      }
+    } catch (error) {
+      console.warn('푸시 권한 요청 실패:', error);
+    }
+  };
+
+  // 포그라운드 메시지 수신
+  if (window.FMESSAGING) {
+    onMessage(window.FMESSAGING, (payload) => {
+      if (typeof showToast === 'function') {
+        showToast('🔔 ' + (payload.notification?.title || '새 알림'));
+      }
+    });
+  }
 
   // ============================================================
   // FIREBASE DB LAYER
@@ -4904,6 +4939,8 @@ async function initApp(firebaseUser) {
         SESSION.set(freshUser);
         state.page = 'main';
         await ensureLinkedRosterForActiveUser();
+        // 푸시 알림 권한 요청 (로그인 후 1회, 비동기 - 앱 로딩 블로킹 안 함)
+        setTimeout(() => { if (typeof window.requestPushPermission === 'function') window.requestPushPermission(); }, 2000);
       } else {
         forceLogoutInvalidSession();
       }
