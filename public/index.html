@@ -1518,8 +1518,8 @@ function renderHomeTab() {
     '</div>',
     // 다음주 컬럼 헤더
     '<div class="flex-1 flex flex-col items-center justify-center py-2.5 border-l border-white/10">',
-    '<span class="text-[10px] font-bold text-white/40 uppercase tracking-wider">다음주</span>',
-    '<span class="text-xs font-bold text-white/40 mt-0.5">' + dutyYmwNext.mo + '월 ' + dutyYmwNext.wk + '째주</span>',
+    '<span class="text-[10px] font-bold text-white/60 uppercase tracking-wider">다음주</span>',
+    '<span class="text-xs font-bold text-white/60 mt-0.5">' + dutyYmwNext.mo + '월 ' + dutyYmwNext.wk + '째주</span>',
     '</div>',
     '</div>',
     // 데이터 행
@@ -1536,9 +1536,9 @@ function renderHomeTab() {
         '<div class="flex-1 flex items-center justify-center py-4 border-l border-zinc-50">',
         '<span class="text-sm font-bold text-black text-center leading-tight">' + esc(r.v1) + '</span>',
         '</div>',
-        // 다음주 이름 - 연하게
+        // 다음주 이름 - 약간 연하게 (읽기는 충분히)
         '<div class="flex-1 flex items-center justify-center py-4 border-l border-zinc-50">',
-        '<span class="text-sm font-medium text-zinc-300 text-center leading-tight">' + esc(r.v2) + '</span>',
+        '<span class="text-sm font-bold text-zinc-400 text-center leading-tight">' + esc(r.v2) + '</span>',
         '</div>',
         '</div>'
       ].join('');
@@ -2307,9 +2307,21 @@ function ymwToDate(yr, mo, wk) {
 function dateToYMW(dateStr) {
   if(!dateStr) { const t=new Date(); return {yr:t.getFullYear(),mo:t.getMonth()+1,wk:1}; }
   const d = new Date(dateStr+'T00:00:00');
-  const first = new Date(d.getFullYear(), d.getMonth(), 1);
-  const wk = Math.ceil((d.getDate() + first.getDay()) / 7);
-  return {yr:d.getFullYear(), mo:d.getMonth()+1, wk};
+  const yr = d.getFullYear(), mo = d.getMonth()+1;
+  const date = d.getDate(), dow = d.getDay();
+  // 이 주의 일요일 날짜 (같은 달 or 이전 달)
+  const thisSunDate = date - dow;
+  if (thisSunDate <= 0) {
+    // 이 주 일요일이 전달 → 전달 기준으로 재계산
+    const prevMo = mo === 1 ? 12 : mo - 1;
+    const prevYr = mo === 1 ? yr - 1 : yr;
+    const lastDayPrev = new Date(yr, mo-1, 0).getDate();
+    return dateToYMW(`${prevYr}-${String(prevMo).padStart(2,'0')}-${String(lastDayPrev+thisSunDate).padStart(2,'0')}`);
+  }
+  const firstDow = new Date(yr, mo-1, 1).getDay();
+  const firstSun = firstDow === 0 ? 1 : 8 - firstDow;
+  const wk = Math.floor((thisSunDate - firstSun) / 7) + 1;
+  return { yr, mo, wk };
 }
 // 현재 or 최근 일요일 기본값
 function defaultYMW() {
