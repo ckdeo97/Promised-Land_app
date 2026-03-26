@@ -1298,7 +1298,7 @@ function renderMain() {
   return `
   <div class="min-h-screen pb-24" style="background:#f4f4f5">
     <!-- Header -->
-    <header class="fixed top-0 left-0 right-0 z-[100] px-5 pt-3 pb-3 bg-white/65 backdrop-blur-2xl border-b border-white/80 shadow-[0_4px_30px_rgba(0,0,0,0.03)] supports-[backdrop-filter]:bg-white/60">
+    <header class="fixed top-0 left-0 right-0 z-[100] px-5 pt-3 pb-3 bg-white border-b border-zinc-100/80 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
       <div class="flex justify-between items-center">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl overflow-hidden bg-black flex items-center justify-center">
@@ -1320,7 +1320,7 @@ function renderMain() {
     <main class="px-5 pt-20 pb-4"><div class="tab-content space-y-4">${content}</div></main>
 
     <!-- Bottom Nav -->
-    <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white/65 backdrop-blur-2xl border-t border-white/80 shadow-[0_-4px_30px_rgba(0,0,0,0.03)] supports-[backdrop-filter]:bg-white/60">
+    <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white border-t border-zinc-100/0 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
       <div class="flex justify-around items-center max-w-md mx-auto">
         ${tabs.map(t => `
           <button data-tab="${t.key}" class="flex flex-col items-center gap-0.5 px-4 py-1 transition-colors ${state.tab===t.key?'text-black':'text-zinc-400'}">
@@ -1514,7 +1514,7 @@ function renderHomeTab() {
     '<h2 class="text-base font-bold tracking-tight mb-3">예배 담당</h2>',
     '<div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] overflow-hidden">',
     // 헤더
-    '<div class="bg-gradient-to-br from-zinc-800 to-black relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>',
+    '<div class="bg-gradient-to-br from-zinc-800 to-black relative overflow-hidden flex items-center"><div class="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-transparent pointer-events-none"></div>',
     // 좌측: 아이콘+항목 자리 (투명)
     '<div class="w-[5.5rem] flex items-center justify-center py-3">' + icon('church','text-white',18) + '</div>',
     // 이번주 컬럼 헤더
@@ -1662,7 +1662,7 @@ function renderBulletinInline(b) {
   const parts = [];
 
   // 헤더
-  parts.push('<div class="bg-black text-white rounded-3xl p-8 text-center relative overflow-hidden dot-pattern mb-4"><div class="relative z-10"><p class="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 mb-2">약속의 땅 청년부 · 주일예배</p><h2 class="text-xl font-bold">' + esc(b.title||b.date) + '</h2></div></div>');
+  parts.push('<div class="bg-gradient-to-br from-zinc-800 to-black shadow-md shadow-zinc-900/20 border border-zinc-700/50 text-white rounded-3xl p-8 text-center relative overflow-hidden dot-pattern mb-4"><div class="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-transparent pointer-events-none rounded-3xl"></div><div class="relative z-10"><p class="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 mb-2">약속의 땅 청년부 · 주일예배</p><h2 class="text-xl font-bold">' + esc(b.title||b.date) + '</h2></div></div>');
 
   // 예배순서
   if (orderItems.length) {
@@ -1770,7 +1770,7 @@ function renderBulletinDetail() {
 
   return `
   <div class="min-h-screen bg-zinc-50">
-    <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white/65 backdrop-blur-2xl border-b border-white/80 shadow-[0_4px_30px_rgba(0,0,0,0.03)] supports-[backdrop-filter]:bg-white/60 flex items-center gap-3">
+    <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white border-b border-zinc-100/80 shadow-[0_2px_12px_rgba(0,0,0,0.06)] flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">주보</h1>
     </header>
@@ -1882,7 +1882,7 @@ function renderNoticeDetail() {
   const schedLabel = formatNoticeScheduleLabel(n);
   return `
   <div class="min-h-screen bg-zinc-50">
-    <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white/65 backdrop-blur-2xl border-b border-white/80 shadow-[0_4px_30px_rgba(0,0,0,0.03)] supports-[backdrop-filter]:bg-white/60 flex items-center gap-3">
+    <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white border-b border-zinc-100/80 shadow-[0_2px_12px_rgba(0,0,0,0.06)] flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">공지사항</h1>
     </header>
@@ -2032,7 +2032,7 @@ function renderWorshipDetail() {
   const songRows = w.songs.map((s,i) => _renderSongRow(s,i)).join('');
   return `
   <div class="min-h-screen bg-white">
-    <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white/65 backdrop-blur-2xl border-b border-white/80 shadow-[0_4px_30px_rgba(0,0,0,0.03)] supports-[backdrop-filter]:bg-white/60 flex items-center gap-3">
+    <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white border-b border-zinc-100/80 shadow-[0_2px_12px_rgba(0,0,0,0.06)] flex items-center gap-3">
       <button data-action="back" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">이번주 찬양</h1>
     </header>
@@ -2149,7 +2149,7 @@ function renderProfilePage() {
   const pg = state.profilePage;
   const noti = u._noti || {worship:true,notice:true,verse:true,schedule:true,duty:true};
 
-  const header = (title) => `<header class="fixed top-0 left-0 right-0 z-[100] bg-white/65 backdrop-blur-2xl border-b border-white/80 shadow-[0_4px_30px_rgba(0,0,0,0.03)] supports-[backdrop-filter]:bg-white/60 px-5 py-4 flex items-center gap-3">
+  const header = (title) => `<header class="fixed top-0 left-0 right-0 z-[100] bg-white border-b border-zinc-100/80 shadow-[0_2px_12px_rgba(0,0,0,0.06)] px-5 py-4 flex items-center gap-3">
     <button data-action="close-profile-page" class="w-9 h-9 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
     <h1 class="font-bold text-base">${title}</h1>
   </header>`;
@@ -2296,7 +2296,7 @@ function renderAdmin() {
 
   return `
   <div class="min-h-screen bg-zinc-50">
-    <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white/65 backdrop-blur-2xl border-b border-white/80 shadow-[0_4px_30px_rgba(0,0,0,0.03)] supports-[backdrop-filter]:bg-white/60 flex items-center gap-3">
+    <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white border-b border-zinc-100/80 shadow-[0_2px_12px_rgba(0,0,0,0.06)] flex items-center gap-3">
       <button data-action="back-admin" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">${state.adminSub==='dashboard'?'관리자':menu.find(m=>m.k===state.adminSub)?.l||'관리자'}</h1>
     </header>
