@@ -1655,8 +1655,8 @@ function renderBulletinInline(b) {
   const dream = b.dream || {};
   const parts = [];
 
-  // 헤더 - 날짜 + 제목만 심플하게
-  parts.push('<div class="mb-4"><p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">약속의 땅 청년부 · 주일예배</p><h2 class="text-xl font-bold tracking-tight">' + esc(b.title||b.date) + '</h2></div>');
+  // 헤더
+  parts.push('<div class="bg-black text-white rounded-3xl p-8 text-center relative overflow-hidden dot-pattern mb-4"><div class="relative z-10"><p class="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 mb-2">약속의 땅 청년부 · 주일예배</p><h2 class="text-xl font-bold">' + esc(b.title||b.date) + '</h2></div></div>');
 
   // 예배순서
   if (orderItems.length) {
@@ -3269,9 +3269,10 @@ function bindEvents() {
 // ============================================================
 // 주보 폼 (신규 + 수정 공용)
 // ============================================================
-function openBulletinForm(existing) {
+function openBulletinForm(existing, _forceNew) {
   const area = document.getElementById('admin-form-area'); if (!area) return;
-  const isEdit = !!existing;
+  // _forceNew=true 이면 내용 불러오기지만 새 주보로 처리
+  const isEdit = !!existing && !!existing.id && !_forceNew;
   const bid = isEdit ? existing.id : uid();
 
   // 전도사/목사 찾기
@@ -3292,7 +3293,7 @@ function openBulletinForm(existing) {
     return firstSun + (wk-1)*7;
   }
 
-  const defDate = isEdit && existing.date ? new Date(existing.date + 'T00:00:00') : getNextSunday();
+  const defDate = (isEdit && existing.date) ? new Date(existing.date + 'T00:00:00') : getNextSunday();
   const defYr = defDate.getFullYear();
   const defMo = defDate.getMonth()+1;
   const defWk = weekOfMonth(defDate);
@@ -3444,9 +3445,9 @@ function openBulletinForm(existing) {
     if (!selId) return;
     const loaded = state.cache.bulletins.find(b=>b.id===selId);
     if (!loaded) return;
-    // 날짜·id 제외하고 내용만 복사 → 항상 새 주보로 생성 (isEdit=false)
+    // 날짜·id 제외하고 내용만 복사 → 항상 새 주보로 생성
     const { id: _id, date: _date, title: _title, at: _at, by: _by, ...contents } = loaded;
-    openBulletinForm(contents); // id 없으므로 isEdit=false, 날짜는 기본값(다음 일요일)
+    openBulletinForm(contents, true); // _forceNew=true → 저장 버튼으로 강제
   });
 
   // 날짜 변경 시 임사 갱신
@@ -3458,19 +3459,23 @@ function openBulletinForm(existing) {
     const owk = +document.getElementById('bf-off-wk')?.value || defWk;
     const offDate = ymwToDate(oyr, omo, owk);
     const off = state.cache.offerings[offDate] || { items: [] };
-    const calcT = (type) => (off.items||[]).filter(i=>i.type===type).reduce((s,i)=>s+(+i.amount||0),0);
-    const weekly = calcT('주정'), tithe = calcT('십일조'), thanks = calcT('감사');
-    const total = weekly + tithe + thanks;
-    const rows = [
-      {l:'주정헌금', v:weekly},
-      {l:'십일조',   v:tithe},
-      {l:'감사헌금', v:thanks},
-    ].filter(r=>r.v>0);
+    const getNames = (type) => (off.items||[]).filter(i=>i.type===type).map(i=>i.name).filter(Boolean);
+    const categories = [
+      {l:'주정헌금', type:'주정'},
+      {l:'십일조',   type:'십일조'},
+      {l:'감사헌금', type:'감사'},
+      {l:'기타',     type:'기타'},
+    ];
+    const rows = categories.map(c=>({l:c.l, names:getNames(c.type)})).filter(r=>r.names.length>0);
     if (!rows.length) {
       preview.innerHTML = '<p class="text-xs text-zinc-400 px-3 py-3 text-center">' + oyr + '년 ' + omo + '월 ' + owk + '째주 헌금 기록 없음</p>';
     } else {
-      preview.innerHTML = rows.map(r=>'<div class="flex justify-between items-center px-3 py-2.5 border-b border-zinc-50 last:border-0"><span class="text-xs text-zinc-500">'+r.l+'</span><span class="text-xs font-bold">'+r.v.toLocaleString()+'원</span></div>').join('')
-        + '<div class="flex justify-between items-center px-3 py-2.5 bg-zinc-50"><span class="text-xs font-bold text-zinc-600">합계</span><span class="text-xs font-bold">'+total.toLocaleString()+'원</span></div>';
+      preview.innerHTML = rows.map(r =>
+        '<div class="px-3 py-2.5 border-b border-zinc-50 last:border-0">'
+        + '<span class="text-[10px] font-bold text-zinc-400 block mb-0.5">' + r.l + '</span>'
+        + '<span class="text-xs font-bold text-black">' + r.names.join(', ') + '</span>'
+        + '</div>'
+      ).join('');
     }
   };
   const updateSvc = () => {
@@ -3546,17 +3551,17 @@ function openBulletinForm(existing) {
       {name:'결단의 찬양',  participant:'다같이',              scripture:g('bf-resolve-s')||'주님 말씀 앞에선', fixed:true},
       {name:'축도',         participant:g('bf-blessing-p')||mp},
     ];
-    // 선택한 주 헌금 집계
+    // 선택한 주 헌금 이름 목록
     const offYr=+document.getElementById('bf-off-yr')?.value||yr;
     const offMo=+document.getElementById('bf-off-mo')?.value||mo;
     const offWk=+document.getElementById('bf-off-wk')?.value||wk;
     const offDate = ymwToDate(offYr, offMo, offWk);
     const selOffering = state.cache.offerings[offDate] || { items: [] };
-    const calcTotal = (type) => (selOffering.items||[]).filter(i=>i.type===type).reduce((s,i)=>s+(+i.amount||0),0);
+    const getNames = (type) => (selOffering.items||[]).filter(i=>i.type===type).map(i=>i.name).filter(Boolean).join(', ') || undefined;
     const dream = {
-      weekly: calcTotal('주정') || undefined,
-      tithe:  calcTotal('십일조') || undefined,
-      thanks: calcTotal('감사') || undefined,
+      weekly: getNames('주정'),
+      tithe:  getNames('십일조'),
+      thanks: getNames('감사'),
       _offDate: offDate,
     };
     const b = {id:bid,title,date,orderItems,announcements,dream,by:state.user.uid,at:today()};
