@@ -16,6 +16,8 @@
 <meta name="theme-color" content="#ffffff"/>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <!-- Firebase SDK -->
 <script type="module">
@@ -73,7 +75,12 @@
         });
         if (token && window.state?.user?.uid) {
           await window.FDB.setDoc('users', window.state.user.uid, { fcmToken: token });
-          if (window.state.user) window.state.user.fcmToken = token;
+          if (window.state.user) {
+            window.state.user.fcmToken = token;
+            // SESSION 업데이트 + 화면 갱신
+            if (typeof SESSION !== 'undefined') SESSION.set(window.state.user);
+            if (typeof render === 'function') render();
+          }
         }
       }
     } catch (error) {
@@ -323,6 +330,8 @@ tailwind.config = {
     -webkit-overflow-scrolling: touch;
   }
   .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+  /* 폰트 로딩 전 텍스트 fallback 숨김 */
+  .material-symbols-outlined { font-display: block; }
   .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
   ::-webkit-scrollbar { display: none; }
   * { -ms-overflow-style: none; scrollbar-width: none; }
@@ -3070,7 +3079,12 @@ function bindEvents() {
       state.user = u; state.page = 'main';
       SESSION.set(u);
       await loadAll();
-      render();
+      // 폰트 로딩 완료 후 렌더 (아이콘 텍스트 깨짐 방지)
+      if (document.fonts?.ready) {
+        document.fonts.ready.then(() => render()).catch(() => render());
+      } else {
+        render();
+      }
     } catch(e) {
       console.error('login error', e);
       errEl.textContent='서버 연결 오류. 잠시 후 다시 시도해주세요.';
@@ -5038,7 +5052,12 @@ async function initApp(firebaseUser) {
     } else {
       state.page = 'login';
     }
-    render();
+    // 폰트 로딩 완료 후 렌더 (아이콘이 텍스트로 보이는 현상 방지)
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(() => render()).catch(() => render());
+    } else {
+      render();
+    }
   } catch (e) {
     console.error('initApp', e);
     state.user = null;
