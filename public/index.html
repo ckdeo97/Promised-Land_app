@@ -3303,6 +3303,18 @@ function openBulletinForm(existing, _forceNew) {
     const dateStr = `${yr}-${String(mo).padStart(2,'0')}-${day}`;
     return state.cache.serviceSchedules.find(s=>s.date===dateStr) || {};
   }
+  // 이전 주차 계산 (1째주면 전달 마지막 주)
+  function prevYMW(yr, mo, wk) {
+    if (wk > 1) return { yr, mo, wk: wk - 1 };
+    const prevMo = mo === 1 ? 12 : mo - 1;
+    const prevYr = mo === 1 ? yr - 1 : yr;
+    const lastDay = new Date(prevYr, prevMo, 0).getDate();
+    const lastDayDow = new Date(prevYr, prevMo - 1, lastDay).getDay();
+    const lastSun = lastDay - lastDayDow;
+    const firstDow = new Date(prevYr, prevMo - 1, 1).getDay();
+    const firstSun = firstDow === 0 ? 1 : 8 - firstDow;
+    return { yr: prevYr, mo: prevMo, wk: Math.floor((lastSun - firstSun) / 7) + 1 };
+  }
   let svc = getSvc(defYr, defMo, defWk);
 
   const oi = existing?.orderItems || [];
@@ -3423,9 +3435,9 @@ function openBulletinForm(existing, _forceNew) {
     <div id="bf-dream-section">
       <p class="text-xs font-bold text-zinc-600 mb-2 ml-0.5">우리의 드림</p>
       <div class="flex gap-2 mb-2">
-        <select id="bf-off-yr" class="flex-1 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black">${[defYr-1,defYr,defYr+1].map(y=>`<option value="${y}"${y===defYr?' selected':''}>${y}년</option>`).join('')}</select>
-        <select id="bf-off-mo" class="flex-1 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black">${Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}"${m===defMo?' selected':''}>${m}월</option>`).join('')}</select>
-        <select id="bf-off-wk" class="flex-1 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black">${[1,2,3,4,5].map(w=>`<option value="${w}"${w===defWk?' selected':''}>${w}째주</option>`).join('')}</select>
+        <select id="bf-off-yr" class="flex-1 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black">${[defYr-1,defYr,defYr+1].map(y=>`<option value="${y}"${y===prevYMW(defYr,defMo,defWk).yr?' selected':''}>${y}년</option>`).join('')}</select>
+        <select id="bf-off-mo" class="flex-1 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black">${Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}"${m===prevYMW(defYr,defMo,defWk).mo?' selected':''}>${m}월</option>`).join('')}</select>
+        <select id="bf-off-wk" class="flex-1 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:border-black">${[1,2,3,4,5].map(w=>`<option value="${w}"${w===prevYMW(defYr,defMo,defWk).wk?' selected':''}>${w}째주</option>`).join('')}</select>
       </div>
       <div id="bf-dream-preview" class="rounded-xl border border-zinc-100 overflow-hidden">
         <p class="text-xs text-zinc-400 px-3 py-3 text-center">위에서 헌금 주를 선택하세요</p>
@@ -3459,7 +3471,8 @@ function openBulletinForm(existing, _forceNew) {
     const owk = +document.getElementById('bf-off-wk')?.value || defWk;
     const offDate = ymwToDate(oyr, omo, owk);
     const off = state.cache.offerings[offDate] || { items: [] };
-    const getNames = (type) => (off.items||[]).filter(i=>i.type===type).map(i=>i.name).filter(Boolean);
+    const stripParens = (s) => (s||'').replace(/\s*[\(（][^\)）]*[\)）]/g, '').trim();
+    const getNames = (type) => (off.items||[]).filter(i=>i.type===type).map(i=>stripParens(i.name)).filter(Boolean);
     const categories = [
       {l:'주정헌금', type:'주정'},
       {l:'십일조',   type:'십일조'},
@@ -3557,7 +3570,8 @@ function openBulletinForm(existing, _forceNew) {
     const offWk=+document.getElementById('bf-off-wk')?.value||wk;
     const offDate = ymwToDate(offYr, offMo, offWk);
     const selOffering = state.cache.offerings[offDate] || { items: [] };
-    const getNames = (type) => (selOffering.items||[]).filter(i=>i.type===type).map(i=>i.name).filter(Boolean).join(', ') || undefined;
+    const stripParens = (s) => (s||'').replace(/\s*[\(（][^\)）]*[\)）]/g, '').trim();
+    const getNames = (type) => (selOffering.items||[]).filter(i=>i.type===type).map(i=>stripParens(i.name)).filter(Boolean).join(', ') || undefined;
     const dream = {
       weekly: getNames('주정'),
       tithe:  getNames('십일조'),
