@@ -1290,7 +1290,7 @@ function renderMain() {
   ];
 
   return `
-  <div class="min-h-screen pb-36" style="background:#f4f4f5">
+  <div class="min-h-screen pb-24" style="background:#f4f4f5">
     <!-- Header -->
     <header class="fixed top-0 left-0 right-0 z-[100] px-5 pt-3 pb-3 bg-white/90 backdrop-blur-xl border-b border-zinc-100">
       <div class="flex justify-between items-center">
@@ -1311,7 +1311,7 @@ function renderMain() {
       </div>
     </header>
 
-    <main class="px-5 pt-20 pb-8"><div class="tab-content space-y-4">${content}</div></main>
+    <main class="px-5 pt-20 pb-4"><div class="tab-content space-y-4">${content}</div></main>
 
     <!-- Bottom Nav -->
     <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white/90 backdrop-blur-xl border-t border-zinc-100">
@@ -1484,9 +1484,13 @@ function renderHomeTab() {
   const mergedEvents = getMergedEventsForDisplay();
   const latest = worships[worships.length - 1];
   const verses = state.cache.verses;
-  const upcomingDate = getUpcomingSundays(1, false)[0];
-  const svc = state.cache.serviceSchedules.find(s => s.date === upcomingDate) || {};
-  const dutyYmw = dateToYMW(upcomingDate);
+  const upcomingDates = getUpcomingSundays(2, false);
+  const upcomingDateThis = upcomingDates[0];
+  const upcomingDateNext = upcomingDates[1] || upcomingDateThis;
+  const svcThis = state.cache.serviceSchedules.find(s => s.date === upcomingDateThis) || {};
+  const svcNext = state.cache.serviceSchedules.find(s => s.date === upcomingDateNext) || {};
+  const dutyYmwThis = dateToYMW(upcomingDateThis);
+  const dutyYmwNext = dateToYMW(upcomingDateNext);
   const vLen = verses.length;
   const vIdx = vLen ? Math.floor(Date.now() / 86400000) % vLen : 0;
   const dv = vLen ? verses[vIdx] : null;
@@ -1495,25 +1499,33 @@ function renderHomeTab() {
 
   const dutySection = `
   <section>
-    <h2 class="text-base font-bold tracking-tight mb-3">금주 예배 담당</h2>
-    <div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
-      <div class="bg-black px-5 py-3 flex items-center gap-2">
-        ${icon('church','text-white',18)}
-        <span class="text-white text-xs font-bold">${dutyYmw.mo}월 ${dutyYmw.wk}째주</span>
-      </div>
-      <div class="divide-y divide-zinc-50">
-        ${[
-          {l:'대표기도', v:(svc.prayer && String(svc.prayer).trim()) || '미정', i:'volunteer_activism'},
-          {l:'성경봉독', v:(svc.bible && String(svc.bible).trim()) || '미정', i:'menu_book'},
-          {l:'성도의 교제', v:(svc.fellowship && String(svc.fellowship).trim()) || '미정', i:'campaign'},
-          {l:'봉헌', v:(svc.offering && String(svc.offering).trim()) || '미정', i:'favorite'},
-        ].map(d => `
-        <div class="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-4 min-w-0">
-          <div class="w-7 h-7 sm:w-8 sm:h-8 bg-zinc-100 rounded-lg flex items-center justify-center flex-none shrink-0">${icon(d.i,'text-zinc-600',16)}</div>
-          <span class="text-[11px] sm:text-xs text-zinc-400 w-[4.25rem] sm:w-24 flex-none shrink-0 text-right leading-tight">${d.l}</span>
-          <span class="text-sm font-bold flex-1 text-center min-w-0 px-1">${esc(d.v)}</span>
-        </div>`).join('')}
-      </div>
+    <h2 class="text-base font-bold tracking-tight mb-3">예배 담당</h2>
+    <div class="space-y-3">
+      ${[
+        { tag: '이번주', ymw: dutyYmwThis, svc: svcThis },
+        { tag: '다음주', ymw: dutyYmwNext, svc: svcNext },
+      ].map(d => `
+        <div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
+          <div class="bg-black px-5 py-3 flex items-center gap-2">
+            ${icon('church','text-white',18)}
+            <span class="text-white text-xs font-bold">${d.ymw.mo}월 ${d.ymw.wk}째주</span>
+            <span class="ml-2 text-[10px] font-bold text-white/80 px-2 py-0.5 bg-white/10 rounded-full">${d.tag}</span>
+          </div>
+          <div class="divide-y divide-zinc-50">
+            ${[
+              {l:'대표기도', v:(d.svc.prayer && String(d.svc.prayer).trim()) || '미정', i:'volunteer_activism'},
+              {l:'성경봉독', v:(d.svc.bible && String(d.svc.bible).trim()) || '미정', i:'menu_book'},
+              {l:'성도의 교제', v:(d.svc.fellowship && String(d.svc.fellowship).trim()) || '미정', i:'campaign'},
+              {l:'봉헌', v:(d.svc.offering && String(d.svc.offering).trim()) || '미정', i:'favorite'},
+            ].map(r => `
+              <div class="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-4 min-w-0">
+                <div class="w-7 h-7 sm:w-8 sm:h-8 bg-zinc-100 rounded-lg flex items-center justify-center flex-none shrink-0">${icon(r.i,'text-zinc-600',16)}</div>
+                <span class="text-[11px] sm:text-xs text-zinc-400 w-[4.25rem] sm:w-24 flex-none shrink-0 text-left leading-tight">${r.l}</span>
+                <span class="text-sm font-bold flex-1 text-center min-w-0 px-1">${esc(r.v)}</span>
+              </div>`).join('')}
+          </div>
+        </div>
+      `).join('')}
     </div>
   </section>`;
 
@@ -1539,7 +1551,7 @@ function renderHomeTab() {
     <div class="flex gap-3 overflow-x-auto pb-1 -mx-5 px-5 hide-scrollbar items-stretch">
       ${latest.songs.map((s,i) => {
         const thumb = getYtThumb(s.url);
-        return `<button data-worship-play="${i}" class="flex-none w-44 flex flex-col bg-white rounded-2xl border border-zinc-200 overflow-hidden active:bg-zinc-50 transition-colors text-left h-full min-h-[188px]">
+        return `<button data-worship-play="${i}" class="flex-none w-44 flex flex-col bg-white rounded-2xl border border-zinc-200 overflow-hidden active:bg-zinc-50 transition-colors text-left h-full min-h-[172px]">
           <div class="w-full aspect-video bg-zinc-900 overflow-hidden relative shrink-0">
             ${thumb
               ? `<img src="${thumb}" class="w-full h-full object-cover" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
@@ -1548,7 +1560,7 @@ function renderHomeTab() {
               : `<img src="asset/logo.png" class="w-full h-full object-cover" alt=""/>`
             }
           </div>
-          <div class="p-3.5 flex flex-col flex-1 justify-center min-h-[4.5rem]">
+          <div class="p-3 flex flex-col flex-1 justify-center min-h-[4rem]">
             <p class="text-xs font-bold leading-snug line-clamp-2">${esc(s.title)}</p>
             <p class="text-[10px] text-zinc-400 mt-1">Key: ${esc(s.key)}</p>
           </div>
@@ -1568,14 +1580,14 @@ function renderHomeTab() {
         <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
           ${noticeRowThumbHtml(n)}
           <div class="flex-1 min-w-0 py-0.5">
-            <p class="text-lg font-medium leading-snug text-zinc-900 tracking-tight line-clamp-2">${esc(n.title)}</p>
-            ${sched ? `<p class="text-xs text-zinc-500 mt-1 font-medium">${esc(sched)}</p>` : ''}
+            <p class="text-[15px] sm:text-lg font-medium leading-tight text-zinc-900 tracking-tight line-clamp-2">${esc(n.title)}</p>
+            ${sched ? `<p class="text-[11px] sm:text-xs text-zinc-500 mt-1 leading-snug font-medium">${esc(sched)}</p>` : ''}
           </div>
         </button>`;
       }).join('')}
     </div>
   </section>
-  <section class="pb-8">
+  <section class="pb-4">
     <div class="flex justify-between items-center mb-3">
       <h3 class="text-base font-bold flex items-center gap-1.5">${icon('calendar_month','',18)} 다가오는 일정</h3>
       <button data-tab="calendar" class="text-zinc-400 text-xs font-bold">전체보기</button>
@@ -1918,7 +1930,7 @@ function _renderSongRow(s, i) {
     ? ('<img src="' + yt + '" alt="" class="w-full h-full object-cover" loading="lazy" onerror="this.onerror=null;this.src=\'asset/logo.png\';"/>')
     : '<img src="asset/logo.png" alt="" class="w-full h-full object-cover"/>';
   const linkBtn = s.url
-    ? '<a href="' + s.url + '" target="_blank" class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center flex-none shrink-0">' + icon('play_arrow','text-red-500',22) + '</a>'
+    ? '<a href="' + s.url + '" target="_self" class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center flex-none shrink-0">' + icon('play_arrow','text-red-500',22) + '</a>'
     : '';
   const sheetBtn = s.sheet
     ? '<button type="button" data-action="toggle-worship-sheet" data-worship-sheet-idx="' + i + '" aria-expanded="false" class="worship-sheet-toggle w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center flex-none shrink-0 active:opacity-80">'
@@ -3730,8 +3742,9 @@ function setupDelegation() {
             }
             const combinedIds = ids.join(',');
             const openUrl = 'https://www.youtube.com/watch_videos?video_ids=' + combinedIds;
-            const win = window.open(openUrl, '_blank', 'noopener,noreferrer');
-            if (!win) showToast('팝업이 차단되었습니다. 팝업을 허용해 주세요.');
+            // iOS Safari에서 새 탭이 뜨고 복귀 시 원치 않는 페이지가 남는 문제를 줄이기 위해
+            // 동일 탭에서 이동합니다.
+            window.location.href = openUrl;
             break;
           }
           case 'download-all-sheets': {
@@ -4484,7 +4497,13 @@ function setupDelegation() {
         const idx = parseInt(worshipPlayEl.dataset.worshipPlay);
         const latest = state.cache.worshipSets[state.cache.worshipSets.length - 1];
         const song = latest?.songs?.[idx];
-        if (song?.url) { window.open(song.url, '_blank'); } else { state.detail = { type: 'worship', id: 'latest' }; render(); }
+        if (song?.url) {
+          // 새 탭(_blank) 대신 동일 탭으로 이동해서 복귀 시 화면이 하얗게 뜨는 현상을 완화
+          window.location.href = song.url;
+        } else {
+          state.detail = { type: 'worship', id: 'latest' };
+          render();
+        }
         return;
       }
 
