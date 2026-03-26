@@ -2254,7 +2254,8 @@ function renderProfilePage() {
     ];
     // 현재 브라우저 푸시 권한 상태
     const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported';
-    const pushOn = perm === 'granted';
+    // pushOn = 권한 허용 AND fcmToken 있음 (토큰 없으면 꺼진 것으로 취급)
+    const pushOn = perm === 'granted' && !!u.fcmToken;
     const pushDenied = perm === 'denied';
     return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col">
       ${header('알림 설정')}
@@ -2275,7 +2276,7 @@ function renderProfilePage() {
                 <div>
                   <p class="text-sm font-bold">푸시 알림</p>
                   <p class="text-xs text-zinc-400 mt-0.5">
-                    ${pushDenied ? '브라우저에서 차단됨 — 설정에서 직접 허용' : pushOn ? '이 기기에서 알림을 받습니다' : '탭하여 알림을 허용하세요'}
+                    ${pushDenied ? '브라우저에서 차단됨 — 설정에서 직접 허용' : pushOn ? '이 기기에서 알림을 받습니다' : perm === 'granted' ? '알림이 꺼져 있습니다' : '탭하여 알림을 허용하세요'}
                   </p>
                 </div>
               </div>
@@ -4775,21 +4776,30 @@ function setupDelegation() {
         return;
       }
 
-      // ── (8.5) btn-request-push ──
+      // ── (8.5) btn-request-push (푸시 토글) ──
       if (e.target.closest('#btn-request-push')) {
         const btn = e.target.closest('#btn-request-push');
         if (btn.disabled) return;
         btn.disabled = true;
-        const orig = btn.textContent;
-        btn.textContent = '처리 중...';
         try {
-          if (typeof window.requestPushPermission === 'function') {
-            await window.requestPushPermission();
-            const perm = (typeof Notification !== 'undefined') ? Notification.permission : '';
-            showToast(perm === 'granted' ? '알림이 허용되었습니다!' : '알림 권한을 허용해주세요.');
+          const curPerm = (typeof Notification !== 'undefined') ? Notification.permission : '';
+          const isOn = curPerm === 'granted' && !!state.user?.fcmToken;
+          if (isOn) {
+            // ── 끄기: Firestore에서 fcmToken 제거 ──
+            await window.FDB.setDoc('users', state.user.uid, { fcmToken: null });
+            state.user.fcmToken = null;
+            SESSION.set(state.user);
+            showToast('푸시 알림을 껐습니다.');
+          } else {
+            // ── 켜기: 권한 요청 + 토큰 등록 ──
+            if (typeof window.requestPushPermission === 'function') {
+              await window.requestPushPermission();
+              const newPerm = (typeof Notification !== 'undefined') ? Notification.permission : '';
+              showToast(newPerm === 'granted' ? '푸시 알림을 켰습니다!' : '알림 권한을 허용해주세요.');
+            }
           }
         } catch(e2) { showToast('알림 설정 중 오류가 발생했습니다.'); }
-        btn.disabled = false; btn.textContent = orig;
+        btn.disabled = false;
         render();
         return;
       }
