@@ -2252,21 +2252,73 @@ function renderProfilePage() {
       {k:'schedule',l:'새 일정',d:'새 일정 등록 시'},
       {k:'duty',l:'담당자 지정',d:'예배 담당 배정 시'},
     ];
+    // 현재 브라우저 푸시 권한 상태
+    const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported';
+    const permLabel = perm === 'granted' ? '허용됨' : perm === 'denied' ? '차단됨' : '미설정';
+    const permColor = perm === 'granted' ? 'text-emerald-600' : perm === 'denied' ? 'text-red-500' : 'text-amber-500';
+    const permBg    = perm === 'granted' ? 'bg-emerald-50 border-emerald-100' : perm === 'denied' ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100';
+    const permIcon  = perm === 'granted' ? 'check_circle' : perm === 'denied' ? 'block' : 'notifications';
+    const hasFcmToken = !!(u.fcmToken);
+
     return `<div class="min-h-screen h-[100dvh] bg-zinc-50 flex flex-col">
       ${header('알림 설정')}
-      <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain anim-subtle-left px-5 py-6 pt-20 pb-10">
-        <div class="bg-white rounded-2xl border border-zinc-100 divide-y divide-zinc-50">
-          ${items.map(it=>`
-          <div class="flex items-center justify-between px-5 py-4">
-            <div>
-              <p class="text-sm font-bold">${it.l}</p>
-              <p class="text-xs text-zinc-400 mt-0.5">${it.d}</p>
+      <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain anim-subtle-left px-5 py-6 pt-20 pb-10 space-y-6">
+
+        <!-- ─── 푸시 알림 권한 섹션 ─── -->
+        <div>
+          <div class="flex items-center gap-2 mb-3 px-1">
+            ${icon('notifications_active','text-zinc-500',15)}
+            <p class="text-xs font-bold text-zinc-500 uppercase tracking-wider">기기 푸시 알림</p>
+          </div>
+          <div class="bg-gradient-to-br from-zinc-800 to-black rounded-2xl p-5 shadow-lg shadow-zinc-900/20 border border-zinc-700/50">
+            <div class="flex items-start gap-4">
+              <div class="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center flex-none">
+                ${icon(permIcon, perm==='granted'?'text-emerald-400':perm==='denied'?'text-red-400':'text-amber-400', 22)}
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                  <p class="text-white font-bold text-sm">기기 알림 권한</p>
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${perm==='granted'?'bg-emerald-500/30 text-emerald-300':perm==='denied'?'bg-red-500/30 text-red-300':'bg-amber-500/30 text-amber-300'}">${permLabel}</span>
+                </div>
+                <p class="text-white/50 text-xs leading-relaxed">
+                  ${perm === 'granted'
+                    ? (hasFcmToken ? '푸시 알림이 정상 등록되었습니다.' : '권한은 허용됐지만 토큰 등록이 필요합니다.')
+                    : perm === 'denied'
+                    ? '알림이 차단되어 있습니다. 브라우저 설정에서 직접 허용해주세요.'
+                    : '아직 알림 권한이 설정되지 않았습니다.'}
+                </p>
+              </div>
             </div>
-            <button data-noti-toggle="${it.k}" class="relative w-12 h-6 rounded-full transition-colors ${noti[it.k]?'bg-black':'bg-zinc-200'}">
-              <span class="absolute top-1 transition-all w-4 h-4 bg-white rounded-full shadow ${noti[it.k]?'left-7':'left-1'}"></span>
-            </button>
-          </div>`).join('')}
+            ${perm !== 'denied' ? `
+            <button id="btn-request-push" class="mt-4 w-full py-2.5 rounded-xl text-sm font-bold transition-all duration-200 active:scale-[0.97] ${perm==='granted'?'bg-white/10 text-white/70 border border-white/10':'bg-white text-zinc-900 shadow-sm'}">
+              ${perm === 'granted' ? (hasFcmToken ? '✓ 알림 등록 완료' : '토큰 재등록') : '알림 허용하기'}
+            </button>` : `
+            <div class="mt-4 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10">
+              <p class="text-xs text-white/50 text-center">브라우저 주소창 왼쪽 자물쇠 아이콘 → 알림 → 허용</p>
+            </div>`}
+          </div>
         </div>
+
+        <!-- ─── 앱 내 알림 항목 ─── -->
+        <div>
+          <div class="flex items-center gap-2 mb-3 px-1">
+            ${icon('tune','text-zinc-500',15)}
+            <p class="text-xs font-bold text-zinc-500 uppercase tracking-wider">앱 알림 항목</p>
+          </div>
+          <div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] divide-y divide-zinc-50 overflow-hidden">
+            ${items.map(it=>`
+            <div class="flex items-center justify-between px-5 py-4">
+              <div>
+                <p class="text-sm font-bold">${it.l}</p>
+                <p class="text-xs text-zinc-400 mt-0.5">${it.d}</p>
+              </div>
+              <button data-noti-toggle="${it.k}" class="relative w-12 h-6 rounded-full transition-colors duration-200 ${noti[it.k]?'bg-black':'bg-zinc-200'}">
+                <span class="absolute top-1 transition-all duration-200 w-4 h-4 bg-white rounded-full shadow ${noti[it.k]?'left-7':'left-1'}"></span>
+              </button>
+            </div>`).join('')}
+          </div>
+        </div>
+
       </div>
     </div>`;
   }
@@ -4724,6 +4776,25 @@ function setupDelegation() {
       if (attTabEl) {
         const t = attTabEl.dataset.attTab;
         runIfLeaveEditorConfirmed(() => { state.adminAttTab = t; render(); });
+        return;
+      }
+
+      // ── (8.5) btn-request-push ──
+      if (e.target.closest('#btn-request-push')) {
+        const btn = e.target.closest('#btn-request-push');
+        if (btn.disabled) return;
+        btn.disabled = true;
+        const orig = btn.textContent;
+        btn.textContent = '처리 중...';
+        try {
+          if (typeof window.requestPushPermission === 'function') {
+            await window.requestPushPermission();
+            const perm = (typeof Notification !== 'undefined') ? Notification.permission : '';
+            showToast(perm === 'granted' ? '알림이 허용되었습니다!' : '알림 권한을 허용해주세요.');
+          }
+        } catch(e2) { showToast('알림 설정 중 오류가 발생했습니다.'); }
+        btn.disabled = false; btn.textContent = orig;
+        render();
         return;
       }
 
