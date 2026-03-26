@@ -1505,35 +1505,40 @@ function renderHomeTab() {
   ];
   const dutySection = [
     '<section>',
-    '<div class="flex items-center justify-between mb-3">',
-    '<h2 class="text-base font-bold tracking-tight">예배 담당</h2>',
-    '</div>',
+    '<h2 class="text-base font-bold tracking-tight mb-3">예배 담당</h2>',
     '<div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden">',
-    // 헤더 행
-    '<div class="bg-black px-5 py-3 flex items-center gap-3">',
-    icon('church','text-white',18),
-    '<span class="flex-1 text-white text-xs font-bold">' + dutyYmwThis.mo + '월 ' + dutyYmwThis.wk + '째주</span>',
-    '<div class="flex items-center gap-1.5">',
-    '<span class="text-[10px] font-bold bg-white/15 text-white px-2 py-0.5 rounded-full">이번주</span>',
-    '<span class="text-[10px] font-bold bg-white/10 text-white/50 px-2 py-0.5 rounded-full">다음주</span>',
+    // 헤더
+    '<div class="bg-black flex">',
+    // 좌측: 아이콘+항목 자리 (투명)
+    '<div class="w-[5.5rem] flex items-center justify-center py-3">' + icon('church','text-white',18) + '</div>',
+    // 이번주 컬럼 헤더
+    '<div class="flex-1 flex flex-col items-center justify-center py-2.5 border-l border-white/10">',
+    '<span class="text-[10px] font-bold text-white/60 uppercase tracking-wider">이번주</span>',
+    '<span class="text-xs font-bold text-white mt-0.5">' + dutyYmwThis.mo + '월 ' + dutyYmwThis.wk + '째주</span>',
+    '</div>',
+    // 다음주 컬럼 헤더
+    '<div class="flex-1 flex flex-col items-center justify-center py-2.5 border-l border-white/10">',
+    '<span class="text-[10px] font-bold text-white/40 uppercase tracking-wider">다음주</span>',
+    '<span class="text-xs font-bold text-white/40 mt-0.5">' + dutyYmwNext.mo + '월 ' + dutyYmwNext.wk + '째주</span>',
     '</div>',
     '</div>',
     // 데이터 행
     '<div class="divide-y divide-zinc-50">',
     dutyRows.map(function(r) {
       return [
-        '<div class="flex items-center px-5 py-4 gap-3 min-w-0">',
-        '<div class="w-8 h-8 bg-zinc-50 rounded-xl flex items-center justify-center flex-none">',
-        icon(r.i, 'text-zinc-500', 17),
+        '<div class="flex items-center min-w-0">',
+        // 항목명 + 아이콘
+        '<div class="w-[5.5rem] flex flex-col items-center justify-center py-4 gap-1 flex-none">',
+        '<div class="w-7 h-7 bg-zinc-100 rounded-lg flex items-center justify-center">' + icon(r.i,'text-zinc-500',15) + '</div>',
+        '<span class="text-[10px] text-zinc-400 font-medium leading-tight text-center mt-0.5">' + r.l + '</span>',
         '</div>',
-        '<span class="text-xs text-zinc-400 w-[4.5rem] flex-none leading-tight font-medium">' + r.l + '</span>',
-        '<div class="flex-1 flex items-center justify-end gap-4 min-w-0">',
-        // 이번주 - 진하게
-        '<span class="text-sm font-bold text-black truncate">' + esc(r.v1) + '</span>',
-        // 구분선
-        '<div class="w-px h-3 bg-zinc-200 flex-none"></div>',
-        // 다음주 - 연하게
-        '<span class="text-sm font-medium text-zinc-300 truncate">' + esc(r.v2) + '</span>',
+        // 이번주 이름 - 굵고 선명
+        '<div class="flex-1 flex items-center justify-center py-4 border-l border-zinc-50">',
+        '<span class="text-sm font-bold text-black text-center leading-tight">' + esc(r.v1) + '</span>',
+        '</div>',
+        // 다음주 이름 - 연하게
+        '<div class="flex-1 flex items-center justify-center py-4 border-l border-zinc-50">',
+        '<span class="text-sm font-medium text-zinc-300 text-center leading-tight">' + esc(r.v2) + '</span>',
         '</div>',
         '</div>'
       ].join('');
@@ -1591,11 +1596,9 @@ function renderHomeTab() {
       ${notices.slice(0,3).map(n => {
         const sched = formatNoticeScheduleLabel(n);
         return `
-        <button data-detail="notice:${n.id}" class="w-full flex items-center gap-4 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
-          <div class="w-12 h-12 ${n.pinned ? 'bg-black' : 'bg-zinc-100'} rounded-xl flex items-center justify-center flex-none">
-            ${icon(n.pinned ? 'push_pin' : 'campaign', n.pinned ? 'text-white' : 'text-zinc-500', 20)}
-          </div>
-          <div class="flex-1 min-w-0">
+        <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
+          ${noticeRowThumbHtml(n)}
+          <div class="flex-1 min-w-0 py-0.5">
             <h4 class="font-bold text-sm text-black leading-snug line-clamp-2">${esc(n.title)}</h4>
             ${sched ? `<p class="text-[11px] text-zinc-500 mt-0.5 font-medium">${esc(sched)}</p>` : `<p class="text-[11px] text-zinc-400 mt-0.5">${esc(n.at||'')}</p>`}
           </div>
