@@ -1497,33 +1497,51 @@ function renderHomeTab() {
   const verseRef = esc(dv?.verse || '빌립보서 4:13');
   const verseBody = esc(dv?.text || '내게 능력 주시는 자 안에서 내가 모든 것을 할 수 있느니라').replace(/\n/g, '<br/>');
 
-  const dutySection = `
-  <section>
-    <h2 class="text-base font-bold tracking-tight mb-3">예배 담당</h2>
-    <div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
-      <div class="bg-black px-5 py-3 flex items-center gap-2">
-        ${icon('church','text-white',18)}
-        <span class="text-white text-xs font-bold">${dutyYmwThis.mo}월 ${dutyYmwThis.wk}째주</span>
-        <span class="ml-2 text-[10px] font-bold text-white/80 px-2 py-0.5 bg-white/10 rounded-full">${dutyYmwNext.mo}월 ${dutyYmwNext.wk}째주</span>
-      </div>
-      <div class="divide-y divide-zinc-50">
-        ${[
-          {l:'대표기도', v1:(svcThis.prayer && String(svcThis.prayer).trim()) || '미정', v2:(svcNext.prayer && String(svcNext.prayer).trim()) || '미정', i:'volunteer_activism'},
-          {l:'성경봉독', v1:(svcThis.bible && String(svcThis.bible).trim()) || '미정', v2:(svcNext.bible && String(svcNext.bible).trim()) || '미정', i:'menu_book'},
-          {l:'성도의 교제', v1:(svcThis.fellowship && String(svcThis.fellowship).trim()) || '미정', v2:(svcNext.fellowship && String(svcNext.fellowship).trim()) || '미정', i:'campaign'},
-          {l:'봉헌', v1:(svcThis.offering && String(svcThis.offering).trim()) || '미정', v2:(svcNext.offering && String(svcNext.offering).trim()) || '미정', i:'favorite'},
-        ].map(r => `
-          <div class="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-4 min-w-0">
-            <div class="w-7 h-7 sm:w-8 sm:h-8 bg-zinc-100 rounded-lg flex items-center justify-center flex-none shrink-0">${icon(r.i,'text-zinc-600',16)}</div>
-            <span class="text-[11px] sm:text-xs text-zinc-400 w-[4.25rem] sm:w-24 flex-none shrink-0 text-left leading-tight">${r.l}</span>
-            <div class="flex-1 min-w-0 flex flex-col items-end text-right pr-1">
-              <span class="text-sm font-bold text-black/90 leading-tight truncate max-w-full">${esc(r.v1)}</span>
-              <span class="text-sm font-bold text-zinc-400 leading-tight truncate max-w-full">${esc(r.v2)}</span>
-            </div>
-          </div>`).join('')}
-      </div>
-    </div>
-  </section>`;
+  const dutyRows = [
+    {l:'대표기도', v1:(svcThis.prayer && String(svcThis.prayer).trim())||'미정', v2:(svcNext.prayer && String(svcNext.prayer).trim())||'미정', i:'volunteer_activism'},
+    {l:'성경봉독', v1:(svcThis.bible && String(svcThis.bible).trim())||'미정', v2:(svcNext.bible && String(svcNext.bible).trim())||'미정', i:'menu_book'},
+    {l:'성도의 교제', v1:(svcThis.fellowship && String(svcThis.fellowship).trim())||'미정', v2:(svcNext.fellowship && String(svcNext.fellowship).trim())||'미정', i:'campaign'},
+    {l:'봉헌', v1:(svcThis.offering && String(svcThis.offering).trim())||'미정', v2:(svcNext.offering && String(svcNext.offering).trim())||'미정', i:'favorite'},
+  ];
+  const dutySection = [
+    '<section>',
+    '<div class="flex items-center justify-between mb-3">',
+    '<h2 class="text-base font-bold tracking-tight">예배 담당</h2>',
+    '</div>',
+    '<div class="bg-white rounded-2xl border border-zinc-100 overflow-hidden">',
+    // 헤더 행
+    '<div class="bg-black px-5 py-3 flex items-center gap-3">',
+    icon('church','text-white',18),
+    '<span class="flex-1 text-white text-xs font-bold">' + dutyYmwThis.mo + '월 ' + dutyYmwThis.wk + '째주</span>',
+    '<div class="flex items-center gap-1.5">',
+    '<span class="text-[10px] font-bold bg-white/15 text-white px-2 py-0.5 rounded-full">이번주</span>',
+    '<span class="text-[10px] font-bold bg-white/10 text-white/50 px-2 py-0.5 rounded-full">다음주</span>',
+    '</div>',
+    '</div>',
+    // 데이터 행
+    '<div class="divide-y divide-zinc-50">',
+    dutyRows.map(function(r) {
+      return [
+        '<div class="flex items-center px-5 py-4 gap-3 min-w-0">',
+        '<div class="w-8 h-8 bg-zinc-50 rounded-xl flex items-center justify-center flex-none">',
+        icon(r.i, 'text-zinc-500', 17),
+        '</div>',
+        '<span class="text-xs text-zinc-400 w-[4.5rem] flex-none leading-tight font-medium">' + r.l + '</span>',
+        '<div class="flex-1 flex items-center justify-end gap-4 min-w-0">',
+        // 이번주 - 진하게
+        '<span class="text-sm font-bold text-black truncate">' + esc(r.v1) + '</span>',
+        // 구분선
+        '<div class="w-px h-3 bg-zinc-200 flex-none"></div>',
+        // 다음주 - 연하게
+        '<span class="text-sm font-medium text-zinc-300 truncate">' + esc(r.v2) + '</span>',
+        '</div>',
+        '</div>'
+      ].join('');
+    }).join(''),
+    '</div>',
+    '</div>',
+    '</section>'
+  ].join('');
 
   return `
   <section>
@@ -1573,11 +1591,13 @@ function renderHomeTab() {
       ${notices.slice(0,3).map(n => {
         const sched = formatNoticeScheduleLabel(n);
         return `
-        <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
-          ${noticeRowThumbHtml(n)}
-          <div class="flex-1 min-w-0 py-0.5">
-            <p class="text-[15px] sm:text-lg font-medium leading-tight text-zinc-900 tracking-tight line-clamp-2">${esc(n.title)}</p>
-            ${sched ? `<p class="text-[11px] sm:text-xs text-zinc-500 mt-1 leading-snug font-medium">${esc(sched)}</p>` : ''}
+        <button data-detail="notice:${n.id}" class="w-full flex items-center gap-4 bg-white p-4 rounded-2xl border border-zinc-100 active:bg-zinc-50 transition-colors text-left">
+          <div class="w-12 h-12 ${n.pinned ? 'bg-black' : 'bg-zinc-100'} rounded-xl flex items-center justify-center flex-none">
+            ${icon(n.pinned ? 'push_pin' : 'campaign', n.pinned ? 'text-white' : 'text-zinc-500', 20)}
+          </div>
+          <div class="flex-1 min-w-0">
+            <h4 class="font-bold text-sm text-black leading-snug line-clamp-2">${esc(n.title)}</h4>
+            ${sched ? `<p class="text-[11px] text-zinc-500 mt-0.5 font-medium">${esc(sched)}</p>` : `<p class="text-[11px] text-zinc-400 mt-0.5">${esc(n.at||'')}</p>`}
           </div>
         </button>`;
       }).join('')}
