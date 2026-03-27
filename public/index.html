@@ -3838,24 +3838,25 @@ function bindCropModal() {
   if (!stage || !imgEl) return;
 
   const SIZE = 240;
-  const stageRect = stage.getBoundingClientRect();
-  const SW = stageRect.width || 360;
-  const CX = SW / 2;
   const CY = 150;
   const c = state._cropModal;
 
-  // 이미지 el 기본 스타일 (이미지 로드 전에도 중앙 배치 준비)
+  // 이미지 el 기본 스타일
   imgEl.style.position = 'absolute';
   imgEl.style.willChange = 'transform';
-  imgEl.style.opacity = '0'; // 로드 전 숨김
+  imgEl.style.opacity = '0';
 
-  // 초기화 함수 - 이미지 로드 완료 후 실행
+  // 초기화 함수 - 이미지 로드 완료 후 실행 (stage 너비를 이 시점에 측정)
   const initCrop = (natW, natH) => {
+    // 렌더 완료 후 실제 stage 너비 측정
+    const SW = stage.getBoundingClientRect().width || stage.offsetWidth || 360;
+    const CX = SW / 2;
+
     c.origW = natW; c.origH = natH;
+    c._CX = CX; // 이후 clamp/apply에서 사용
     const MIN_SCALE = SIZE / Math.min(natW, natH);
     if (!c.scale || c.scale < MIN_SCALE) c.scale = MIN_SCALE;
-    if (c.tx === undefined) c.tx = 0;
-    if (c.ty === undefined) c.ty = 0;
+    c.tx = 0; c.ty = 0;
 
     imgEl.style.left = CX + 'px';
     imgEl.style.top  = CY + 'px';
