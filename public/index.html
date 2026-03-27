@@ -531,51 +531,988 @@ let state = {
 
 const uid = () => Math.random().toString(36).substr(2, 9);
 
-/**
- * 악보 저장: 이미지 꾹 눌러서 저장하는 것과 동일한 방식
- * - 모바일: navigator.share로 공유 시트 열기 (사진 저장 선택 가능)
- * - PC: 새 탭에서 이미지 열기
- */
-async function downloadSheet(url, title) {
-  if (!url) { showToast('악보 파일이 없습니다.'); return; }
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  if (isMobile && navigator.share) {
+function sanitizeSheetFilename(s) {
+  return String(s || '악보').replace(/[/\\?%*:|"<>]/g, '_').trim().slice(0, 120);
+}
+/** 터치 우선·모바일 UA → 앨범/공유 UX, 그 외 PC → 저장 위치 지정 UX */
+function isSheetSaveMobile() {
+  try {
+    if (window.matchMedia('(pointer: coarse)').matches) return true;
+  } catch (e) {}
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+}
+function extFromMime(t) {
+  const m = (t || '').toLowerCase();
+  if (m.includes('png')) return 'png';
+  if (m.includes('webp')) return 'webp';
+  if (m.includes('jpeg') || m.includes('jpg')) return 'jpg';
+  return 'jpg';
+}
+/** 원격 악보 URL → Blob. Firebase SDK 우선(Storage CORS 미설정 PC에서도 동작하는 경우 많음). URL에 임의 쿼리 붙이지 않음(토큰 URL 보호). */
+async function fetchSheetAsBlob(url) {
+  if (!url) throw new Error('no url');
+  if (window.FDB && typeof window.FDB.getSheetBlobFromUrl === 'function') {
     try {
-      // 이미지를 fetch해서 File로 변환 후 공유
-      showLoading('준비 중...');
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('fetch fail');
+      const blob = await window.FDB.getSheetBlobFromUrl(url);
+      if (blob) return { blob, ext: extFromMime(blob.type) };
+    } catch (e) { console.warn('getSheetBlobFromUrl', e); }
+  }
+  try {
+    const res = await fetch(url, { mode: 'cors', credentials: 'omit', cache: 'no-store' });
+    if (res.ok) {
       const blob = await res.blob();
-      const ext = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg';
-      const file = new File([blob], (title || '악보') + '.' + ext, { type: blob.type });
-      hideLoading();
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      if (blob && blob.size > 0) return { blob, ext: extFromMime(blob.type) };
+    }
+  } catch (e) { /* 다음 수단 */ }
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = url;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob'))), 'image/jpeg', 1);
+    });
+    return { blob, ext: 'jpg' };
+  } catch (e) {
+    console.warn('fetchSheetAsBlob fallback', e);
+  }
+  throw new Error('sheet-load-failed');
+}
+/** PC: 저장 대화상자(또는 브라우저 기본 다운로드). 새 탭 없음 */
+async function saveSheetBlobDesktop(blob, baseFilename, ext) {
+  const name = sanitizeSheetFilename(baseFilename) + '.' + ext;
+  if (window.showSaveFilePicker) {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: name,
+      types: [{ description: '이미지', accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.webp'] } }]
+    });
+    const w = await handle.createWritable();
+    await w.write(blob);
+    await w.close();
+    return;
+  }
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = u;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(u), 8000);
+}
+/**
+ * 모바일: 공유 시트로「사진에 저장」등 선택 유도(단일). 전체 저장 시에는 파일 다운로드만 연속(공유 N회 방지).
+ * 새 탭 없음.
+ */
+async function saveSheetBlobMobile(blob, baseFilename, ext, opts) {
+  const name = sanitizeSheetFilename(baseFilename) + '.' + ext;
+  const mime = blob.type || 'image/jpeg';
+  const useShare = !opts?.bulk && navigator.canShare;
+  if (useShare) {
+    try {
+      const file = new File([blob], name, { type: mime });
+      if (navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file] });
+        if (!opts?.silent) showToast('저장을 완료했습니다.');
         return;
       }
-    } catch(e) {
-      hideLoading();
+    } catch (e) {
       if (e.name === 'AbortError') return;
-      // 공유 실패 시 새 탭으로 폴백
     }
   }
-  hideLoading();
-  // PC 또는 공유 불가 → 새 탭에서 이미지 열기 (꾹 눌러서 저장 가능)
-  window.open(url, '_blank');
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = u;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(u), 8000);
+  if (!opts?.silent) showToast(opts?.bulk ? '' : '사진첩에 저장했습니다.');
 }
-
-/** 전체 악보 저장 - 한 장씩 순서대로 */
-async function downloadAllSheets(list) {
-  if (!list.length) { showToast('다운로드할 악보가 없습니다.'); return; }
-  for (let i = 0; i < list.length; i++) {
-    const s = list[i];
-    const url = s.sheetOrig || s.sheet;
-    if (!url) continue;
-    await downloadSheet(url, (s.title || '악보') + '_' + (i + 1));
-    // 연속 공유 시 약간 딜레이
-    if (i < list.length - 1) await new Promise(r => setTimeout(r, 600));
+/** 개별 악보 저장 (PC/모바일 분기) */
+async function downloadSheet(url, filename) {
+  try {
+    const { blob, ext } = await fetchSheetAsBlob(url);
+    if (isSheetSaveMobile()) {
+      await saveSheetBlobMobile(blob, filename, ext, {});
+    } else {
+      await saveSheetBlobDesktop(blob, filename, ext);
+      showToast('저장했습니다.');
+    }
+  } catch (e) {
+    console.warn('downloadSheet', e);
+    showToast('이미지를 불러오거나 저장할 수 없습니다.');
   }
 }
+/** 전체 악보 저장 */
+async function downloadAllSheets(list) {
+  if (!list.length) {
+    showToast('다운로드할 악보가 없습니다.');
+    return;
+  }
+  if (isSheetSaveMobile()) {
+    showToast('악보를 순서대로 저장합니다…');
+    let ok = 0;
+    for (const s of list) {
+      try {
+        const { blob, ext } = await fetchSheetAsBlob(s.sheetOrig || s.sheet);
+        await saveSheetBlobMobile(blob, (s.title || '악보') + '_악보', ext, { bulk: true, silent: true });
+        ok++;
+      } catch (e) { console.warn('sheet', e); }
+      await new Promise(r => setTimeout(r, 450));
+    }
+    showToast(ok ? `악보 ${ok}장 저장을 완료했습니다.` : '저장에 실패했습니다.');
+    return;
+  }
+  showToast('악보 파일을 준비하는 중…');
+  const items = [];
+  for (const s of list) {
+    try {
+      const { blob, ext } = await fetchSheetAsBlob(s.sheetOrig || s.sheet);
+      items.push({ blob, ext, base: (s.title || '악보') + '_악보' });
+    } catch (e) { console.warn('sheet', e); }
+  }
+  if (!items.length) {
+    showToast('저장할 악보를 불러오지 못했습니다.');
+    return;
+  }
+  if (window.showDirectoryPicker) {
+    try {
+      const dir = await window.showDirectoryPicker();
+      for (const it of items) {
+        const fn = sanitizeSheetFilename(it.base) + '.' + it.ext;
+        const fh = await dir.getFileHandle(fn, { create: true });
+        const w = await fh.createWritable();
+        await w.write(it.blob);
+        await w.close();
+      }
+      showToast(`악보 ${items.length}장을 선택한 폴더에 저장했습니다.`);
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+    }
+  }
+  for (const it of items) {
+    try {
+      await saveSheetBlobDesktop(it.blob, it.base, it.ext);
+    } catch (e) {
+      console.warn('save desktop', e);
+    }
+    await new Promise(r => setTimeout(r, 350));
+  }
+  showToast(`악보 ${items.length}장 저장을 마쳤습니다.`);
+}
+const koSort = (a, b) => (a||'').localeCompare(b||'', 'ko');
+const sortByName = arr => [...arr].sort((a,b) => koSort(a.name, b.name));
+const today = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dt = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dt}`;
+};
+const fmtPhone = v => { const d = v.replace(/\D/g,''); if(d.length<=3) return d; if(d.length<=7) return d.slice(0,3)+'-'+d.slice(3); return d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7,11); };
+const fmtDate = v => { if(!v) return ''; const d = String(v).replace(/\D/g,''); if(d.length===8) return d.slice(0,4)+'.'+d.slice(4,6)+'.'+d.slice(6,8); return v; };
+const fmtAmt = v => Number(v).toLocaleString();
+// XSS 방어: 유저 입력 텍스트를 HTML 엔티티로 변환
+const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+/** 명부 생년월일(숫자 8자리) → 유효한 월·일 */
+function rosterBirthMonthDay(birth) {
+  const d = String(birth || '').replace(/\D/g, '');
+  if (d.length !== 8) return null;
+  const mo = +d.slice(4, 6);
+  const day = +d.slice(6, 8);
+  if (mo < 1 || mo > 12 || day < 1 || day > 31) return null;
+  const y = +d.slice(0, 4);
+  const dt = new Date(y, mo - 1, day);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== day) return null;
+  return { mo, day };
+}
+/** 특정 연도의 생일 날짜 YYYY-MM-DD (2/29는 평년 2/28) */
+function birthdayDateForYear(md, year) {
+  let dd = md.day;
+  if (md.mo === 2 && dd === 29) {
+    const leap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+    if (!leap) dd = 28;
+  }
+  const dt = new Date(year, md.mo - 1, dd);
+  if (dt.getMonth() !== md.mo - 1) return null;
+  return `${year}-${String(md.mo).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+}
+/** 명부 기준 자동 생일 일정(올해·내년, 가상 문서 — Firestore 미저장) */
+function getVirtualBirthdayEventsFromRosters() {
+  const rosters = state.cache.rosters || [];
+  const out = [];
+  const yNow = new Date().getFullYear();
+  for (const r of rosters) {
+    const name = (r && r.name || '').trim();
+    if (!name) continue;
+    const md = rosterBirthMonthDay(r.birth);
+    if (!md) continue;
+    for (const yr of [yNow, yNow + 1]) {
+      const ds = birthdayDateForYear(md, yr);
+      if (!ds) continue;
+      const title = name + ' 생일';
+      out.push({
+        id: 'vbday_' + r.id + '_' + yr,
+        title,
+        date: ds,
+        time: '',
+        loc: '',
+        cat: '생일',
+        _virtualBirthday: true,
+        _rosterId: r.id
+      });
+    }
+  }
+  return out;
+}
+/** 저장된 일정 + 자동 생일(동일 날짜·제목 수동 일정이 있으면 생일 제외) */
+function getMergedEventsForDisplay() {
+  const real = [...(state.cache.events || [])];
+  const virt = getVirtualBirthdayEventsFromRosters();
+  const norm = s => String(s || '').replace(/\s/g, '');
+  const merged = [...real];
+  for (const v of virt) {
+    const dup = real.some(e =>
+      e.date === v.date &&
+      String(e.cat || '') === '생일' &&
+      norm(e.title) === norm(v.title)
+    );
+    if (!dup) merged.push(v);
+  }
+  merged.sort((a, b) => {
+    const c = (a.date || '').localeCompare(b.date || '');
+    if (c !== 0) return c;
+    return (a.title || '').localeCompare(b.title || '', 'ko');
+  });
+  return merged;
+}
+/** 단일 날짜 또는 기간(date~dateEnd) 포함 여부 */
+function eventCoversDate(e, ds) {
+  if (!e || !ds || !e.date) return false;
+  const end = (e.dateEnd && String(e.dateEnd).trim() && e.dateEnd >= e.date) ? e.dateEnd : '';
+  if (end) return ds >= e.date && ds <= end;
+  return e.date === ds;
+}
+/** 오늘 이후에 아직 끝나지 않은 일정(기간은 끝날짜 기준) */
+function eventIsUpcomingOrOngoing(e, tday) {
+  const end = (e.dateEnd && String(e.dateEnd).trim() && e.dateEnd >= e.date) ? e.dateEnd : e.date;
+  return (end || '') >= tday;
+}
+function bindEventFormRangeFields() {
+  const chk = document.getElementById('ef-date-range');
+  const endEl = document.getElementById('ef-date-end');
+  if (!chk || !endEl) return;
+  const sync = () => {
+    const on = chk.checked;
+    endEl.disabled = !on;
+    endEl.classList.toggle('opacity-50', !on);
+    endEl.classList.toggle('cursor-not-allowed', !on);
+    if (!on) endEl.value = '';
+  };
+  chk.addEventListener('change', sync);
+  sync();
+}
+/** 일정 기간 문구 (부가 설명용) */
+function formatEventDateRangeSubtitle(ev) {
+  if (!ev || !ev.date) return '';
+  const endStr = (ev.dateEnd && String(ev.dateEnd).trim() && ev.dateEnd > ev.date) ? ev.dateEnd : '';
+  if (!endStr) return '';
+  const start = new Date(ev.date + 'T12:00:00');
+  const end = new Date(endStr + 'T12:00:00');
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return '';
+  const sm = start.getMonth() + 1, sd = start.getDate();
+  const em = end.getMonth() + 1, ed = end.getDate();
+  return sm + '월 ' + sd + '일 ~ ' + em + '월 ' + ed + '일';
+}
+function readValidatedEventRangePayload() {
+  const range = !!document.getElementById('ef-date-range')?.checked;
+  const date = (document.getElementById('ef-date')?.value || '').trim();
+  if (!date) {
+    showToast('시작일을 선택해 주세요.');
+    return null;
+  }
+  const dateEnd = range ? (document.getElementById('ef-date-end')?.value || '').trim() : '';
+  if (range) {
+    if (!dateEnd) {
+      showToast('기간 일정은 종료일을 선택해 주세요.');
+      return null;
+    }
+    if (dateEnd < date) {
+      showToast('종료일은 시작일과 같거나 이후여야 합니다.');
+      return null;
+    }
+  }
+  return { dateEnd: range ? dateEnd : '' };
+}
+
+/** 공지 첨부: 가로 최대 1000px, 품질 0.8 — WebP 우선, 미지원 시 JPEG Blob */
+function compressNoticeImageFile(file, maxW=1000) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (!w || !h) { reject(new Error('bad-image')); return; }
+        if (w > maxW) { h = Math.round((h * maxW) / w); w = maxW; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(b => {
+          if (b && b.size > 0) { resolve(b); return; }
+          canvas.toBlob(b2 => {
+            if (b2 && b2.size > 0) resolve(b2);
+            else reject(new Error('compress-failed'));
+          }, 'image/jpeg', 0.8);
+        }, 'image/webp', 0.8);
+      };
+      img.onerror = () => reject(new Error('img-load'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(reader.error || new Error('read-fail'));
+    reader.readAsDataURL(file);
+  });
+}
+// 썸네일 전용 압축 (200x200 크롭)
+function compressNoticeThumb(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const SIZE = 200;
+        const canvas = document.createElement('canvas');
+        canvas.width = SIZE; canvas.height = SIZE;
+        const ctx = canvas.getContext('2d');
+        const { naturalWidth: sw, naturalHeight: sh } = img;
+        if (!sw || !sh) { reject(new Error('bad-image')); return; }
+        const scale = Math.max(SIZE/sw, SIZE/sh);
+        const dw = sw*scale, dh = sh*scale;
+        ctx.drawImage(img, (SIZE-dw)/2, (SIZE-dh)/2, dw, dh);
+        canvas.toBlob(b => {
+          if (b && b.size > 0) resolve(b);
+          else reject(new Error('thumb-failed'));
+        }, 'image/webp', 0.85);
+      };
+      img.onerror = () => reject(new Error('img-load'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(reader.error || new Error('read-fail'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/** 찬양 악보: 원본 + 압축본 동시 업로드 (표시용 URL / 원본 URL) */
+async function uploadWorshipSheetDual(file) {
+  const m = /\.([a-z0-9]+)$/i.exec(file.name || '');
+  const ext = m ? '.' + m[1].toLowerCase() : '.jpg';
+  const sheetOrig = await window.FDB.uploadFile(`sheets/orig_${uid()}${ext}`, file) || '';
+  let sheetUrl = '';
+  try {
+    const blob = await compressNoticeImageFile(file);
+    sheetUrl = await window.FDB.uploadFile(`sheets/comp_${uid()}.webp`, blob) || '';
+  } catch (e) {
+    console.warn('uploadWorshipSheetDual compress', e);
+  }
+  if (!sheetUrl && sheetOrig) sheetUrl = sheetOrig;
+  return { sheetUrl, sheetOrig };
+}
+
+// localStorage: 현재 로그인 유저만 유지
+const SESSION = {
+  get() { try { return JSON.parse(localStorage.getItem('jmc_session') || 'null'); } catch { return null; } },
+  set(u) { localStorage.setItem('jmc_session', JSON.stringify(u)); },
+  clear() { localStorage.removeItem('jmc_session'); }
+};
+
+// ============================================================
+// FIREBASE LOADER
+// ============================================================
+// 실시간 리스너 unsubscribe 함수 목록
+const _unsubs = [];
+
+function stopListeners() {
+  _unsubs.forEach(fn => { try { fn(); } catch(e) {} });
+  _unsubs.length = 0;
+}
+
+// 여러 onSnapshot이 같은 프레임에 연속으로 발화해도 render는 1회만 실행
+let _listenRenderRAF = null;
+function _scheduleRenderFromListen() {
+  if (_listenRenderRAF !== null) return; // 이미 다음 프레임 예약됨
+  _listenRenderRAF = requestAnimationFrame(() => {
+    _listenRenderRAF = null;
+    render();
+  });
+}
+
+function listenCol(colName, onData) {
+  const unsub = window.FDB.listenCol(colName, docs => {
+    onData(docs);
+    _scheduleRenderFromListen(); // render() 직접 호출 대신 디바운스 경유
+  });
+  _unsubs.push(unsub);
+}
+
+/** Firestore에 유저 없음·비활성 등 — Auth만 남은 유령 세션 차단 */
+function forceLogoutInvalidSession() {
+  try { window.FB_signOut?.().catch(() => {}); } catch (e) {}
+  SESSION.clear();
+  state.user = null;
+  state.page = 'login';
+  state.profileOpen = false;
+  render();
+  showToast('계정 정보가 변경되어 로그아웃되었습니다.');
+}
+
+async function loadAll() {
+  if (!window.FDB || typeof window.FDB.getCol !== 'function') {
+    console.error('loadAll: Firebase 모듈(FDB)이 로드되지 않았습니다.');
+    return;
+  }
+  stopListeners();
+
+  try {
+    const vRes = await fetch('verses.json');
+    state.cache.verses = vRes.ok ? (await vRes.json().catch(() => [])) : [];
+    if (!Array.isArray(state.cache.verses)) state.cache.verses = [];
+  } catch (e) {
+    console.warn('verses.json', e);
+    state.cache.verses = [];
+  }
+
+  // users만 선행 1회 로드: initApp()이 await loadAll() 직후 state.cache.users로 유저를 조회하기 때문에
+  // 나머지 10개 컬렉션은 onSnapshot 최초 발화 시 캐시에 채워지므로 getCol 중복 호출 불필요
+  state.cache.users = await window.FDB.getCol('users');
+
+  // 실시간 리스너 등록 (다른 기기 변경사항 자동 반영)
+  listenCol('users', docs => {
+    state.cache.users = docs;
+    if (state.user) {
+      const fresh = docs.find(u => u.uid === state.user.uid);
+      if (!fresh || fresh.status !== 'active') {
+        forceLogoutInvalidSession();
+      } else {
+        state.user = fresh;
+        SESSION.set(fresh);
+      }
+    }
+    // localStorage 캐시 저장 (다음 세션의 즉시 렌더링용)
+    try {
+      localStorage.setItem('jmc_cache', JSON.stringify({
+        users: state.cache.users, cells: state.cache.cells,
+        rosters: state.cache.rosters, bulletins: state.cache.bulletins,
+        notices: state.cache.notices,
+      }));
+    } catch(e) {}
+  });
+  listenCol('cells', docs => {
+    state.cache.cells = docs.sort((a,b)=>(a.order||0)-(b.order||0));
+  });
+  listenCol('rosters', docs => {
+    state.cache.rosters = docs.sort((a,b)=>koSort(a.name,b.name));
+  });
+  listenCol(window.FDB.recentDocsQuery('worshipSets', 'date', 'desc', 30), docs => {
+    state.cache.worshipSets = docs.sort((a,b)=>a.date.localeCompare(b.date));
+  });
+  listenCol(window.FDB.recentDocsQuery('bulletins', 'date', 'desc', 30), docs => {
+    state.cache.bulletins = docs.sort((a,b)=>a.date.localeCompare(b.date));
+  });
+  listenCol(window.FDB.recentDocsQuery('notices', 'at', 'desc', 30), docs => {
+    state.cache.notices = docs.sort((a,b)=>b.at.localeCompare(a.at));
+  });
+  listenCol(window.FDB.recentDocsQuery('events', 'date', 'desc', 30), docs => {
+    state.cache.events = docs.sort((a,b)=>a.date.localeCompare(b.date));
+  });
+  listenCol('cellMeetings', docs => {
+    state.cache.cellMeetings = docs.sort((a,b)=>b.date.localeCompare(a.date));
+  });
+  listenCol('offering', docs => {
+    state.cache.offerings = {};
+    docs.forEach(doc => { const { id, ...data } = doc; state.cache.offerings[id] = data; });
+  });
+  listenCol('attendance', docs => {
+    state.cache.attendance = {};
+    docs.forEach(doc => { const { id, ...data } = doc; state.cache.attendance[id] = data; });
+  });
+  listenCol('serviceSchedules', docs => {
+    state.cache.serviceSchedules = docs.sort((a,b)=>a.date.localeCompare(b.date));
+  });
+}
+
+/** active 유저인데 linkedUid 명부가 없을 때(수동 승인 누락 등) 자동 명부 행 생성 */
+async function ensureLinkedRosterForActiveUser() {
+  const u = state.user;
+  if (!u || u.status !== 'active') return;
+  if (state.cache.rosters.some(r => r.linkedUid === u.uid)) return;
+
+  let existing;
+  try {
+    existing = await window.FDB.getCol('rosters');
+  } catch (e) {
+    console.warn('ensureLinkedRosterForActiveUser getCol', e);
+    return;
+  }
+  if (!Array.isArray(existing)) return;
+
+  state.cache.rosters = existing.sort((a, b) => koSort(a.name, b.name));
+  if (state.cache.rosters.some(r => r.linkedUid === u.uid)) return;
+
+  const rid = uid();
+  const roster = {
+    id: rid,
+    name: u.name || '',
+    phone: u.phone || '',
+    birth: u.birth || '',
+    cellId: u.cellId || '',
+    linkedUid: u.uid,
+    joined: true
+  };
+  try {
+    await window.FDB.setDoc('rosters', rid, roster);
+    state.cache.rosters.push(roster);
+    state.cache.rosters.sort((a, b) => koSort(a.name, b.name));
+  } catch (e) {
+    console.warn('ensureLinkedRosterForActiveUser', e);
+  }
+}
+
+// ============================================================
+// CONFIRM MODAL
+// ============================================================
+function showConfirm(msg, onYes, yesLabel='삭제', yesClass='bg-red-500 text-white') {
+  // DOM에 직접 삽입 → render() 없이 모달 표시
+  let overlay = document.getElementById('confirm-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'confirm-overlay';
+    document.body.appendChild(overlay);
+  }
+  overlay.className = 'fixed inset-0 z-[300] bg-black/50 flex items-center justify-center px-6 overlay-scroll-lock anim-fade-in';
+  overlay.style.touchAction = 'none';
+  overlay.innerHTML = `<div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl allow-scroll max-h-[min(85vh,520px)] overflow-y-auto overscroll-contain anim-subtle-up">
+    <p class="text-base font-bold text-center mb-2">확인</p>
+    <p class="text-sm text-zinc-500 text-center leading-relaxed mb-6">${msg}</p>
+    <div class="flex gap-3">
+      <button id="confirm-no" class="flex-1 py-3 border border-zinc-200 rounded-2xl text-sm font-bold">취소</button>
+      <button id="confirm-yes" class="flex-1 py-3 ${yesClass} rounded-2xl text-sm font-bold">${yesLabel}</button>
+    </div>
+  </div>`;
+  document.getElementById('confirm-no').onclick = () => overlay.remove();
+  document.getElementById('confirm-yes').onclick = () => { overlay.remove(); onYes && onYes(); };
+}
+
+function renderConfirmModal() { return ''; } // DOM direct
+
+// ============================================================
+// CROP MODAL
+// ============================================================
+function renderCropModal() {
+  if (!state._cropModal) return '';
+  const src = state._cropModal.src;
+  return `
+  <div id="crop-modal" class="fixed inset-0 z-[310] bg-black/75 flex items-center justify-center px-4 overlay-scroll-lock anim-fade-in" style="touch-action:none">
+    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl anim-subtle-up overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
+        <button id="crop-cancel" class="text-sm text-zinc-500 font-medium py-1 px-2">취소</button>
+        <p class="text-sm font-bold">프로필 사진 설정</p>
+        <button id="crop-confirm" class="text-sm font-bold text-black py-1 px-2">완료</button>
+      </div>
+      <div id="crop-stage" style="width:100%;height:340px;background:#18181b;">
+        <img id="crop-img" src="${src}" style="display:block;max-width:100%;"/>
+      </div>
+      <div class="px-5 py-3">
+        <p class="text-[11px] text-zinc-400 text-center">드래그로 이동 · 핀치로 확대/축소</p>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// LOGO
+// ============================================================
+/** 유튜브 URL에서 비디오 ID(11자)만 추출. 없거나 형식 불일치 시 null */
+function getYoutubeVideoId(url) {
+  if (url == null || typeof url !== 'string') return null;
+  const u = url.trim();
+  if (!u) return null;
+  let m = u.match(/youtu\.be\/([\w-]{11})(?=[?#&/]|$)/i);
+  if (m) return m[1];
+  m = u.match(/[?&]v=([\w-]{11})(?=[&#]|$)/i);
+  if (m) return m[1];
+  m = u.match(/youtube\.com\/(?:embed\/|shorts\/|v\/)([\w-]{11})(?=[?#&/]|$)/i);
+  if (m) return m[1];
+  return null;
+}
+// YouTube 썸네일 URL
+function getYtThumb(url) {
+  const id = getYoutubeVideoId(url);
+  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null;
+}
+
+function logoImg(cls='w-10 h-10') {
+  return `<img src="asset/logo.png" class="${cls} object-contain" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="logo"/>
+          <div class="hidden ${cls} bg-black rounded-xl items-center justify-center"><span class="text-white font-black text-sm">PL</span></div>`;
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+// DOM morph: 구조가 같으면 바뀐 부분만 교체, 다르면 전체 교체
+function morphDOM(container, newHTML) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = newHTML;
+  const newNodes = Array.from(tmp.childNodes);
+  const oldNodes = Array.from(container.childNodes);
+
+  const focused = document.activeElement;
+  const focusedId = focused?.id;
+  const focusedVal = focused?.value;
+
+  // anim 클래스 제거 후 비교 (애니메이션 클래스 때문에 불필요한 재렌더 방지)
+  const stripAnim = el => {
+    if (el.nodeType !== 1) return;
+    el.classList.remove('anim-subtle-up','anim-fade-in','anim-subtle-left','anim-sheet-up','anim-bounce','anim-bloom');
+    el.querySelectorAll('[class]').forEach(c => c.classList.remove('anim-subtle-up','anim-fade-in','anim-subtle-left','anim-sheet-up','anim-bounce','anim-bloom'));
+  };
+  if (newNodes.length === oldNodes.length &&
+      newNodes.every((n,i) => n.nodeType === oldNodes[i].nodeType &&
+        (n.nodeType !== 1 || n.tagName === oldNodes[i].tagName))) {
+    newNodes.forEach((n, i) => {
+      const newClone = n.cloneNode(true);
+      const oldClone = oldNodes[i].cloneNode(true);
+      stripAnim(newClone); stripAnim(oldClone);
+      if (n.nodeType === 1 && newClone.outerHTML !== oldClone.outerHTML) {
+        oldNodes[i].replaceWith(n);
+      }
+    });
+  } else {
+    container.innerHTML = newHTML;
+  }
+
+  // 포커스 복원 (검색 input 등)
+  if (focusedId) {
+    const el = document.getElementById(focusedId);
+    if (el && el !== document.activeElement) {
+      el.focus();
+      if (focusedVal !== undefined && el.tagName === 'INPUT') {
+        el.value = focusedVal;
+        try { el.setSelectionRange(focusedVal.length, focusedVal.length); } catch(e){}
+      }
+    }
+  }
+}
+
+let _renderPending = false;
+function render() {
+  if (_renderPending) return;
+  _renderPending = true;
+  requestAnimationFrame(() => { _renderPending = false; _doRender(); });
+}
+function _doRender() {
+  const app = document.getElementById('app');
+  let html = '';
+
+  if (state.page === 'loading') {
+    html = `<div class="min-h-screen px-5 pt-20 animate-pulse" style="background:#f4f4f5"><div class="flex items-center gap-4 mb-8"><div class="w-10 h-10 bg-zinc-200 rounded-xl"></div><div class="space-y-2"><div class="w-24 h-3 bg-zinc-200 rounded"></div><div class="w-32 h-4 bg-zinc-200 rounded"></div></div></div><div class="w-full h-40 bg-zinc-200 rounded-3xl mb-6"></div><div class="space-y-4"><div class="w-full h-20 bg-zinc-200 rounded-2xl"></div><div class="w-full h-20 bg-zinc-200 rounded-2xl"></div><div class="w-3/4 h-20 bg-zinc-200 rounded-2xl"></div></div></div>`;
+  } else if (!state.user) {
+    if (state.page === 'register') html = renderRegister();
+    else html = renderLogin();
+    document.body.classList.add('no-scroll');
+  } else {
+    document.body.classList.remove('no-scroll');
+    if (state.profileOpen) document.body.classList.add('no-scroll');
+    if (state.page === 'admin') html = renderAdmin();
+    else if (state.profilePage) html = renderProfilePage();
+    else if (state.detail) {
+      if (state.detail.type === 'bulletin') html = renderBulletinDetail();
+      else if (state.detail.type === 'notice') html = renderNoticeDetail();
+      else if (state.detail.type === 'worship') html = renderWorshipDetail();
+      else html = renderMain();
+    } else {
+      html = renderMain();
+    }
+  }
+
+  // 모달은 메인과 분리된 방에 렌더링 → 메인 DOM 파괴 없음
+  let modalsHtml = '';
+  if (state.profileOpen) modalsHtml += renderProfileSheet();
+  modalsHtml += renderConfirmModal();
+  modalsHtml += renderCropModal();
+
+  morphDOM(app, `<div id="app-main-layout">${html}</div><div id="app-modal-layout">${modalsHtml}</div>`);
+  bindEvents();
+  bindCropModal();
+}
+
+function getAvatarColor(name) {
+  const colors = ['bg-rose-100 text-rose-600','bg-blue-100 text-blue-600','bg-emerald-100 text-emerald-600','bg-amber-100 text-amber-600','bg-purple-100 text-purple-600'];
+  return colors[(name||'').charCodeAt(0) % colors.length] || colors[0];
+}
+function shakeEls(ids) {
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('anim-shake');
+    void el.offsetWidth; // reflow로 애니메이션 재시작
+    el.classList.add('anim-shake');
+    setTimeout(() => el.classList.remove('anim-shake'), 420);
+  });
+}
+function showToast(msg, isError) {
+  // render() 없이 DOM 직접 조작 → 깜빡임 없음
+  let toastEl = document.getElementById('_toast');
+  if (!toastEl) {
+    toastEl = document.createElement('div');
+    toastEl.id = '_toast';
+    document.body.appendChild(toastEl);
+  }
+  // 오류 키워드 자동 감지
+  const errKw = ['틀렸','실패','오류','없습니다','해주세요','이상이어야','일치하지','중입니다'];
+  const isErr = isError || errKw.some(k=>msg.includes(k));
+  toastEl.className = 'fixed top-12 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 px-5 py-3 rounded-full text-sm font-bold shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-white/10 backdrop-blur-md anim-toast-down ' + (isErr ? 'bg-red-500/90' : 'bg-zinc-800/90') + ' text-white';
+  toastEl.textContent = msg;
+  toastEl.style.display = 'block';
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => {
+    if (toastEl) toastEl.style.display = 'none';
+  }, 2200);
+}
+
+function showLoading(msg) {
+  let el = document.getElementById('_global-loading');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = '_global-loading';
+    el.className = 'fixed inset-0 z-[600] bg-black/55 flex items-center justify-center px-8 overlay-scroll-lock';
+    el.innerHTML = `<div class="flex flex-col items-center gap-4 max-w-xs text-center">
+      <div class="w-11 h-11 border-[3px] border-white border-t-transparent rounded-full animate-spin"></div>
+      <p class="_gl-msg text-white text-sm font-bold leading-snug"></p>
+    </div>`;
+    document.body.appendChild(el);
+  }
+  el.classList.add('overlay-scroll-lock');
+  el.style.touchAction = 'none';
+  const m = el.querySelector('._gl-msg');
+  if (m) m.textContent = msg || '잠시만 기다려주세요…';
+  el.style.display = 'flex';
+}
+function hideLoading() {
+  const el = document.getElementById('_global-loading');
+  if (el) el.style.display = 'none';
+}
+
+/** 작성 중 이탈 시 확인 후 실행 */
+function runIfLeaveEditorConfirmed(run) {
+  if (!state.isEditing) { run(); return; }
+  showConfirm('작성 중인 내용이 사라집니다. 이동하시겠습니까?', () => {
+    state.isEditing = false;
+    run();
+  });
+}
+
+/** 폼을 막 연 직후 isEditing을 false로 두고, 실제 입력 시에만 dirty로 전환 */
+function scheduleEditingReset() {
+  state._dirtyResetToken = (state._dirtyResetToken || 0) + 1;
+  const t = state._dirtyResetToken;
+  queueMicrotask(() => {
+    if (state._dirtyResetToken === t) state.isEditing = false;
+  });
+}
+
+function setupEditDirtyTracking() {
+  const app = document.getElementById('app');
+  if (!app || app._dirtyBound) return;
+  app._dirtyBound = true;
+  const markDirty = e => {
+    const el = e.target;
+    if (!el || el.closest('#crop-modal')) return;
+    const tag = el.tagName;
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') return;
+    if (tag === 'INPUT') {
+      const t = el.type;
+      if (t === 'hidden' || t === 'button' || t === 'submit' || t === 'range') return;
+    }
+    const id = el.id || '';
+    if (id === 'roster-search' || id === 'comment-input') return;
+    if (/^att-(yr|mo|wk)$/.test(id) || /^offd-(yr|mo|wk)$/.test(id)) return;
+    if (id === 'login-id' || id === 'login-pw' || id.startsWith('reg-')) return;
+    state.isEditing = true;
+  };
+  app.addEventListener('input', markDirty, true);
+  app.addEventListener('change', markDirty, true);
+}
+
+function worshipSongRowHtml(i, s, KEYS) {
+  const sk = s.key || 'C';
+  return `<div class="bg-zinc-50 rounded-xl p-3 space-y-2 mb-2">
+    <p class="text-[10px] font-bold text-zinc-400">곡 ${i + 1}</p>
+    <input id="ws-title-${i}" value="${esc(s.title || '')}" placeholder="곡 제목" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+    <input id="ws-url-${i}" value="${(s.url || '').replace(/"/g, '&quot;')}" placeholder="유튜브 링크" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+    <div class="flex gap-2">
+      <div class="flex-1"><label class="block text-[10px] font-bold text-zinc-500 mb-1">키</label>
+        <select id="ws-key-${i}" class="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black">${KEYS.map(k => `<option value="${k}"${k === sk ? ' selected' : ''}>${k}</option>`).join('')}</select></div>
+      <div class="flex-1"><label class="block text-[10px] font-bold text-zinc-500 mb-1">악보 이미지</label>
+        <label class="flex items-center gap-1 px-3 py-2 bg-white border border-zinc-200 rounded-xl text-xs text-zinc-400 cursor-pointer">📎 ${s.sheet ? '교체' : '파일선택'}<input id="ws-sheet-${i}" type="file" accept="image/*" class="hidden"/></label>
+        ${s.sheet ? `<div class="relative mt-1"><img src="${s.sheet}" class="w-full rounded-lg border border-zinc-100 object-cover max-h-24"/><p class="text-[10px] text-emerald-600 mt-0.5">✓ 기존 악보 있음</p></div>` : ''}
+        <p id="ws-sheet-name-${i}" class="text-[10px] text-zinc-400 mt-0.5 truncate"></p></div>
+    </div></div>`;
+}
+function bindWsSheet(i) {
+  document.getElementById('ws-sheet-' + i)?.addEventListener('change', function () {
+    const nm = document.getElementById('ws-sheet-name-' + i);
+    if (nm) nm.textContent = this.files[0]?.name || '';
+  });
+}
+function cmQuestionRowHtml(i) {
+  return `<div class="flex gap-2 items-start mb-2"><textarea id="cm-q-${i}" rows="2" placeholder="질문 ${i + 1}" class="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black resize-none"></textarea></div>`;
+}
+
+function icon(name, cls='', size=24, fill=false) {
+  return `<span class="material-symbols-outlined ${fill?'filled':''} ${cls}" style="font-size:${size}px">${name}</span>`;
+}
+
+// ============================================================
+// LOGIN
+// ============================================================
+function renderLogin() {
+  return `
+  <div class="fixed-layout bg-white login-page px-8">
+    <div class="allow-scroll w-full max-w-sm max-h-full overflow-y-auto overscroll-contain py-6">
+      <div class="text-center mb-10">
+        <div class="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-5 overflow-hidden bg-black">
+          ${logoImg('w-20 h-20')}
+        </div>
+        <h1 class="text-2xl font-bold tracking-tight">약속의 땅</h1>
+        <p class="text-zinc-400 text-sm mt-1">청년부 커뮤니티</p>
+      </div>
+      <div class="space-y-4">
+        <input id="login-id" type="text" placeholder="아이디" class="w-full px-4 py-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+        <input id="login-pw" type="password" placeholder="비밀번호" class="w-full px-4 py-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
+        <div id="login-error" class="text-red-500 text-xs font-medium px-1 hidden"></div>
+        <button id="btn-login" class="w-full py-3.5 bg-gradient-to-br from-zinc-800 to-black shadow-md shadow-zinc-900/20 border border-zinc-700/50 text-white rounded-2xl font-bold text-sm transition-all duration-200 active:opacity-70 active:scale-[0.98]">로그인</button>
+      </div>
+      <div class="text-center mt-6">
+        <button id="btn-go-register" class="text-sm text-zinc-500 font-medium">
+          아직 계정이 없으신가요? <span class="text-black font-bold underline underline-offset-2">회원가입</span>
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// REGISTER
+// ============================================================
+function renderRegister() {
+  return `
+  <div class="fixed-layout bg-white overflow-y-auto allow-scroll overscroll-contain" style="position:fixed;inset:0;overflow-y:auto;display:block;touch-action:pan-y;">
+    <div class="px-6 py-8 max-w-sm mx-auto">
+      <button id="btn-back-login" class="flex items-center gap-1 text-sm text-zinc-500 mb-6">${icon('arrow_back','',20)} 뒤로</button>
+      <h1 class="text-2xl font-bold mb-1">회원가입</h1>
+      <p class="text-zinc-400 text-sm mb-8">약속의 땅 청년부 커뮤니티에 가입합니다.</p>
+      <div class="space-y-4">
+        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">이름</label><input id="reg-name" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black" placeholder="홍길동"/></div>
+        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">전화번호</label><input id="reg-phone" inputmode="numeric" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black" placeholder="010-1234-5678"/></div>
+        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">생년월일</label><input id="reg-birth" inputmode="numeric" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black" placeholder="1995.03.15"/></div>
+        <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">아이디</label><input id="reg-id" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black" placeholder="사용할 아이디"/></div>
+        <div>
+          <label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">비밀번호</label>
+          <input id="reg-pw" type="password" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black" placeholder="비밀번호 입력"/>
+          <div id="pw-strength" class="mt-2 px-1 space-y-1">
+            <div class="flex items-center gap-1.5"><span id="pwc-len" class="w-3.5 h-3.5 rounded-full bg-zinc-200 flex-none"></span><span class="text-[11px] text-zinc-400">8자 이상</span></div>
+            <div class="flex items-center gap-1.5"><span id="pwc-eng" class="w-3.5 h-3.5 rounded-full bg-zinc-200 flex-none"></span><span class="text-[11px] text-zinc-400">영문 포함</span></div>
+            <div class="flex items-center gap-1.5"><span id="pwc-num" class="w-3.5 h-3.5 rounded-full bg-zinc-200 flex-none"></span><span class="text-[11px] text-zinc-400">숫자 포함</span></div>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">비밀번호 확인</label>
+          <input id="reg-pw2" type="password" class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black" placeholder="비밀번호 재입력"/>
+          <p id="pw-match-hint" class="mt-1 px-1 text-[11px] text-zinc-400 hidden"></p>
+        </div>
+        <label class="flex items-start gap-3 pt-2">
+          <input id="reg-agree" type="checkbox" class="mt-0.5 w-5 h-5 rounded border-zinc-300 accent-black"/>
+          <span class="text-xs text-zinc-500 leading-relaxed">개인정보(이름, 전화번호, 생년월일) 수집·이용에 동의합니다.</span>
+        </label>
+        <div id="reg-error" class="text-red-500 text-xs font-medium hidden"></div>
+        <button id="btn-register" class="w-full py-3.5 bg-gradient-to-br from-zinc-800 to-black shadow-md shadow-zinc-900/20 border border-zinc-700/50 text-white rounded-2xl font-bold text-sm transition-all duration-200 active:opacity-70 active:scale-[0.98]">가입 신청</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// MAIN (tabs)
+// ============================================================
+function renderMain() {
+  const u = state.user;
+  const notis = state.cache.notifications || [];
+  let content = '';
+  if (state.tab === 'home') content = renderHomeTab();
+  else if (state.tab === 'bulletin') content = renderBulletinTab();
+  else if (state.tab === 'notice') content = renderNoticeTab();
+  else if (state.tab === 'calendar') content = renderCalendarTab();
+  else if (state.tab === 'cell') content = renderCellTab();
+
+  const tabs = [
+    { key:'home', icon:'home', label:'홈' },
+    { key:'bulletin', icon:'menu_book', label:'주보' },
+    { key:'notice', icon:'campaign', label:'공지' },
+    { key:'calendar', icon:'calendar_month', label:'일정' },
+    { key:'cell', icon:'groups', label:'목장' },
+  ];
+
+  return `
+  <div class="min-h-screen pb-24" style="background:#f4f4f5">
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-[100] px-5 pt-3 pb-3 bg-white border-b border-zinc-100/80 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl overflow-hidden bg-black flex items-center justify-center">
+            ${logoImg('w-10 h-10')}
+          </div>
+          <div>
+            <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em]">약속의 땅</p>
+            <h1 class="text-lg font-bold tracking-tight">${esc(u.name)} <span class="text-xs font-light text-zinc-400 tracking-normal ml-1">청년</span></h1>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button data-action="open-profile" class="relative w-10 h-10 rounded-full flex items-center justify-center border-2 border-black overflow-hidden ${u.profileImg ? 'bg-zinc-200' : getAvatarColor(u.name)}">
+            ${u.profileImg ? `<img src="${u.profileImg}" class="w-full h-full object-cover"/>` : `<span class="text-sm font-bold">${esc((u.name||'?')[0])}</span>`}
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="px-5 pt-20 pb-4"><div id="tab-wrap-${state.tab}" class="tab-content space-y-4 anim-fade-in">${content}</div></main>
+
+    <!-- Bottom Nav -->
+    <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white border-t border-zinc-100/0 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
+      <div class="flex justify-around items-center max-w-md mx-auto">
+        ${tabs.map(t => `
+          <button data-tab="${t.key}" class="relative overflow-hidden flex flex-col items-center gap-0.5 px-4 py-1 transition-all duration-300 active:scale-90 ${state.tab===t.key?'text-black':'text-zinc-400'}">
+            <span data-tab-icon="${t.key}" class="transition-colors duration-200">${icon(t.icon,'',26,state.tab===t.key)}</span>
+            <span class="text-[10px] font-bold tracking-wider transition-colors duration-200">${t.label}</span>
+          </button>
+        `).join('')}
+      </div>
+    </nav>
+
+  </div>`;
+}
+
 // ============================================================
 // PROFILE SHEET
 // ============================================================
