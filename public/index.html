@@ -1200,12 +1200,13 @@ function _doRender() {
     }
   }
 
-  if (state.profileOpen) html += renderProfileSheet();
-  html += renderConfirmModal();
-  html += renderCropModal();
+  // 모달은 메인과 분리된 방에 렌더링 → 메인 DOM 파괴 없음
+  let modalsHtml = '';
+  if (state.profileOpen) modalsHtml += renderProfileSheet();
+  modalsHtml += renderConfirmModal();
+  modalsHtml += renderCropModal();
 
-  // morph: 가능하면 바뀐 노드만 교체 → 깜빡임/폰트 재로드 없음
-  morphDOM(app, html);
+  morphDOM(app, `<div id="app-main-layout">${html}</div><div id="app-modal-layout">${modalsHtml}</div>`);
   bindEvents();
   bindCropModal();
 }
@@ -1449,7 +1450,7 @@ function renderMain() {
       </div>
     </header>
 
-    <main class="px-5 pt-20 pb-4"><div class="tab-content space-y-4">${content}</div></main>
+    <main class="px-5 pt-20 pb-4"><div id="tab-wrap-${state.tab}" class="tab-content space-y-4 anim-fade-in">${content}</div></main>
 
     <!-- Bottom Nav -->
     <nav class="fixed bottom-0 left-0 right-0 z-50 px-2 pb-7 pt-3 bg-white border-t border-zinc-100/0 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
@@ -1685,7 +1686,7 @@ function renderHomeTab() {
   ].join('');
 
   return `
-  <section class="anim-subtle-up">
+  <section>
     <div class="bg-gradient-to-br from-zinc-800 to-black shadow-md shadow-zinc-900/20 border border-zinc-700/50 rounded-3xl p-7 text-white relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-white/[0.03] pointer-events-none rounded-3xl"></div>
       <div class="relative z-10">
         <span class="px-2.5 py-1 bg-white/10 border border-white/20 rounded-lg text-[10px] font-bold uppercase tracking-wider">오늘의 말씀</span>
@@ -1846,7 +1847,7 @@ function renderBulletinTab() {
   const listOpen = state._bulletinListOpen;
 
   return `
-  <section class="anim-subtle-up">
+  <section>
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-xl font-bold tracking-tight">주보</h2>
       ${rest.length ? `<button data-action="toggle-bulletin-list" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 rounded-full text-xs font-bold text-zinc-600 active:bg-zinc-200">
@@ -1989,7 +1990,7 @@ function renderBulletinDetail() {
 function renderNoticeTab() {
   const notices = state.cache.notices;
   return `
-  <section class="anim-subtle-up">
+  <section>
     <h2 class="text-xl font-bold tracking-tight mb-6">공지사항</h2>
     <div class="space-y-3">
       ${notices.map(n => {
@@ -2094,7 +2095,7 @@ function renderCalendarTab() {
   const sd = new Date(selDate);
 
   return `
-  <section class="anim-subtle-up">
+  <section>
     <h2 class="text-xl font-bold tracking-tight mb-6">일정</h2>
     <div class="flex items-center justify-between mb-4">
       <button data-action="cal-prev" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('chevron_left','',20)}</button>
@@ -2242,7 +2243,7 @@ function renderCellTab() {
     return '';
   })();
 
-  return `<div class="space-y-4 anim-subtle-up">
+  return `<div class="space-y-4">
 
     <!-- 헤더 카드 (주보와 동일 스타일) -->
     ${(() => {
