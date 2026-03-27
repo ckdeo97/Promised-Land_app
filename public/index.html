@@ -1083,7 +1083,7 @@ function renderCropModal() {
   const src = state._cropModal.src;
   const SIZE = 240;
   // 슬라이더 값: origW 기준 배율 (100~350%)
-  const scaleVal = Math.max(100, Math.min(350, Math.round((state._cropModal.w / state._cropModal.origW) * 100)));
+  const scaleVal = Math.max(100, Math.min(350, Math.round((state._cropModal.scale || (240 / Math.min(state._cropModal.origW, state._cropModal.origH))) * 100)));
   return `
   <div id="crop-modal" class="fixed inset-0 z-[310] bg-black/75 flex items-center justify-center px-4 overlay-scroll-lock anim-fade-in" style="touch-action:none">
     <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl allow-scroll max-h-[min(92vh,720px)] overflow-y-auto overflow-x-hidden overscroll-contain anim-subtle-up">
@@ -3412,7 +3412,9 @@ function bindEvents() {
         // 중앙 배치: stage 중심 = 원 중심 (cx=STAGE_W/2, cy=150)
         const ox = STAGE_W/2 - w/2;
         const oy = 150 - h/2;
-        state._cropModal = { src:e.target.result, origW, origH, w, h, ox, oy };
+        // scale/tx/ty 기반으로 저장 (bindCropModal과 맞춤)
+        const initScale = SIZE / Math.min(origW, origH);
+        state._cropModal = { src:e.target.result, origW, origH, scale:initScale, tx:0, ty:0 };
         state._pendingProfileFile = file;
         render();
       };
