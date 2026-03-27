@@ -3837,33 +3837,42 @@ function bindCropModal() {
   const scaleInput = document.getElementById('crop-scale');
   if (!stage || !imgEl) return;
 
-  const SIZE = 240;   // 원 지름(px)
+  const SIZE = 240;
   const stageRect = stage.getBoundingClientRect();
   const SW = stageRect.width || 360;
-  const CX = SW / 2;     // stage 중심 X
-  const CY = 150;         // stage 중심 Y (height=300)
+  const CX = SW / 2;
+  const CY = 150;
   const c = state._cropModal;
 
-  // ── transform 기반 상태 ──
-  // scale: 초기값은 원이 꽉 차도록
-  const MIN_SCALE = SIZE / Math.min(c.origW, c.origH);
-  if (!c.scale || c.scale < MIN_SCALE) c.scale = MIN_SCALE;
-  // tx/ty: 이미지 중심 기준 offset (초기 = 0,0 → 중앙)
-  if (c.tx === undefined) c.tx = 0;
-  if (c.ty === undefined) c.ty = 0;
-
-  // 이미지 el: 원점(center) 기준으로 배치, transform으로 이동+스케일
+  // 이미지 el 기본 스타일 (이미지 로드 전에도 중앙 배치 준비)
   imgEl.style.position = 'absolute';
-  imgEl.style.left = CX + 'px';
-  imgEl.style.top  = CY + 'px';
-  imgEl.style.width  = c.origW + 'px';
-  imgEl.style.height = c.origH + 'px';
-  imgEl.style.marginLeft = (-c.origW / 2) + 'px';
-  imgEl.style.marginTop  = (-c.origH / 2) + 'px';
   imgEl.style.willChange = 'transform';
+  imgEl.style.opacity = '0'; // 로드 전 숨김
 
-  // 이미지가 원을 완전히 덮도록 tx/ty 클램프
+  // 초기화 함수 - 이미지 로드 완료 후 실행
+  const initCrop = (natW, natH) => {
+    c.origW = natW; c.origH = natH;
+    const MIN_SCALE = SIZE / Math.min(natW, natH);
+    if (!c.scale || c.scale < MIN_SCALE) c.scale = MIN_SCALE;
+    if (c.tx === undefined) c.tx = 0;
+    if (c.ty === undefined) c.ty = 0;
+
+    imgEl.style.left = CX + 'px';
+    imgEl.style.top  = CY + 'px';
+    imgEl.style.width  = natW + 'px';
+    imgEl.style.height = natH + 'px';
+    imgEl.style.marginLeft = (-natW / 2) + 'px';
+    imgEl.style.marginTop  = (-natH / 2) + 'px';
+    imgEl.style.opacity = '1';
+
+    applyTransform();
+  };
+
+  // MIN_SCALE은 initCrop 후에 결정되므로 clamp/apply에서 재계산
+  const getMinScale = () => (c.origW && c.origH) ? SIZE / Math.min(c.origW, c.origH) : 1;
+
   const clampTxTy = () => {
+    if (!c.origW || !c.origH) return;
     const hw = (c.origW * c.scale) / 2;
     const hh = (c.origH * c.scale) / 2;
     const maxTx = hw - SIZE / 2;
@@ -3873,21 +3882,27 @@ function bindCropModal() {
   };
 
   const applyTransform = () => {
+    const MIN_SCALE = getMinScale();
     if (isNaN(c.tx) || isNaN(c.ty) || isNaN(c.scale) ||
         !isFinite(c.tx) || !isFinite(c.ty) || !isFinite(c.scale)) {
-      c.tx = 0; c.ty = 0; c.scale = MIN_SCALE; // 안전장치
+      c.tx = 0; c.ty = 0; c.scale = MIN_SCALE;
     }
     if (c.scale < MIN_SCALE) c.scale = MIN_SCALE;
     clampTxTy();
-    // DOM 직접 조작 - render() 호출 절대 없음
     imgEl.style.transform = `translate(${c.tx}px, ${c.ty}px) scale(${c.scale})`;
   };
 
-  applyTransform();
+  // 이미지 로드 확인: 이미 캐시된 경우 즉시 / 아니면 onload 대기
+  if (imgEl.complete && imgEl.naturalWidth > 0) {
+    initCrop(imgEl.naturalWidth, imgEl.naturalHeight);
+  } else {
+    imgEl.onload = () => initCrop(imgEl.naturalWidth, imgEl.naturalHeight);
+    imgEl.onerror = () => { imgEl.style.opacity = '1'; };
+  }
 
   // 슬라이더
   scaleInput?.addEventListener('input', function() {
-    const newScale = Math.max(MIN_SCALE, parseInt(this.value) / 100);
+    const newScale = Math.max(getMinScale(), parseInt(this.value) / 100);
     if (isNaN(newScale)) return;
     c.scale = newScale;
     applyTransform();
