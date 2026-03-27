@@ -1806,7 +1806,7 @@ function renderBulletinInline(b) {
     parts.push('<div class="px-5 pt-4 pb-3 border-b border-zinc-100 flex items-center gap-2">' + icon('format_list_numbered','text-zinc-400',16) + '<h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">예배순서</h3></div>');
     parts.push('<div class="divide-y divide-zinc-50">');
     orderItems.forEach(item => {
-      parts.push('<div class="flex items-center px-4 py-3 gap-2"><span class="text-sm font-medium text-zinc-500 w-[6.5rem] flex-none">' + esc(item.name) + '</span><span class="flex-1 text-sm font-bold text-black text-center">' + esc(item.scripture||'') + '</span><span class="text-xs text-zinc-500 text-right w-[5rem] flex-none">' + esc(item.participant||'') + '</span></div>');
+      parts.push('<div class="flex items-center px-4 py-3 gap-2"><span class="text-sm font-medium text-zinc-500 w-[6.5rem] flex-none">' + esc(item.name) + '</span><span class="flex-1 text-sm font-bold text-black text-center whitespace-pre-line">' + esc(item.scripture||'') + '</span><span class="text-xs text-zinc-500 text-right w-[5rem] flex-none">' + esc(item.participant||'') + '</span></div>');
     });
     parts.push('</div></div>');
   }
