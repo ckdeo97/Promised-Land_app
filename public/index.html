@@ -426,6 +426,14 @@ tailwind.config = {
   .profile-img-clip:active { cursor: grabbing; }
   /* 크롭 모달 */
   #crop-modal canvas { touch-action: none; }
+  #crop-circle-mask {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.82);
+    border: 1.5px solid rgba(255,255,255,0.65);
+    z-index: 2;
+  }
 </style>
 </head>
 <body class="text-zinc-800 min-h-screen antialiased" style="background:#f4f4f5">
@@ -1087,13 +1095,7 @@ function renderCropModal() {
       <div id="crop-stage" class="relative bg-zinc-900 select-none" style="height:300px;overflow:hidden;touch-action:none;">
         <img id="crop-img" src="${src}" draggable="false"
           style="position:absolute;user-select:none;-webkit-user-drag:none;pointer-events:none;will-change:transform;"/>
-        <div style="position:absolute;inset:0;pointer-events:none;">
-          <svg width="100%" height="100%">
-            <defs><mask id="cm"><rect width="100%" height="100%" fill="white"/><circle cx="50%" cy="150" r="${SIZE/2}" fill="black"/></mask></defs>
-            <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#cm)"/>
-            <circle cx="50%" cy="150" r="${SIZE/2-1}" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>
-          </svg>
-        </div>
+        <div id="crop-circle-mask" style="width:${SIZE}px;height:${SIZE}px;left:calc(50% - ${SIZE/2}px);top:${150 - SIZE/2}px;"></div>
       </div>
       <div class="px-5 py-4 space-y-1">
         <div class="flex items-center gap-3">
@@ -3833,78 +3835,76 @@ function bindCropModal() {
   const scaleInput = document.getElementById('crop-scale');
   if (!stage || !imgEl) return;
 
-  const SIZE = 240;  // 원 지름
-  const STAGE_H = 300;
-
-  // stage 실제 너비 (렌더 후 정확히 알 수 있음)
+  const SIZE = 240;   // 원 지름(px)
   const stageRect = stage.getBoundingClientRect();
   const SW = stageRect.width || 360;
-  // 원 중심 좌표 (stage 기준)
-  const CX = SW / 2;
-  const CY = 150; // stage height=300 → cy=150
+  const CX = SW / 2;     // stage 중심 X
+  const CY = 150;         // stage 중심 Y (height=300)
+  const c = state._cropModal;
 
-  // 이미지 최소 크기: 원을 완전히 덮어야 함 (짧은 변 >= SIZE)
-  const ensureMinSize = (c) => {
-    const minScale = SIZE / Math.min(c.origW, c.origH);
-    if (c.w < c.origW * minScale) {
-      const s = minScale;
-      c.w = c.origW * s;
-      c.h = c.origH * s;
+  // ── transform 기반 상태 ──
+  // scale: 초기값은 원이 꽉 차도록
+  const MIN_SCALE = SIZE / Math.min(c.origW, c.origH);
+  if (!c.scale || c.scale < MIN_SCALE) c.scale = MIN_SCALE;
+  // tx/ty: 이미지 중심 기준 offset (초기 = 0,0 → 중앙)
+  if (c.tx === undefined) c.tx = 0;
+  if (c.ty === undefined) c.ty = 0;
+
+  // 이미지 el: 원점(center) 기준으로 배치, transform으로 이동+스케일
+  imgEl.style.position = 'absolute';
+  imgEl.style.left = CX + 'px';
+  imgEl.style.top  = CY + 'px';
+  imgEl.style.width  = c.origW + 'px';
+  imgEl.style.height = c.origH + 'px';
+  imgEl.style.marginLeft = (-c.origW / 2) + 'px';
+  imgEl.style.marginTop  = (-c.origH / 2) + 'px';
+  imgEl.style.willChange = 'transform';
+
+  // 이미지가 원을 완전히 덮도록 tx/ty 클램프
+  const clampTxTy = () => {
+    const hw = (c.origW * c.scale) / 2;
+    const hh = (c.origH * c.scale) / 2;
+    const maxTx = hw - SIZE / 2;
+    const maxTy = hh - SIZE / 2;
+    c.tx = Math.max(-maxTx, Math.min(maxTx, c.tx));
+    c.ty = Math.max(-maxTy, Math.min(maxTy, c.ty));
+  };
+
+  const applyTransform = () => {
+    if (isNaN(c.tx) || isNaN(c.ty) || isNaN(c.scale) ||
+        !isFinite(c.tx) || !isFinite(c.ty) || !isFinite(c.scale)) {
+      c.tx = 0; c.ty = 0; c.scale = MIN_SCALE; // 안전장치
     }
+    if (c.scale < MIN_SCALE) c.scale = MIN_SCALE;
+    clampTxTy();
+    // DOM 직접 조작 - render() 호출 절대 없음
+    imgEl.style.transform = `translate(${c.tx}px, ${c.ty}px) scale(${c.scale})`;
   };
 
-  // 이미지가 원을 완전히 덮도록 클램프
-  const clamp = (c) => {
-    ensureMinSize(c);
-    c.ox = Math.min(CX - SIZE/2, Math.max(CX + SIZE/2 - c.w, c.ox));
-    c.oy = Math.min(CY - SIZE/2, Math.max(CY + SIZE/2 - c.h, c.oy));
-  };
-
-  const applyImg = () => {
-    const c = state._cropModal;
-    clamp(c);
-    imgEl.style.width  = c.w + 'px';
-    imgEl.style.height = c.h + 'px';
-    imgEl.style.left   = c.ox + 'px';
-    imgEl.style.top    = c.oy + 'px';
-  };
-
-  // 초기 위치 설정 (처음 열릴 때 ox/oy가 state에 저장됨)
-  // 이미 initApp 시 중앙 계산했지만 SW가 실제 달라질 수 있으므로 재계산
-  const c0 = state._cropModal;
-  ensureMinSize(c0);
-  c0.ox = CX - c0.w / 2;
-  c0.oy = CY - c0.h / 2;
-  applyImg();
+  applyTransform();
 
   // 슬라이더
   scaleInput?.addEventListener('input', function() {
-    const c = state._cropModal;
-    const newScale = parseInt(this.value) / 100;
-    const newW = c.origW * newScale;
-    const newH = c.origH * newScale;
-    const ratioX = (CX - c.ox) / c.w;
-    const ratioY = (CY - c.oy) / c.h;
-    c.ox = CX - ratioX * newW;
-    c.oy = CY - ratioY * newH;
-    c.w = newW; c.h = newH;
-    applyImg();
+    const newScale = Math.max(MIN_SCALE, parseInt(this.value) / 100);
+    if (isNaN(newScale)) return;
+    c.scale = newScale;
+    applyTransform();
   });
 
-  // PC 드래그
-  let dragging = false, mX, mY, mOX, mOY;
+  // ── PC 드래그 ──
+  let dragging = false, mX0, mY0, mTX0, mTY0;
   stage.addEventListener('mousedown', e => {
     dragging = true;
-    mX = e.clientX; mY = e.clientY;
-    mOX = state._cropModal.ox; mOY = state._cropModal.oy;
+    mX0 = e.clientX; mY0 = e.clientY;
+    mTX0 = c.tx; mTY0 = c.ty;
     stage.style.cursor = 'grabbing';
     e.preventDefault();
   });
   document.addEventListener('mousemove', e => {
     if (!dragging) return;
-    state._cropModal.ox = mOX + (e.clientX - mX);
-    state._cropModal.oy = mOY + (e.clientY - mY);
-    applyImg();
+    c.tx = mTX0 + (e.clientX - mX0);
+    c.ty = mTY0 + (e.clientY - mY0);
+    applyTransform();
   });
   document.addEventListener('mouseup', () => {
     dragging = false;
@@ -3912,43 +3912,63 @@ function bindCropModal() {
   });
   stage.style.cursor = 'grab';
 
-  // 모바일 터치
-  let tOX, tOY, tX, tY;
-  let pinchD0 = 0, pinchW0 = 0, pinchH0 = 0, pinchOX0 = 0, pinchOY0 = 0;
+  // ── 모바일 터치 (단일 스케일 변수) ──
+  let tX0 = 0, tY0 = 0, tTX0 = 0, tTY0 = 0;
+  let pinchD0 = 0, pinchScale0 = 0, pinchTX0 = 0, pinchTY0 = 0;
 
   stage.addEventListener('touchstart', e => {
-    const c = state._cropModal;
+    e.preventDefault();
     if (e.touches.length === 1) {
-      tX = e.touches[0].clientX; tY = e.touches[0].clientY;
-      tOX = c.ox; tOY = c.oy;
+      tX0 = e.touches[0].clientX; tY0 = e.touches[0].clientY;
+      tTX0 = c.tx; tTY0 = c.ty;
+      pinchD0 = 0; // 핀치 리셋
     } else if (e.touches.length === 2) {
       const t = e.touches;
-      pinchD0 = Math.hypot(t[1].clientX-t[0].clientX, t[1].clientY-t[0].clientY);
-      pinchW0 = c.w; pinchH0 = c.h; pinchOX0 = c.ox; pinchOY0 = c.oy;
+      const d = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
+      if (d === 0) return;
+      pinchD0 = d;
+      pinchScale0 = c.scale;
+      pinchTX0 = c.tx; pinchTY0 = c.ty;
     }
-    e.preventDefault();
   }, { passive: false });
 
   stage.addEventListener('touchmove', e => {
-    const c = state._cropModal;
-    if (e.touches.length === 1) {
-      c.ox = tOX + (e.touches[0].clientX - tX);
-      c.oy = tOY + (e.touches[0].clientY - tY);
-      applyImg();
-    } else if (e.touches.length === 2) {
+    e.preventDefault(); // PTR/스크롤/배경 스크롤 완전 차단
+    if (e.touches.length === 1 && pinchD0 === 0) {
+      // 단일 드래그 (핀치 진행 중이 아닐 때만)
+      const newTx = tTX0 + (e.touches[0].clientX - tX0);
+      const newTy = tTY0 + (e.touches[0].clientY - tY0);
+      if (isNaN(newTx) || isNaN(newTy)) return;
+      c.tx = newTx; c.ty = newTy;
+      applyTransform();
+    } else if (e.touches.length === 2 && pinchD0 > 0) {
+      // 핀치 줌 - 단일 scale만 사용, width/height 절대 건드리지 않음
       const t = e.touches;
-      const dist = Math.hypot(t[1].clientX-t[0].clientX, t[1].clientY-t[0].clientY);
+      const dist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
+      if (dist === 0) return;
       const ratio = dist / pinchD0;
-      const nw = pinchW0 * ratio; const nh = pinchH0 * ratio;
-      const pcx = (t[0].clientX + t[1].clientX) / 2 - stage.getBoundingClientRect().left;
-      const pcy = (t[0].clientY + t[1].clientY) / 2 - stage.getBoundingClientRect().top;
-      c.ox = pcx - (pcx - pinchOX0) / pinchW0 * nw;
-      c.oy = pcy - (pcy - pinchOY0) / pinchH0 * nh;
-      c.w = nw; c.h = nh;
-      if (scaleInput) scaleInput.value = Math.round(nw / c.origW * 100);
-      applyImg();
+      const newScale = pinchScale0 * ratio;
+      if (isNaN(newScale) || !isFinite(newScale) || newScale <= 0) return;
+      if (newScale < MIN_SCALE * 0.5) { // 너무 작아지면 무시
+        c.scale = MIN_SCALE;
+        applyTransform();
+        return;
+      }
+      // 핀치 중심점 기준으로 tx/ty 보정 (중심점 고정 유지)
+      const rect = stage.getBoundingClientRect();
+      const midX = (t[0].clientX + t[1].clientX) / 2;
+      const midY = (t[0].clientY + t[1].clientY) / 2;
+      const pcx = midX - rect.left - CX;
+      const pcy = midY - rect.top  - CY;
+      const scaleRatio = newScale / pinchScale0;
+      const newTx = pcx - (pcx - pinchTX0) * scaleRatio;
+      const newTy = pcy - (pcy - pinchTY0) * scaleRatio;
+      if (isNaN(newTx) || isNaN(newTy) || !isFinite(newTx) || !isFinite(newTy)) return;
+      c.scale = newScale;
+      c.tx = newTx; c.ty = newTy;
+      if (scaleInput) scaleInput.value = Math.round(c.scale * 100);
+      applyTransform();
     }
-    e.preventDefault();
   }, { passive: false });
 
   // 완료
@@ -3961,11 +3981,18 @@ function bindCropModal() {
     ctx.beginPath();
     ctx.arc(OUT/2, OUT/2, OUT/2, 0, Math.PI*2);
     ctx.clip();
-    // 원 안의 이미지 소스 영역 계산
-    const srcX = (CX - SIZE/2 - c.ox) * (c.origW / c.w);
-    const srcY = (CY - SIZE/2 - c.oy) * (c.origH / c.h);
-    const srcW = SIZE * (c.origW / c.w);
-    const srcH = SIZE * (c.origH / c.h);
+    // transform 기반 소스 영역 계산
+    // 이미지 중심이 (CX + tx, CY + ty), 표시 크기 origW*scale × origH*scale
+    // 원의 좌상단: (CX - SIZE/2, CY - SIZE/2)
+    // 이미지 좌상단(스크린): (CX + tx - origW*scale/2, CY + ty - origH*scale/2)
+    const imgLeft = CX + c.tx - (c.origW * c.scale) / 2;
+    const imgTop  = CY + c.ty - (c.origH * c.scale) / 2;
+    const circleLeft = CX - SIZE / 2;
+    const circleTop  = CY - SIZE / 2;
+    const srcX = (circleLeft - imgLeft) / c.scale;
+    const srcY = (circleTop  - imgTop)  / c.scale;
+    const srcW = SIZE / c.scale;
+    const srcH = SIZE / c.scale;
     const imgObj = new Image();
     imgObj.onload = () => {
       ctx.drawImage(imgObj, srcX, srcY, srcW, srcH, 0, 0, OUT, OUT);
