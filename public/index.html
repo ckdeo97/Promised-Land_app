@@ -430,6 +430,51 @@ tailwind.config = {
   #crop-modal .cropper-view-box { border-radius: 50%; }
   #crop-modal .cropper-face { border-radius: 50%; }
   #crop-modal .cropper-container { touch-action: none; }
+  /* ── 설치 유도 UI ── */
+  #inapp-escape-modal {
+    position: fixed; inset: 0; z-index: 99999;
+    background: rgba(0,0,0,0.92);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 32px 24px; text-align: center;
+    animation: fadeIn 0.3s ease forwards;
+  }
+  #install-bubble {
+    position: fixed; bottom: 88px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 99998;
+    background: #18181b; color: #fff;
+    padding: 14px 18px; border-radius: 16px;
+    font-size: 13px; font-weight: 600; line-height: 1.5;
+    max-width: calc(100vw - 48px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    animation: installBounce 2s ease-in-out infinite;
+  }
+  #install-bubble.android { bottom: auto; top: 72px; }
+  #install-bubble::after {
+    content: '';
+    position: absolute; bottom: -8px; left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+    border-top-color: #18181b; border-bottom: none;
+  }
+  #install-bubble.android::after {
+    bottom: auto; top: -8px;
+    border-top: none; border-bottom-color: #18181b; border-bottom-width: 8px;
+  }
+  @keyframes installBounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50%       { transform: translateX(-50%) translateY(-6px); }
+  }
+  #install-bubble.android { animation: installBounceTop 2s ease-in-out infinite; }
+  @keyframes installBounceTop {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50%       { transform: translateX(-50%) translateY(6px); }
+  }
+  #install-bubble-close, #inapp-close {
+    cursor: pointer; background: none; border: none;
+    color: inherit; font-size: 18px; line-height: 1; padding: 4px 8px;
+  }
 </style>
 </head>
 <body class="text-zinc-800 min-h-screen antialiased" style="background:#f4f4f5">
@@ -4991,6 +5036,70 @@ function setupSwipeBack() {
 // APP INIT
 // ============================================================
 let _gesturesSetup = false;
+function setupInstallPrompt() {
+  // 이미 PWA로 설치된 경우 → 종료
+  const isStandalone = window.navigator.standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches;
+  if (isStandalone) return;
+
+  const ua = navigator.userAgent || '';
+  const isIOS = /iP(hone|ad|od)/.test(ua);
+  const isAndroid = /Android/.test(ua);
+
+  // 인앱 브라우저 감지 (카카오톡, 네이버, 인스타, 라인 등)
+  const isInApp = /KAKAOTALK|NAVER|Instagram|Line\/|FB_IAB|FBAN|fb_iab|WebView|wv;/.test(ua)
+    || (/iPhone|iPad/.test(ua) && !/Safari/.test(ua) && !/CriOS/.test(ua));
+
+  if (isInApp) {
+    // 강제 탈출 모달
+    const modal = document.createElement('div');
+    modal.id = 'inapp-escape-modal';
+    const isKakao = /KAKAOTALK/.test(ua);
+    modal.innerHTML = `
+      <div style="width:64px;height:64px;border-radius:20px;background:#fff;display:flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:32px;">🔗</div>
+      <p style="color:#fff;font-size:18px;font-weight:800;margin-bottom:10px;">외부 브라우저로 열어주세요</p>
+      <p style="color:rgba(255,255,255,0.6);font-size:14px;line-height:1.7;margin-bottom:28px;">
+        ${isKakao
+          ? '우측 하단 <strong style="color:#fff">⋮</strong> 버튼 →<br><strong style="color:#fff">다른 브라우저로 열기</strong>를 선택해 주세요'
+          : '우측 상단 또는 하단 <strong style="color:#fff">⋮</strong> 버튼 →<br><strong style="color:#fff">다른 브라우저로 열기 / Safari로 열기</strong>를<br>선택해 주세요'
+        }
+      </p>
+      <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:14px 20px;color:rgba(255,255,255,0.5);font-size:12px;line-height:1.6;max-width:280px;">
+        외부 브라우저에서 열어야<br>홈 화면에 추가 및 정상 이용이 가능합니다
+      </div>
+      <button id="inapp-close" style="margin-top:20px;color:rgba(255,255,255,0.35);font-size:13px;background:none;border:none;cursor:pointer;padding:8px 16px;">그냥 계속 보기</button>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('inapp-close')?.addEventListener('click', () => modal.remove());
+    return;
+  }
+
+  // 일반 브라우저 → OS별 설치 유도 말풍선
+  if (!isIOS && !isAndroid) return;
+
+  const bubble = document.createElement('div');
+  bubble.id = 'install-bubble';
+  if (isAndroid) bubble.classList.add('android');
+
+  bubble.innerHTML = isIOS
+    ? `<div style="display:flex;align-items:flex-start;gap:10px;">
+        <span style="font-size:22px;flex-none;">👇</span>
+        <div>하단 <strong>공유</strong> 버튼을 누르고<br><strong>홈 화면에 추가</strong>를 선택해 주세요</div>
+        <button id="install-bubble-close">✕</button>
+       </div>`
+    : `<div style="display:flex;align-items:flex-start;gap:10px;">
+        <span style="font-size:22px;flex-none;">☝️</span>
+        <div>우측 상단 <strong>⋮</strong> 버튼을 누르고<br><strong>홈 화면에 추가</strong>를 선택해 주세요</div>
+        <button id="install-bubble-close">✕</button>
+       </div>`;
+
+  document.body.appendChild(bubble);
+  document.getElementById('install-bubble-close')?.addEventListener('click', () => bubble.remove());
+
+  // 5초 후 자동으로 사라짐
+  setTimeout(() => { if (bubble.parentNode) bubble.remove(); }, 8000);
+}
+
 async function initApp(firebaseUser) {
   try {
     // 제스처·이벤트위임 리스너: 앱 생애주기 동안 딱 1회만 등록
@@ -5004,6 +5113,7 @@ async function initApp(firebaseUser) {
       setupEditDirtyTracking();
       setupPTR();
       setupSwipeBack();
+      setupInstallPrompt();
       _gesturesSetup = true;
     }
     // Firebase Auth가 로그인된 유저를 알고 있으면 → 세션 복원
