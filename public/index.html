@@ -14,6 +14,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <meta name="apple-mobile-web-app-title" content="약속의 땅"/>
 <meta name="theme-color" content="#ffffff"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -424,16 +426,10 @@ tailwind.config = {
   .cal-sat { color: #3b82f6; }
   .profile-img-clip { overflow: hidden; cursor: grab; }
   .profile-img-clip:active { cursor: grabbing; }
-  /* 크롭 모달 */
-  #crop-modal canvas { touch-action: none; }
-  #crop-circle-mask {
-    position: absolute;
-    border-radius: 50%;
-    pointer-events: none;
-    box-shadow: 0 0 0 9999px rgba(0,0,0,0.82);
-    border: 1.5px solid rgba(255,255,255,0.65);
-    z-index: 2;
-  }
+  /* 크롭 모달 - Cropper.js 사용 */
+  #crop-modal .cropper-view-box { border-radius: 50%; }
+  #crop-modal .cropper-face { border-radius: 50%; }
+  #crop-modal .cropper-container { touch-action: none; }
 </style>
 </head>
 <body class="text-zinc-800 min-h-screen antialiased" style="background:#f4f4f5">
@@ -1081,29 +1077,19 @@ function renderConfirmModal() { return ''; } // DOM direct
 function renderCropModal() {
   if (!state._cropModal) return '';
   const src = state._cropModal.src;
-  const SIZE = 240;
-  // 슬라이더 값: origW 기준 배율 (100~350%)
-  const scaleVal = Math.max(100, Math.min(350, Math.round((state._cropModal.scale || (240 / Math.min(state._cropModal.origW, state._cropModal.origH))) * 100)));
   return `
   <div id="crop-modal" class="fixed inset-0 z-[310] bg-black/75 flex items-center justify-center px-4 overlay-scroll-lock anim-fade-in" style="touch-action:none">
-    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl allow-scroll max-h-[min(92vh,720px)] overflow-y-auto overflow-x-hidden overscroll-contain anim-subtle-up">
+    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl anim-subtle-up overflow-hidden">
       <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
         <button id="crop-cancel" class="text-sm text-zinc-500 font-medium py-1 px-2">취소</button>
         <p class="text-sm font-bold">프로필 사진 설정</p>
         <button id="crop-confirm" class="text-sm font-bold text-black py-1 px-2">완료</button>
       </div>
-      <div id="crop-stage" class="relative bg-zinc-900 select-none" style="height:300px;overflow:hidden;touch-action:none;">
-        <img id="crop-img" src="${src}" draggable="false"
-          style="position:absolute;user-select:none;-webkit-user-drag:none;pointer-events:none;will-change:transform;"/>
-        <div id="crop-circle-mask" style="width:${SIZE}px;height:${SIZE}px;left:calc(50% - ${SIZE/2}px);top:${150 - SIZE/2}px;"></div>
+      <div id="crop-stage" style="width:100%;height:340px;background:#18181b;">
+        <img id="crop-img" src="${src}" style="display:block;max-width:100%;"/>
       </div>
-      <div class="px-5 py-4 space-y-1">
-        <div class="flex items-center gap-3">
-          <span class="text-zinc-400 text-sm select-none">−</span>
-          <input id="crop-scale" type="range" min="100" max="350" value="${scaleVal}" class="flex-1 accent-black" style="cursor:pointer"/>
-          <span class="text-zinc-600 text-sm select-none">+</span>
-        </div>
-        <p class="text-[11px] text-zinc-400 text-center">드래그로 이동 · 슬라이더로 크기 조절</p>
+      <div class="px-5 py-3">
+        <p class="text-[11px] text-zinc-400 text-center">드래그로 이동 · 핀치로 확대/축소</p>
       </div>
     </div>
   </div>`;
@@ -3832,197 +3818,57 @@ function openBulletinForm(existing, _forceNew) {
 // ============================================================
 function bindCropModal() {
   if (!state._cropModal) return;
-  const stage = document.getElementById('crop-stage');
   const imgEl = document.getElementById('crop-img');
-  const scaleInput = document.getElementById('crop-scale');
-  if (!stage || !imgEl) return;
+  if (!imgEl) return;
 
-  const SIZE = 240;
-  const CY = 150;
-  const c = state._cropModal;
-
-  // 이미지 el 기본 스타일
-  imgEl.style.position = 'absolute';
-  imgEl.style.willChange = 'transform';
-  imgEl.style.opacity = '0';
-
-  // 초기화 함수 - 이미지 로드 완료 후 실행 (stage 너비를 이 시점에 측정)
-  const initCrop = (natW, natH) => {
-    // 렌더 완료 후 실제 stage 너비 측정
-    const SW = stage.getBoundingClientRect().width || stage.offsetWidth || 360;
-    const CX = SW / 2;
-
-    c.origW = natW; c.origH = natH;
-    c._CX = CX; // 이후 clamp/apply에서 사용
-    const MIN_SCALE = SIZE / Math.min(natW, natH);
-    if (!c.scale || c.scale < MIN_SCALE) c.scale = MIN_SCALE;
-    c.tx = 0; c.ty = 0;
-
-    imgEl.style.left = CX + 'px';
-    imgEl.style.top  = CY + 'px';
-    imgEl.style.width  = natW + 'px';
-    imgEl.style.height = natH + 'px';
-    imgEl.style.marginLeft = (-natW / 2) + 'px';
-    imgEl.style.marginTop  = (-natH / 2) + 'px';
-    imgEl.style.opacity = '1';
-
-    applyTransform();
-  };
-
-  // MIN_SCALE은 initCrop 후에 결정되므로 clamp/apply에서 재계산
-  const getMinScale = () => (c.origW && c.origH) ? SIZE / Math.min(c.origW, c.origH) : 1;
-
-  const clampTxTy = () => {
-    if (!c.origW || !c.origH) return;
-    const hw = (c.origW * c.scale) / 2;
-    const hh = (c.origH * c.scale) / 2;
-    const maxTx = hw - SIZE / 2;
-    const maxTy = hh - SIZE / 2;
-    c.tx = Math.max(-maxTx, Math.min(maxTx, c.tx));
-    c.ty = Math.max(-maxTy, Math.min(maxTy, c.ty));
-  };
-
-  const applyTransform = () => {
-    const MIN_SCALE = getMinScale();
-    if (isNaN(c.tx) || isNaN(c.ty) || isNaN(c.scale) ||
-        !isFinite(c.tx) || !isFinite(c.ty) || !isFinite(c.scale)) {
-      c.tx = 0; c.ty = 0; c.scale = MIN_SCALE;
-    }
-    if (c.scale < MIN_SCALE) c.scale = MIN_SCALE;
-    clampTxTy();
-    imgEl.style.transform = `translate(${c.tx}px, ${c.ty}px) scale(${c.scale})`;
-  };
-
-  // 이미지 로드 확인: 이미 캐시된 경우 즉시 / 아니면 onload 대기
-  if (imgEl.complete && imgEl.naturalWidth > 0) {
-    initCrop(imgEl.naturalWidth, imgEl.naturalHeight);
-  } else {
-    imgEl.onload = () => initCrop(imgEl.naturalWidth, imgEl.naturalHeight);
-    imgEl.onerror = () => { imgEl.style.opacity = '1'; };
+  // 기존 인스턴스 정리
+  if (window._cropperInstance) {
+    try { window._cropperInstance.destroy(); } catch(e) {}
+    window._cropperInstance = null;
   }
 
-  // 슬라이더
-  scaleInput?.addEventListener('input', function() {
-    const newScale = Math.max(getMinScale(), parseInt(this.value) / 100);
-    if (isNaN(newScale)) return;
-    c.scale = newScale;
-    applyTransform();
-  });
+  const initCropper = () => {
+    window._cropperInstance = new Cropper(imgEl, {
+      aspectRatio: 1,
+      viewMode: 1,
+      dragMode: 'move',
+      background: false,
+      autoCropArea: 1,
+      movable: true,
+      zoomable: true,
+      rotatable: false,
+      scalable: false,
+      cropBoxMovable: false,
+      cropBoxResizable: false,
+      toggleDragModeOnDblclick: false,
+    });
+  };
 
-  // ── PC 드래그 ──
-  let dragging = false, mX0, mY0, mTX0, mTY0;
-  stage.addEventListener('mousedown', e => {
-    dragging = true;
-    mX0 = e.clientX; mY0 = e.clientY;
-    mTX0 = c.tx; mTY0 = c.ty;
-    stage.style.cursor = 'grabbing';
-    e.preventDefault();
-  });
-  document.addEventListener('mousemove', e => {
-    if (!dragging) return;
-    c.tx = mTX0 + (e.clientX - mX0);
-    c.ty = mTY0 + (e.clientY - mY0);
-    applyTransform();
-  });
-  document.addEventListener('mouseup', () => {
-    dragging = false;
-    if (stage) stage.style.cursor = 'grab';
-  });
-  stage.style.cursor = 'grab';
+  if (imgEl.complete && imgEl.naturalWidth > 0) {
+    initCropper();
+  } else {
+    imgEl.onload = initCropper;
+  }
 
-  // ── 모바일 터치 (단일 스케일 변수) ──
-  let tX0 = 0, tY0 = 0, tTX0 = 0, tTY0 = 0;
-  let pinchD0 = 0, pinchScale0 = 0, pinchTX0 = 0, pinchTY0 = 0;
-
-  stage.addEventListener('touchstart', e => {
-    e.preventDefault();
-    if (e.touches.length === 1) {
-      tX0 = e.touches[0].clientX; tY0 = e.touches[0].clientY;
-      tTX0 = c.tx; tTY0 = c.ty;
-      pinchD0 = 0; // 핀치 리셋
-    } else if (e.touches.length === 2) {
-      const t = e.touches;
-      const d = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
-      if (d === 0) return;
-      pinchD0 = d;
-      pinchScale0 = c.scale;
-      pinchTX0 = c.tx; pinchTY0 = c.ty;
-    }
-  }, { passive: false });
-
-  stage.addEventListener('touchmove', e => {
-    e.preventDefault(); // PTR/스크롤/배경 스크롤 완전 차단
-    if (e.touches.length === 1 && pinchD0 === 0) {
-      // 단일 드래그 (핀치 진행 중이 아닐 때만)
-      const newTx = tTX0 + (e.touches[0].clientX - tX0);
-      const newTy = tTY0 + (e.touches[0].clientY - tY0);
-      if (isNaN(newTx) || isNaN(newTy)) return;
-      c.tx = newTx; c.ty = newTy;
-      applyTransform();
-    } else if (e.touches.length === 2 && pinchD0 > 0) {
-      // 핀치 줌 - 단일 scale만 사용, width/height 절대 건드리지 않음
-      const t = e.touches;
-      const dist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
-      if (dist === 0) return;
-      const ratio = dist / pinchD0;
-      const newScale = pinchScale0 * ratio;
-      if (isNaN(newScale) || !isFinite(newScale) || newScale <= 0) return;
-      if (newScale < MIN_SCALE * 0.5) { // 너무 작아지면 무시
-        c.scale = MIN_SCALE;
-        applyTransform();
-        return;
-      }
-      // 핀치 중심점 기준으로 tx/ty 보정 (중심점 고정 유지)
-      const rect = stage.getBoundingClientRect();
-      const midX = (t[0].clientX + t[1].clientX) / 2;
-      const midY = (t[0].clientY + t[1].clientY) / 2;
-      const pcx = midX - rect.left - CX;
-      const pcy = midY - rect.top  - CY;
-      const scaleRatio = newScale / pinchScale0;
-      const newTx = pcx - (pcx - pinchTX0) * scaleRatio;
-      const newTy = pcy - (pcy - pinchTY0) * scaleRatio;
-      if (isNaN(newTx) || isNaN(newTy) || !isFinite(newTx) || !isFinite(newTy)) return;
-      c.scale = newScale;
-      c.tx = newTx; c.ty = newTy;
-      if (scaleInput) scaleInput.value = Math.round(c.scale * 100);
-      applyTransform();
-    }
-  }, { passive: false });
-
-  // 완료
   document.getElementById('crop-confirm')?.addEventListener('click', () => {
-    const c = state._cropModal;
-    const OUT = 100;
-    const canvas = document.createElement('canvas');
-    canvas.width = OUT; canvas.height = OUT;
-    const ctx = canvas.getContext('2d');
-    ctx.beginPath();
-    ctx.arc(OUT/2, OUT/2, OUT/2, 0, Math.PI*2);
-    ctx.clip();
-    // transform 기반 소스 영역 계산
-    // 이미지 중심이 (CX + tx, CY + ty), 표시 크기 origW*scale × origH*scale
-    // 원의 좌상단: (CX - SIZE/2, CY - SIZE/2)
-    // 이미지 좌상단(스크린): (CX + tx - origW*scale/2, CY + ty - origH*scale/2)
-    const imgLeft = CX + c.tx - (c.origW * c.scale) / 2;
-    const imgTop  = CY + c.ty - (c.origH * c.scale) / 2;
-    const circleLeft = CX - SIZE / 2;
-    const circleTop  = CY - SIZE / 2;
-    const srcX = (circleLeft - imgLeft) / c.scale;
-    const srcY = (circleTop  - imgTop)  / c.scale;
-    const srcW = SIZE / c.scale;
-    const srcH = SIZE / c.scale;
-    const imgObj = new Image();
-    imgObj.onload = () => {
-      ctx.drawImage(imgObj, srcX, srcY, srcW, srcH, 0, 0, OUT, OUT);
-      state._pendingProfileImg = canvas.toDataURL('image/jpeg', 0.8);
-      state._cropModal = null;
-      render();
-    };
-    imgObj.src = c.src;
+    if (!window._cropperInstance) return;
+    const canvas = window._cropperInstance.getCroppedCanvas({ width: 200, height: 200 });
+    if (!canvas) return;
+    state._pendingProfileImg = canvas.toDataURL('image/jpeg', 0.8);
+    window._cropperInstance.destroy();
+    window._cropperInstance = null;
+    state._cropModal = null;
+    render();
   });
 
   document.getElementById('crop-cancel')?.addEventListener('click', () => {
-    state._cropModal = null; state._pendingProfileFile = null; render();
+    if (window._cropperInstance) {
+      window._cropperInstance.destroy();
+      window._cropperInstance = null;
+    }
+    state._cropModal = null;
+    state._pendingProfileFile = null;
+    render();
   });
 }
 
@@ -4824,408 +4670,4 @@ function setupDelegation() {
               }
             }); break;
           }
-          case 'show-worship-form': {
-            const area = document.getElementById('admin-form-area'); if (!area) break;
-            const KEYS=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-            let songCount = 1;
-            const getSongRows = () => {
-              let rows = '';
-              for (let i = 0; i < songCount; i++) {
-                rows += worshipSongRowHtml(i, { title: '', url: '', key: 'C', sheet: '', sheetOrig: '' }, KEYS);
-              }
-              return rows;
-            };
-            const def=defaultYMW();
-            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] mb-4 fade-in">
-              <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">날짜</label>${ymwSelectors('wfd',def.yr,def.mo,def.wk)}</div>
-              ${adminInput('wf-leader','인도자','')}
-              <div><label class="block text-xs font-bold text-zinc-600 mb-2 ml-1">곡 목록</label>
-                <div id="song-rows">${getSongRows()}</div>
-                <button type="button" id="add-song-row" class="w-full py-2 border border-dashed border-zinc-200 rounded-xl text-xs font-bold text-zinc-400 mt-1">+ 곡 추가</button></div>
-              <div class="flex gap-2">
-                <button type="button" onclick="state.isEditing=false;state.adminSub='worship';render()" class="flex-1 py-3 border border-zinc-200 rounded-xl text-sm font-bold">취소</button>
-                <button type="button" id="save-worship" class="flex-1 py-3 bg-gradient-to-br from-zinc-800 to-black shadow-sm shadow-zinc-900/20 border border-zinc-700/30 text-white rounded-xl text-sm font-bold transition-all duration-200 active:scale-[0.97]">저장</button>
-              </div></div>`;
-            const bindSheets = () => { for (let i = 0; i < songCount; i++) bindWsSheet(i); };
-            bindSheets();
-            scheduleEditingReset();
-            document.getElementById('add-song-row')?.addEventListener('click',()=>{
-              songCount++;
-              const idx = songCount - 1;
-              document.getElementById('song-rows')?.insertAdjacentHTML('beforeend', worshipSongRowHtml(idx, { title: '', url: '', key: 'C', sheet: '', sheetOrig: '' }, KEYS));
-              bindWsSheet(idx);
-            });
-            document.getElementById('save-worship')?.addEventListener('click', async () => {
-              showLoading('저장 중...');
-              try {
-                const g=id=>document.getElementById(id)?.value||''; const wfYr=+document.getElementById('wfd-yr')?.value||new Date().getFullYear(); const wfMo=+document.getElementById('wfd-mo')?.value||1; const wfWk=+document.getElementById('wfd-wk')?.value||1;
-                const date=ymwToDate(wfYr,wfMo,wfWk); const songs=[];
-                for(let i=0;i<songCount;i++){const title=g('ws-title-'+i);if(!title) continue;const fileEl=document.getElementById('ws-sheet-'+i);const file=fileEl?.files[0];let sheetUrl='';let sheetOrig='';if(file){const up=await uploadWorshipSheetDual(file);sheetUrl=up.sheetUrl||'';sheetOrig=up.sheetOrig||'';}songs.push({title,url:g('ws-url-'+i),key:g('ws-key-'+i)||'C',sheet:sheetUrl,sheetOrig});}
-                const wid=uid(); const ws={id:wid,date,leader:g('wf-leader'),songs,by:state.user.uid,at:today(),storedAt:today()};
-                await window.FDB.setDocFull('worshipSets',wid,ws); state.cache.worshipSets.push(ws);
-                state.isEditing = false;
-                showToast('찬양 저장 완료!'); render();
-              } finally {
-                state.isEditing = false;
-                hideLoading();
-              }
-            }); break;
-          }
-          case 'show-bulletin-form': openBulletinForm(null); break;
-        }
-        return;
-      }
-
-      // ── (3) data-profile-page ──
-      const profilePageEl = e.target.closest('[data-profile-page]');
-      if (profilePageEl) {
-        const next = profilePageEl.dataset.profilePage;
-        runIfLeaveEditorConfirmed(() => {
-          closeProfileSheetAnimated(() => {
-            state.profilePage = next;
-            render();
-          });
-        });
-        return;
-      }
-
-      // ── (4) data-detail ──
-      const detailEl = e.target.closest('[data-detail]');
-      if (detailEl) {
-        const [type, id] = detailEl.dataset.detail.split(':');
-        state.detail = { type, id };
-        if (type === 'notice') {
-          showLoading('불러오는 중...');
-          try {
-            const snap = await window.FDB.getCol(`notices/${id}/comments`).catch(() => []);
-            state.cache.comments[id] = snap.sort((a, b) => (a.at || '').localeCompare(b.at || ''));
-          } finally { hideLoading(); }
-        }
-        render(); return;
-      }
-
-      // ── (5) data-worship-play ──
-      const worshipPlayEl = e.target.closest('[data-worship-play]');
-      if (worshipPlayEl) {
-        const idx = parseInt(worshipPlayEl.dataset.worshipPlay);
-        const latest = state.cache.worshipSets[state.cache.worshipSets.length - 1];
-        const song = latest?.songs?.[idx];
-        if (song?.url) {
-          // 새 탭(_blank) 대신 동일 탭으로 이동해서 복귀 시 화면이 하얗게 뜨는 현상을 완화
-          window.location.href = song.url;
-        } else {
-          state.detail = { type: 'worship', id: 'latest' };
-          render();
-        }
-        return;
-      }
-
-      // ── (6) data-cal-date ──
-      const calDateEl = e.target.closest('[data-cal-date]');
-      if (calDateEl) { state._calSel = calDateEl.dataset.calDate; render(); return; }
-
-      // ── (7) data-admin ──
-      const adminEl = e.target.closest('[data-admin]');
-      if (adminEl) {
-        const sub = adminEl.dataset.admin;
-        runIfLeaveEditorConfirmed(() => { state.adminSub = sub; render(); });
-        return;
-      }
-
-      // ── (8) data-att-tab ──
-      const attTabEl = e.target.closest('[data-att-tab]');
-      if (attTabEl) {
-        const t = attTabEl.dataset.attTab;
-        runIfLeaveEditorConfirmed(() => { state.adminAttTab = t; render(); });
-        return;
-      }
-
-      // ── (8.5) btn-request-push (푸시 토글) ──
-      if (e.target.closest('#btn-request-push')) {
-        const btn = e.target.closest('#btn-request-push');
-        if (btn.disabled) return;
-        btn.disabled = true;
-        try {
-          const noti = state.user._noti || { worship:true, notice:true, verse:true, schedule:true, duty:true };
-          const isOn = noti.push !== false;
-          if (isOn) {
-            // 끄기
-            noti.push = false;
-            state.user._noti = noti;
-            await window.FDB.setDoc('users', state.user.uid, { _noti: noti, fcmToken: null });
-            state.user.fcmToken = null;
-            SESSION.set(state.user);
-            showToast('푸시 알림을 껐습니다.');
-            render();
-          } else {
-            // 켜기: 권한 요청 → 토큰 등록 → _noti.push 저장
-            const ok = await window.requestPushPermission();
-            if (ok) {
-              noti.push = true;
-              state.user._noti = noti;
-              await window.FDB.setDoc('users', state.user.uid, { _noti: noti });
-              SESSION.set(state.user);
-              showToast('푸시 알림을 켰습니다!');
-              render();
-            } else {
-              showToast('알림 권한을 허용해주세요.');
-            }
-          }
-        } catch(e2) { showToast('저장 중 오류가 발생했습니다.'); }
-        btn.disabled = false;
-        return;
-      }
-
-      // ── (9) data-noti-toggle ──
-      const notiToggleEl = e.target.closest('[data-noti-toggle]');
-      if (notiToggleEl) {
-        const key = notiToggleEl.dataset.notiToggle;
-        const noti = state.user._noti || { worship: true, notice: true, verse: true, schedule: true, duty: true };
-        noti[key] = !noti[key]; state.user._noti = noti;
-        showLoading('저장 중...');
-        try {
-          await window.FDB.setDoc('users', state.user.uid, { _noti: noti }); SESSION.set(state.user); render();
-        } finally { hideLoading(); }
-        return;
-      }
-
-      // ── (10) data-roster-tab ──
-      const rosterTabEl = e.target.closest('[data-roster-tab]');
-      if (rosterTabEl) {
-        const rt = rosterTabEl.dataset.rosterTab;
-        runIfLeaveEditorConfirmed(() => { state.adminRosterTab = rt; state.rosterSearch = ''; render(); });
-        return;
-      }
-
-      // ── (11) .dl-sheet-btn ──
-      const dlBtn = e.target.closest('.dl-sheet-btn');
-      if (dlBtn) { downloadSheet(dlBtn.dataset.dlSheet, dlBtn.dataset.dlTitle + '_악보'); return; }
-
-    } catch (err) { console.error('delegation click error', err); }
-  });
-
-  // ── 드롭다운 외부 클릭 닫기 (document 레벨, 1회만 등록) ──
-  document.addEventListener('click', e => {
-    if (!e.target.closest('[data-action="roster-menu"]') && !e.target.closest('[id^="roster-dd-"]')) {
-      document.querySelectorAll('[id^="roster-dd-"]').forEach(d => d.classList.add('hidden'));
-    }
-  });
-}
-
-// ============================================================
-// GLOBAL GESTURES — initApp에서 딱 1회만 등록 (bindEvents 반복 호출로 인한 누수 방지)
-// ============================================================
-function setupPTR() {
-  // Activity Indicator DOM 생성 (1회)
-  function ensurePTREl() {
-    if (document.getElementById('ios-ptr')) return;
-    const el = document.createElement('div');
-    el.id = 'ios-ptr';
-    // 12개 막대 생성
-    el.innerHTML = '<div class="ai-wrap">' +
-      Array.from({length:12}, (_,i) => {
-        const deg = i * 30;
-        const delay = -(0.8 - i * (0.8/12)).toFixed(3);
-        return `<div class="ai-bar" style="transform:rotate(${deg}deg) translateX(-50%);animation-delay:${delay}s"></div>`;
-      }).join('') +
-    '</div>';
-    document.body.appendChild(el);
-  }
-
-  function getPTR() { return document.getElementById('ios-ptr'); }
-
-  function showPTR(ratio) {
-    ensurePTREl();
-    const el = getPTR(); if (!el) return;
-    el.style.opacity = Math.min(ratio, 1).toFixed(2);
-    el.classList.remove('is-spinning');
-  }
-
-  function startSpinning() {
-    const el = getPTR(); if (!el) return;
-    el.style.opacity = '1';
-    el.classList.add('is-spinning');
-  }
-
-  function hidePTR() {
-    const el = getPTR(); if (!el) return;
-    el.style.opacity = '0';
-    el.classList.remove('is-spinning');
-  }
-
-  const THRESHOLD = 60; // 음수 scrollTop 임계값 (px)
-  let startY = 0, triggered = false, touching = false;
-
-  document.addEventListener('touchstart', e => {
-    if (state.page !== 'main' || state.tab !== 'home' || state.detail || state.profilePage) return;
-    startY = e.touches[0].clientY;
-    touching = true;
-    triggered = false;
-  }, { passive: true });
-
-  // scroll 이벤트: scrollTop 음수 감지 (iOS 네이티브 탄성)
-  document.addEventListener('scroll', () => {
-    if (!touching) return;
-    if (state.page !== 'main' || state.tab !== 'home' || state.detail || state.profilePage) return;
-    const st = window.scrollY; // iOS에서 음수 가능
-    if (st < 0) {
-      const ratio = Math.abs(st) / THRESHOLD;
-      if (!triggered) showPTR(ratio);
-    } else {
-      if (!triggered) hidePTR();
-    }
-  }, { passive: true });
-
-  document.addEventListener('touchend', async () => {
-    touching = false;
-    if (state.page !== 'main' || state.tab !== 'home' || state.detail || state.profilePage) {
-      hidePTR(); return;
-    }
-    const st = window.scrollY;
-    if (st < -THRESHOLD && !triggered) {
-      triggered = true;
-      startSpinning();
-      try { await loadAll(); render(); }
-      finally { setTimeout(() => { hidePTR(); triggered = false; }, 400); }
-    } else {
-      hidePTR();
-    }
-  }, { passive: true });
-
-  document.addEventListener('touchcancel', () => {
-    touching = false; hidePTR();
-  }, { passive: true });
-}
-
-function setupSwipeBack() {
-  let startX = 0, startY = 0, swiping = false;
-  const EDGE = 30; // 왼쪽 30px 안에서 시작해야 인식
-  document.addEventListener('touchstart', e => {
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
-    swiping = startX < EDGE;
-  }, { passive: true });
-  document.addEventListener('touchend', e => {
-    if (!swiping) return;
-    const dx = e.changedTouches[0].clientX - startX;
-    const dy = Math.abs(e.changedTouches[0].clientY - startY);
-    swiping = false;
-      if (dx > 60 && dy < 80) {
-      // 뒤로가기: 하위 페이지/모달만 닫음, 홈(메인탭)은 스와이프 불가
-      if (state.profileOpen) { closeProfileSheetAnimated(); }
-      else if (state.detail) { state.detail = null; render(); }
-      else if (state.profilePage) { state.profilePage = null; render(); }
-      else if (state.page === 'admin' && state.adminSub !== 'dashboard') { state.adminSub = 'dashboard'; render(); }
-      else if (state.page === 'admin') { state.page = 'main'; state.tab = 'home'; render(); }
-      else if (state.page === 'register') { state.page = 'login'; render(); }
-      // 메인 탭 간 스와이프는 의도치 않은 동작 방지를 위해 제거
-      // (홈탭에서 스와이프해도 아무 동작 없음)
-    }
-  });
-}
-
-// ============================================================
-// APP INIT
-// ============================================================
-let _gesturesSetup = false;
-async function initApp(firebaseUser) {
-  try {
-    // 제스처·이벤트위임 리스너: 앱 생애주기 동안 딱 1회만 등록
-    if (!_gesturesSetup) {
-      document.addEventListener('touchmove', e => {
-        if (document.body.classList.contains('no-scroll') && !e.target.closest('.allow-scroll')) {
-          e.preventDefault();
-        }
-      }, { passive: false });
-      setupDelegation();
-      setupEditDirtyTracking();
-      setupPTR();
-      setupSwipeBack();
-      _gesturesSetup = true;
-    }
-    // Firebase Auth가 로그인된 유저를 알고 있으면 → 세션 복원
-    // (localStorage가 날아가도 Firebase Auth IndexedDB는 살아있음)
-    const session = SESSION.get();
-    const hasAuth = !!firebaseUser;
-    const hasSession = !!(session && session.uid);
-
-    if (hasAuth || hasSession) {
-      if (hasSession) {
-        state.user = session;
-        try {
-          const lc = localStorage.getItem('jmc_cache');
-          if (lc) {
-            const parsed = JSON.parse(lc);
-            if (parsed.users) state.cache.users = parsed.users;
-            if (parsed.cells) state.cache.cells = parsed.cells;
-            if (parsed.rosters) state.cache.rosters = parsed.rosters;
-            if (parsed.bulletins) state.cache.bulletins = parsed.bulletins;
-            if (parsed.notices) state.cache.notices = parsed.notices;
-          }
-        } catch (e) {}
-      } else if (firebaseUser) {
-        const em = firebaseUser.email || '';
-        state.user = {
-          uid: firebaseUser.uid,
-          name: firebaseUser.displayName || (em ? em.split('@')[0] : '회원'),
-          role: 'member',
-          status: 'active',
-          cellId: '',
-          phone: '',
-          birth: '',
-          profileImg: '',
-        };
-      }
-      // jmc_cache 없거나 Firestore 지연 시에도 로딩 스피너에 갇히지 않도록 메인 껍데기 즉시 표시
-      state.page = 'main';
-      render();
-
-      await loadAll();
-
-      const lookupUid = firebaseUser?.uid || session?.uid;
-      const freshUser = lookupUid ? state.cache.users.find(u => u.uid === lookupUid) : null;
-
-      if (freshUser && freshUser.status === 'active') {
-        state.user = freshUser;
-        SESSION.set(freshUser);
-        state.page = 'main';
-        await ensureLinkedRosterForActiveUser();
-        // PWA: 이미 권한 있으면 조용히 토큰 등록 (팝업 없음)
-        setTimeout(() => { if (typeof window.registerFcmToken === 'function') window.registerFcmToken(); }, 1500);
-      } else {
-        forceLogoutInvalidSession();
-      }
-    } else {
-      state.page = 'login';
-    }
-    // 폰트 로딩 완료 후 렌더 (아이콘이 텍스트로 보이는 현상 방지)
-    if (document.fonts?.ready) {
-      document.fonts.ready.then(() => render()).catch(() => render());
-    } else {
-      render();
-    }
-  } catch (e) {
-    console.error('initApp', e);
-    state.user = null;
-    state.page = 'login';
-    render();
-  }
-}
-
-window._appInit = initApp;
-if (window._fbReady) initApp();
-
-// Firebase 모듈 실패·init 미호출 등으로 로딩에 멈춘 경우 최후 수단
-setTimeout(() => {
-  try {
-    if (state.page === 'loading') {
-      console.warn('부트 타임아웃: 로그인 화면으로 전환합니다.');
-      state.user = null;
-      state.page = 'login';
-      render();
-    }
-  } catch (e) {}
-}, 12000);
-</script>
-</body>
-</html>
+          case '
