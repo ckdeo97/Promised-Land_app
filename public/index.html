@@ -1731,7 +1731,7 @@ function renderHomeTab() {
               ${rangeSub ? `<p class="text-[11px] text-zinc-500 mt-0.5 font-medium">${esc(rangeSub)}</p>` : ''}
               ${(ev.loc||ev.time)?`<p class="text-xs text-zinc-400 mt-0.5">${[ev.loc,ev.time].filter(Boolean).map(esc).join(' · ')}</p>`:''}
             </div>
-            <span class="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded shrink-0 self-start">${esc(ev.cat)}</span>
+            <span class="text-[10px] font-bold ${ev.cat==='예배'?'bg-red-50 text-red-500':ev.cat==='행사'?'bg-rose-50 text-rose-500':'bg-zinc-100 text-zinc-500'} px-1.5 py-0.5 rounded-full shrink-0 self-start">${esc(ev.cat)}</span>
           </div>
         </div>`;
       }).join('')}
@@ -1759,7 +1759,12 @@ function renderBulletinInline(b) {
   const parts = [];
 
   // 헤더
-  parts.push('<div class="bg-gradient-to-br from-zinc-800 to-black shadow-md shadow-zinc-900/20 border border-zinc-700/50 text-white rounded-3xl p-8 text-center relative overflow-hidden dot-pattern mb-4"><div class="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-transparent pointer-events-none rounded-3xl"></div><div class="relative z-10"><p class="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 mb-2">약속의 땅 청년부 · 주일예배</p><h2 class="text-xl font-bold">' + esc(b.title||b.date) + '</h2></div></div>');
+  parts.push(
+    '<div class="relative rounded-3xl p-8 text-center overflow-hidden mb-4" style="background:linear-gradient(135deg,#1c1c1e 0%,#000 100%);border:1px solid rgba(255,255,255,0.08);box-shadow:0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.06)">' +
+    '<div class="absolute inset-0 rounded-3xl pointer-events-none" style="background:linear-gradient(135deg,rgba(255,255,255,0.05) 0%,transparent 50%,rgba(255,255,255,0.02) 100%)"></div>' +
+    '<div class="relative z-10"><p class="text-[10px] font-bold uppercase tracking-[0.3em] mb-2" style="color:rgba(255,255,255,0.45)">약속의 땅 청년부 · 주일예배</p><h2 class="text-xl font-bold text-white">' + esc(b.title||b.date) + '</h2></div>' +
+    '</div>'
+  );
 
   // 예배순서
   if (orderItems.length) {
@@ -1874,10 +1879,11 @@ function renderBulletinDetail() {
     <div class="anim-subtle-left p-5 pt-20 space-y-4 pb-12">
 
       <!-- 헤더 -->
-      <div class="bg-gradient-to-br from-zinc-800 to-black shadow-md shadow-zinc-900/20 border border-zinc-700/50 text-white rounded-3xl p-8 text-center relative overflow-hidden dot-pattern"><div class="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-transparent pointer-events-none rounded-3xl"></div>
+      <div class="relative rounded-3xl p-8 text-center overflow-hidden" style="background:linear-gradient(135deg,#1c1c1e 0%,#000 100%);border:1px solid rgba(255,255,255,0.08);box-shadow:0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.06)">
+        <div class="absolute inset-0 rounded-3xl pointer-events-none" style="background:linear-gradient(135deg,rgba(255,255,255,0.05) 0%,transparent 50%,rgba(255,255,255,0.02) 100%)"></div>
         <div class="relative z-10">
-          <p class="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 mb-2">약속의 땅 청년부 · 주일예배</p>
-          <h2 class="text-xl font-bold">${esc(b.title||b.date)}</h2>
+          <p class="text-[10px] font-bold uppercase tracking-[0.3em] mb-2" style="color:rgba(255,255,255,0.45)">약속의 땅 청년부 · 주일예배</p>
+          <h2 class="text-xl font-bold text-white">${esc(b.title||b.date)}</h2>
         </div>
       </div>
 
@@ -1892,7 +1898,7 @@ function renderBulletinDetail() {
           ${orderItems.map(item=>`
           <div class="flex items-center px-4 py-3 gap-2">
             <span class="text-sm font-medium text-zinc-500 w-[6.5rem] flex-none">${esc(item.name)}</span>
-            <span class="flex-1 text-sm font-bold text-black text-center">${esc(item.scripture||'')}</span>
+            <span class="flex-1 text-sm font-bold text-black text-center whitespace-pre-line">${esc(item.scripture||'')}</span>
             <span class="text-xs text-zinc-500 text-right w-[5rem] flex-none">${esc(item.participant||'')}</span>
           </div>`).join('')}
         </div>
@@ -1958,9 +1964,10 @@ function renderNoticeTab() {
         <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] active:bg-zinc-50 transition-all duration-200 active:scale-[0.98] text-left">
           ${noticeRowThumbHtml(n)}
           <div class="flex-1 min-w-0 py-0.5">
-            <p class="text-lg font-medium leading-snug text-zinc-900 tracking-tight line-clamp-2">${esc(n.title)}</p>
-            ${sched ? `<p class="text-xs text-zinc-500 mt-1 font-medium">${esc(sched)}</p>` : ''}
+            <h4 class="font-bold text-sm text-black leading-snug line-clamp-2">${esc(n.title)}</h4>
+            ${sched ? `<p class="text-[11px] text-zinc-500 mt-0.5 font-medium">${esc(sched)}</p>` : `<p class="text-[11px] text-zinc-400 mt-0.5">${esc(n.at||'')}</p>`}
           </div>
+          ${n.pinned ? `<span class="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full flex-none">중요</span>` : ''}
         </button>`;
       }).join('')}
     </div>
@@ -1985,8 +1992,10 @@ function renderNoticeDetail() {
     </header>
     <div class="anim-subtle-left p-5 pt-20 space-y-4">
       <div class="bg-white rounded-2xl p-6 border border-zinc-100">
-        ${n.pinned?'<span class="text-[10px] font-bold bg-red-50 text-red-500 px-2 py-1 rounded mb-3 inline-block">📌 중요 공지</span>':''}
-        <h2 class="text-lg font-bold leading-snug mb-2">${esc(n.title)}</h2>
+        <div class="flex items-start justify-between gap-3 mb-2">
+          <h2 class="text-lg font-bold leading-snug flex-1">${esc(n.title)}</h2>
+          ${n.pinned ? '<span class="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded-full flex-none mt-0.5">중요</span>' : ''}
+        </div>
         ${schedLabel ? `<p class="text-sm font-medium text-zinc-600 mb-3">${esc(schedLabel)}</p>` : ''}
         <p class="text-sm leading-relaxed text-zinc-700 whitespace-pre-line">${esc(n.body)}</p>
         ${n.images?.length ? `<div class="mt-4 space-y-2">${n.images.map(img=>`<img src="${esc(img)}" alt="" data-action="zoom-image" data-zoom-src="${esc(img)}" class="w-full rounded-xl cursor-zoom-in active:opacity-90"/>`).join('')}</div>` : ''}
@@ -2071,7 +2080,7 @@ function renderCalendarTab() {
           <div class="flex items-center gap-4 bg-zinc-50 p-4 rounded-2xl">
             <div class="w-1 h-10 bg-black rounded-full"></div>
             <div>
-              <span class="text-[10px] font-bold bg-zinc-200 text-zinc-500 px-1.5 py-0.5 rounded">${esc(ev.cat)}</span>
+              <span class="text-[10px] font-bold ${ev.cat==='예배'?'bg-red-50 text-red-500':ev.cat==='행사'?'bg-rose-50 text-rose-500':'bg-zinc-100 text-zinc-500'} px-1.5 py-0.5 rounded-full">${esc(ev.cat)}</span>
               <h4 class="font-bold text-sm mt-0.5">${esc(ev.title)}</h4>
               ${rangeLine ? `<p class="text-[11px] text-zinc-500 mt-0.5">${esc(rangeLine)}</p>` : ''}
               ${(ev.loc||ev.time)?`<p class="text-xs text-zinc-400">${[ev.loc,ev.time].filter(Boolean).map(esc).join(' · ')}</p>`:''}
@@ -2155,11 +2164,12 @@ function renderCellTab() {
   const meetings = state.cache.cellMeetings;
   const latest = meetings[0];
   if (!latest) return `<div class="space-y-4">
-    <div class="pb-3 border-b border-zinc-200/80">
-      <h1 class="text-xl font-bold tracking-tight">목장 모임 자료</h1>
-    </div>
-    <div class="bg-white rounded-2xl border border-zinc-100 shadow-sm p-8 text-center">
-      <p class="text-sm text-zinc-400 leading-relaxed">등록된 자료가 없습니다</p>
+    <div class="relative rounded-3xl p-8 text-center overflow-hidden" style="background:linear-gradient(135deg,#1c1c1e 0%,#000 100%);border:1px solid rgba(255,255,255,0.08);box-shadow:0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.06)">
+      <div class="absolute inset-0 rounded-3xl pointer-events-none" style="background:linear-gradient(135deg,rgba(255,255,255,0.05) 0%,transparent 50%,rgba(255,255,255,0.02) 100%)"></div>
+      <div class="relative z-10">
+        <p class="text-[10px] font-bold uppercase tracking-[0.3em] mb-2" style="color:rgba(255,255,255,0.45)">약속의 땅 청년부 · 목장 모임</p>
+        <p class="text-sm text-white/40 mt-2">등록된 자료가 없습니다</p>
+      </div>
     </div>
   </div>`;
   const questions = latest.questions || [];
@@ -2199,20 +2209,26 @@ function renderCellTab() {
   })();
 
   return `<div class="space-y-4">
-    <div class="pb-3 border-b border-zinc-200/80">
-      <h1 class="text-xl font-bold tracking-tight">목장 모임 자료</h1>
-      <p class="text-sm text-zinc-400 mt-1">${esc(latest.date)}</p>
+
+    <!-- 헤더 카드 (주보와 동일 스타일) -->
+    <div class="relative rounded-3xl p-8 text-center overflow-hidden" style="background:linear-gradient(135deg,#1c1c1e 0%,#000 100%);border:1px solid rgba(255,255,255,0.08);box-shadow:0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.06)">
+      <div class="absolute inset-0 rounded-3xl pointer-events-none" style="background:linear-gradient(135deg,rgba(255,255,255,0.05) 0%,transparent 50%,rgba(255,255,255,0.02) 100%)"></div>
+      <div class="relative z-10">
+        <p class="text-[10px] font-bold uppercase tracking-[0.3em] mb-2" style="color:rgba(255,255,255,0.45)">약속의 땅 청년부 · 목장 모임</p>
+        <h2 class="text-xl font-bold text-white">${esc(latest.date)}</h2>
+      </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5">
+    <!-- 오늘의 말씀 (그레이 배경으로 구분) -->
+    <div class="bg-zinc-100 rounded-2xl p-5">
       <div class="flex items-start gap-4">
-        <div class="w-11 h-11 rounded-2xl bg-zinc-100 flex items-center justify-center flex-none shrink-0">${icon('menu_book','text-zinc-800',22)}</div>
+        <div class="w-11 h-11 rounded-2xl bg-white flex items-center justify-center flex-none shrink-0 shadow-sm">${icon('menu_book','text-zinc-700',22)}</div>
         <div class="min-w-0 flex-1 pt-0.5">
-          <p class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">오늘의 말씀</p>
+          <p class="text-[11px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">오늘의 말씀</p>
           <p class="text-base font-bold text-zinc-900 leading-snug">${esc(latest.verse || '')}</p>
         </div>
       </div>
-      ${latest.verseText ? `<div class="mt-4 pt-4 border-t border-zinc-100">
+      ${latest.verseText ? `<div class="mt-4 pt-4 border-t border-zinc-200">
         <p class="text-sm text-zinc-600 leading-relaxed whitespace-pre-line">${esc(latest.verseText)}</p>
       </div>` : ''}
     </div>
@@ -3545,7 +3561,7 @@ function openBulletinForm(existing, _forceNew) {
           inp('bf-call-s', findOI('예배의 부름').scripture||'', '말씀구절') +
           inpPerson('bf-call-p', findOI('예배의 부름').participant||ministerName, '전도사/목사')
         )}
-        ${rowWrap('경배와 찬양', `<span class="flex-[7]"></span>` + fixedPerson('드림찬양단'))}
+        ${rowWrap('경배와 찬양', inp('bf-praise-s', findOI('경배와 찬양').scripture||'', '찬양 제목') + inpPerson('bf-praise-p', findOI('경배와 찬양').participant||'드림찬양단', '담당'))}
         ${rowWrap('오늘의 기도',
           `<span class="flex-[7]"></span>` +
           inpPerson('bf-prayer-p', findOI('오늘의 기도').participant||svc.prayer||'')
@@ -3558,12 +3574,14 @@ function openBulletinForm(existing, _forceNew) {
           inp('bf-bible-s', findOI('성경봉독').scripture||'', '성경구절') +
           inpPerson('bf-bible-p', findOI('성경봉독').participant||svc.bible||'')
         )}
-        ${rowWrap('봉헌과 찬양', fixed('주님 말씀 앞에선') + fixedPerson('다같이'))}
-        ${rowWrap('메시지',
-          inp('bf-msg-s', findOI('메시지').scripture||findOI('말씀').scripture||'', '말씀제목') +
-          inpPerson('bf-msg-p', findOI('메시지').participant||ministerName, '전도사/목사')
-        )}
-        ${rowWrap('결단의 찬양', inp('bf-resolve-s', findOI('결단의 찬양').scripture||'주님 말씀 앞에선', '찬양 제목') + fixedPerson('다같이'))}
+        ${rowWrap('봉헌과 찬양', inp('bf-offer-s', findOI('봉헌과 찬양').scripture||'주님 말씀 앞에선', '찬양 제목') + inpPerson('bf-offer-p', findOI('봉헌과 찬양').participant||'다같이', '담당'))}
+        <div class="flex items-start gap-2 py-2 border-b border-zinc-50">
+          <span class="text-[11px] text-zinc-400 w-16 flex-none leading-tight pt-2">메시지</span>
+          <textarea id="bf-msg-s" placeholder="말씀제목 (줄바꿈 가능)" rows="2"
+            class="flex-[7] min-w-0 px-2.5 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:border-black resize-none">${esc(findOI('메시지').scripture||findOI('말씀').scripture||'')}</textarea>
+          ${inpPerson('bf-msg-p', findOI('메시지').participant||ministerName, '전도사/목사')}
+        </div>
+        ${rowWrap('결단의 찬양', inp('bf-resolve-s', findOI('결단의 찬양').scripture||'주님 말씀 앞에선', '찬양 제목') + inpPerson('bf-resolve-p', findOI('결단의 찬양').participant||'다같이', '담당'))}
         <div class="flex items-center gap-2 py-2">
           <span class="text-[11px] text-zinc-400 w-16 flex-none">축도</span>
           <span class="flex-[7]"></span>
@@ -3703,15 +3721,16 @@ function openBulletinForm(existing, _forceNew) {
     const svcNow = getSvc(yr,mo,wk);
     const g = id => document.getElementById(id)?.value||'';
     const mp = ministerPerson?.name || '';
+    const ta = id => document.getElementById(id)?.value||'';
     const orderItems = [
-      {name:'예배의 부름',  participant:g('bf-call-p')||mp,  scripture:g('bf-call-s')},
-      {name:'경배와 찬양',  participant:'드림찬양단',          fixed:true},
+      {name:'예배의 부름',  participant:g('bf-call-p')||mp,         scripture:g('bf-call-s')},
+      {name:'경배와 찬양',  participant:g('bf-praise-p')||'드림찬양단', scripture:g('bf-praise-s')},
       {name:'오늘의 기도',  participant:g('bf-prayer-p')||svcNow.prayer||''},
       {name:'성도의 교제',  participant:g('bf-fellow-p')||svcNow.fellowship||''},
-      {name:'성경봉독',     participant:g('bf-bible-p'),      scripture:g('bf-bible-s')},
-      {name:'봉헌과 찬양',  participant:'다같이',              scripture:'주님 말씀 앞에선', fixed:true},
-      {name:'메시지',       participant:g('bf-msg-p')||mp,   scripture:g('bf-msg-s')},
-      {name:'결단의 찬양',  participant:'다같이',              scripture:g('bf-resolve-s')||'주님 말씀 앞에선', fixed:true},
+      {name:'성경봉독',     participant:g('bf-bible-p'),             scripture:g('bf-bible-s')},
+      {name:'봉헌과 찬양',  participant:g('bf-offer-p')||'다같이',    scripture:g('bf-offer-s')||'주님 말씀 앞에선'},
+      {name:'메시지',       participant:g('bf-msg-p')||mp,           scripture:ta('bf-msg-s')},
+      {name:'결단의 찬양',  participant:g('bf-resolve-p')||'다같이',  scripture:g('bf-resolve-s')||'주님 말씀 앞에선'},
       {name:'축도',         participant:g('bf-blessing-p')||mp},
     ];
     // 선택한 주 헌금 이름 목록
