@@ -795,19 +795,17 @@ function readValidatedEventRangePayload() {
 }
 
 /** 공지 첨부: 가로 최대 1000px, 품질 0.8 — WebP 우선, 미지원 시 JPEG Blob */
-function compressNoticeImageFile(file) {
+function compressNoticeImageFile(file, maxW=1000) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
       img.onload = () => {
-        const maxW = 1000;
         let w = img.naturalWidth, h = img.naturalHeight;
         if (!w || !h) { reject(new Error('bad-image')); return; }
         if (w > maxW) { h = Math.round((h * maxW) / w); w = maxW; }
         const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
+        canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
         canvas.toBlob(b => {
@@ -817,6 +815,34 @@ function compressNoticeImageFile(file) {
             else reject(new Error('compress-failed'));
           }, 'image/jpeg', 0.8);
         }, 'image/webp', 0.8);
+      };
+      img.onerror = () => reject(new Error('img-load'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(reader.error || new Error('read-fail'));
+    reader.readAsDataURL(file);
+  });
+}
+// 썸네일 전용 압축 (200x200 크롭)
+function compressNoticeThumb(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const SIZE = 200;
+        const canvas = document.createElement('canvas');
+        canvas.width = SIZE; canvas.height = SIZE;
+        const ctx = canvas.getContext('2d');
+        const { naturalWidth: sw, naturalHeight: sh } = img;
+        if (!sw || !sh) { reject(new Error('bad-image')); return; }
+        const scale = Math.max(SIZE/sw, SIZE/sh);
+        const dw = sw*scale, dh = sh*scale;
+        ctx.drawImage(img, (SIZE-dw)/2, (SIZE-dh)/2, dw, dh);
+        canvas.toBlob(b => {
+          if (b && b.size > 0) resolve(b);
+          else reject(new Error('thumb-failed'));
+        }, 'image/webp', 0.85);
       };
       img.onerror = () => reject(new Error('img-load'));
       img.src = reader.result;
@@ -1538,12 +1564,10 @@ function renderProfileSheet() {
 
 /** 공지 목록 행 — 왼쪽 썸네일(첫 이미지 없으면 로고, 로고는 꽉 채움) */
 function noticeRowThumbHtml(n) {
-  const url = (n.images && n.images[0]) || '';
-  const src = url ? esc(url) : 'asset/logo.png';
-  const imgClass = 'w-full h-full object-cover';
-  const ring = n.pinned ? ' ring-2 ring-zinc-900 ring-offset-2 ring-offset-white' : '';
-  return '<div class="flex-none w-14 h-14 rounded-xl overflow-hidden border border-zinc-100 bg-zinc-900 shrink-0' + ring + '">'
-    + '<img src="' + src + '" alt="" class="' + imgClass + '" onerror="this.onerror=null;this.src=\'asset/logo.png\';this.className=\'w-full h-full object-cover\';"/>'
+  const src = n.thumbUrl ? esc(n.thumbUrl) : (n.images && n.images[0]) ? esc(n.images[0]) : 'asset/logo.png';
+  const onerr = "this.onerror=null;this.src='asset/logo.png';this.className='w-full h-full object-cover';";
+  return '<div class="flex-none w-14 h-14 rounded-xl overflow-hidden border border-zinc-100 bg-zinc-900 shrink-0">'
+    + '<img src="' + src + '" alt="" class="w-full h-full object-cover" onerror="' + onerr + '"/>'
     + '</div>';
 }
 
@@ -1762,7 +1786,7 @@ function renderBulletinInline(b) {
   parts.push(
     '<div class="relative rounded-3xl p-8 text-center overflow-hidden mb-4" style="background:linear-gradient(135deg,#1c1c1e 0%,#000 100%);border:1px solid rgba(255,255,255,0.08);box-shadow:0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.06)">' +
     '<div class="absolute inset-0 rounded-3xl pointer-events-none" style="background:linear-gradient(135deg,rgba(255,255,255,0.05) 0%,transparent 50%,rgba(255,255,255,0.02) 100%)"></div>' +
-    '<div class="relative z-10"><p class="text-[10px] font-bold uppercase tracking-[0.3em] mb-2" style="color:rgba(255,255,255,0.45)">약속의 땅 청년부 · 주일예배</p><h2 class="text-xl font-bold text-white">' + esc(b.title||b.date) + '</h2></div>' +
+    '<div class="absolute -right-4 top-4 opacity-[0.06]">' + icon('menu_book','text-white',120) + '</div><div class="relative z-10"><p class="text-[10px] font-bold uppercase tracking-[0.3em] mb-2" style="color:rgba(255,255,255,0.45)">약속의 땅 청년부 · 주일예배</p><h2 class="text-xl font-bold text-white">' + esc(b.title||b.date) + '</h2></div>' +
     '</div>'
   );
 
@@ -1881,6 +1905,7 @@ function renderBulletinDetail() {
       <!-- 헤더 -->
       <div class="relative rounded-3xl p-8 text-center overflow-hidden" style="background:linear-gradient(135deg,#1c1c1e 0%,#000 100%);border:1px solid rgba(255,255,255,0.08);box-shadow:0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.06)">
         <div class="absolute inset-0 rounded-3xl pointer-events-none" style="background:linear-gradient(135deg,rgba(255,255,255,0.05) 0%,transparent 50%,rgba(255,255,255,0.02) 100%)"></div>
+        <div class="absolute -right-4 top-4 opacity-[0.06]">${icon('menu_book','text-white',120)}</div>
         <div class="relative z-10">
           <p class="text-[10px] font-bold uppercase tracking-[0.3em] mb-2" style="color:rgba(255,255,255,0.45)">약속의 땅 청년부 · 주일예배</p>
           <h2 class="text-xl font-bold text-white">${esc(b.title||b.date)}</h2>
@@ -2219,7 +2244,9 @@ function renderCellTab() {
         '<div class="relative z-10">' +
         '<p class="text-[10px] font-bold uppercase tracking-[0.3em] mb-2" style="color:rgba(255,255,255,0.45)">약속의 땅 청년부 · 목장 모임</p>' +
         '<h2 class="text-xl font-bold text-white">' + esc(cellTitle) + '</h2>' +
-        '</div></div>';
+        '</div>' +
+        '<div class="absolute -right-4 top-4 opacity-[0.06]">' + icon('groups','text-white',120) + '</div>' +
+        '</div>';
     })()}
 
     <!-- 오늘의 말씀 (어두운 배경으로 구분) -->
@@ -3567,15 +3594,15 @@ function openBulletinForm(existing, _forceNew) {
         ${rowWrap('경배와 찬양', inp('bf-praise-s', findOI('경배와 찬양').scripture||'', '찬양 제목') + inpPerson('bf-praise-p', findOI('경배와 찬양').participant||'드림찬양단', '담당'))}
         ${rowWrap('오늘의 기도',
           `<span class="flex-[7]"></span>` +
-          inpPerson('bf-prayer-p', findOI('오늘의 기도').participant||svc.prayer||'')
+          fixedPerson(svc.prayer || findOI('오늘의 기도').participant || '미정')
         )}
         ${rowWrap('성도의 교제',
           `<span class="flex-[7]"></span>` +
-          inpPerson('bf-fellow-p', findOI('성도의 교제').participant||svc.fellowship||'')
+          fixedPerson(svc.fellowship || findOI('성도의 교제').participant || '미정')
         )}
         ${rowWrap('성경봉독',
           inp('bf-bible-s', findOI('성경봉독').scripture||'', '성경구절') +
-          inpPerson('bf-bible-p', findOI('성경봉독').participant||svc.bible||'')
+          fixedPerson(svc.bible || findOI('성경봉독').participant || '미정')
         )}
         ${rowWrap('봉헌과 찬양', inp('bf-offer-s', findOI('봉헌과 찬양').scripture||'주님 말씀 앞에선', '찬양 제목') + inpPerson('bf-offer-p', findOI('봉헌과 찬양').participant||'다같이', '담당'))}
         <div class="flex items-start gap-2 py-2 border-b border-zinc-50">
@@ -3728,9 +3755,9 @@ function openBulletinForm(existing, _forceNew) {
     const orderItems = [
       {name:'예배의 부름',  participant:g('bf-call-p')||mp,         scripture:g('bf-call-s')},
       {name:'경배와 찬양',  participant:g('bf-praise-p')||'드림찬양단', scripture:g('bf-praise-s')},
-      {name:'오늘의 기도',  participant:g('bf-prayer-p')||svcNow.prayer||''},
-      {name:'성도의 교제',  participant:g('bf-fellow-p')||svcNow.fellowship||''},
-      {name:'성경봉독',     participant:g('bf-bible-p'),             scripture:g('bf-bible-s')},
+      {name:'오늘의 기도',  participant:svcNow.prayer||''},
+      {name:'성도의 교제',  participant:svcNow.fellowship||''},
+      {name:'성경봉독',     participant:svcNow.bible||'',            scripture:g('bf-bible-s')},
       {name:'봉헌과 찬양',  participant:g('bf-offer-p')||'다같이',    scripture:g('bf-offer-s')||'주님 말씀 앞에선'},
       {name:'메시지',       participant:g('bf-msg-p')||mp,           scripture:ta('bf-msg-s')},
       {name:'결단의 찬양',  participant:g('bf-resolve-p')||'다같이',  scripture:g('bf-resolve-s')||'주님 말씀 앞에선'},
@@ -4570,7 +4597,7 @@ function setupDelegation() {
                 try {
                   const blob = await compressNoticeImageFile(file);
                   const previewUrl = URL.createObjectURL(blob);
-                  pendingImgs.push({ blob, previewUrl });
+                  pendingImgs.push({ blob, previewUrl, _origFile: file });
                   if (preview) {
                     const img = document.createElement('img');
                     img.src = previewUrl;
@@ -4595,14 +4622,26 @@ function setupDelegation() {
               showLoading('저장 중...');
               try {
                 const imageUrls=[];
-                for (const { blob } of pendingImgs) {
+                let thumbUrl = '';
+                for (let pi=0; pi<pendingImgs.length; pi++) {
+                  const { blob } = pendingImgs[pi];
                   const ext = (blob.type && blob.type.includes('webp')) ? 'webp' : 'jpg';
                   const url = await window.FDB.uploadFile(`notice_images/${uid()}.${ext}`, blob);
                   if (url) imageUrls.push(url);
+                  // 첫 이미지만 썸네일 별도 저장
+                  if (pi === 0 && url) {
+                    try {
+                      const origFile = pendingImgs[pi]._origFile;
+                      if (origFile) {
+                        const tb = await compressNoticeThumb(origFile);
+                        thumbUrl = await window.FDB.uploadFile(`notice_thumbs/${uid()}.webp`, tb) || '';
+                      }
+                    } catch(te) { thumbUrl = url; }
+                  }
                 }
                 pendingImgs.forEach(({ previewUrl }) => { try { URL.revokeObjectURL(previewUrl); } catch(e) {} });
                 pendingImgs = [];
-                const nid=uid(); const n={id:nid,title,body:document.getElementById('nf-body')?.value||'',pinned:document.getElementById('nf-pinned')?.checked||false,by:state.user.uid,at:today(),images:imageUrls,eventDate,alwaysNotice};
+                const nid=uid(); const n={id:nid,title,body:document.getElementById('nf-body')?.value||'',pinned:document.getElementById('nf-pinned')?.checked||false,by:state.user.uid,at:today(),images:imageUrls,thumbUrl,eventDate,alwaysNotice};
                 await window.FDB.setDoc('notices',nid,n); state.cache.notices.unshift(n);
                 state.isEditing = false;
                 showToast('공지 저장 완료!'); render();
