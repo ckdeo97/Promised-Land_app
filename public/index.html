@@ -430,51 +430,7 @@ tailwind.config = {
   #crop-modal .cropper-view-box { border-radius: 50%; }
   #crop-modal .cropper-face { border-radius: 50%; }
   #crop-modal .cropper-container { touch-action: none; }
-  /* ── 설치 유도 UI ── */
-  #inapp-escape-modal {
-    position: fixed; inset: 0; z-index: 99999;
-    background: rgba(0,0,0,0.92);
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    padding: 32px 24px; text-align: center;
-    animation: fadeIn 0.3s ease forwards;
-  }
-  #install-bubble {
-    position: fixed; bottom: 88px; left: 50%;
-    transform: translateX(-50%);
-    z-index: 99998;
-    background: #18181b; color: #fff;
-    padding: 14px 18px; border-radius: 16px;
-    font-size: 13px; font-weight: 600; line-height: 1.5;
-    max-width: calc(100vw - 48px);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-    animation: installBounce 2s ease-in-out infinite;
-  }
-  #install-bubble.android { bottom: auto; top: 72px; }
-  #install-bubble::after {
-    content: '';
-    position: absolute; bottom: -8px; left: 50%;
-    transform: translateX(-50%);
-    border: 8px solid transparent;
-    border-top-color: #18181b; border-bottom: none;
-  }
-  #install-bubble.android::after {
-    bottom: auto; top: -8px;
-    border-top: none; border-bottom-color: #18181b; border-bottom-width: 8px;
-  }
-  @keyframes installBounce {
-    0%, 100% { transform: translateX(-50%) translateY(0); }
-    50%       { transform: translateX(-50%) translateY(-6px); }
-  }
-  #install-bubble.android { animation: installBounceTop 2s ease-in-out infinite; }
-  @keyframes installBounceTop {
-    0%, 100% { transform: translateX(-50%) translateY(0); }
-    50%       { transform: translateX(-50%) translateY(6px); }
-  }
-  #install-bubble-close, #inapp-close {
-    cursor: pointer; background: none; border: none;
-    color: inherit; font-size: 18px; line-height: 1; padding: 4px 8px;
-  }
+
 </style>
 </head>
 <body class="text-zinc-800 min-h-screen antialiased" style="background:#f4f4f5">
@@ -1282,7 +1238,7 @@ function showToast(msg, isError) {
   // 오류 키워드 자동 감지
   const errKw = ['틀렸','실패','오류','없습니다','해주세요','이상이어야','일치하지','중입니다'];
   const isErr = isError || errKw.some(k=>msg.includes(k));
-  toastEl.className = 'fixed top-12 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 px-5 py-3 rounded-full text-sm font-bold shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-white/10 backdrop-blur-md anim-toast-down ' + (isErr ? 'bg-red-500/90' : 'bg-zinc-800/90') + ' text-white';
+  toastEl.className = 'fixed top-12 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 px-5 py-3 rounded-full text-sm font-bold shadow-[0_4px_16px_rgba(0,0,0,0.10)] border border-white/10 backdrop-blur-md anim-toast-down ' + (isErr ? 'bg-red-500/90' : 'bg-zinc-800/90') + ' text-white';
   toastEl.textContent = msg;
   toastEl.style.display = 'block';
   clearTimeout(window._toastTimer);
@@ -1689,7 +1645,7 @@ function renderHomeTab() {
   const dutySection = [
     '<section>',
     '<h2 class="text-base font-bold tracking-tight mb-3">예배 담당</h2>',
-    '<div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] overflow-hidden">',
+    '<div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] overflow-hidden">',
     // 헤더
     '<div class="bg-gradient-to-br from-zinc-800 to-black relative overflow-hidden flex items-center"><div class="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-transparent pointer-events-none"></div>',
     // 좌측: 아이콘+항목 자리 (투명)
@@ -1779,7 +1735,7 @@ function renderHomeTab() {
       ${notices.slice(0,3).map(n => {
         const sched = formatNoticeScheduleLabel(n);
         return `
-        <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] active:bg-zinc-50 transition-all duration-200 active:scale-[0.98] text-left">
+        <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] active:bg-zinc-50 transition-all duration-200 active:scale-[0.98] text-left">
           ${noticeRowThumbHtml(n)}
           <div class="flex-1 min-w-0 py-0.5">
             <h4 class="font-bold text-sm text-black leading-snug line-clamp-2">${esc(n.title)}</h4>
@@ -1800,7 +1756,7 @@ function renderHomeTab() {
         const isW = ev.cat === '예배';
         const rangeSub = formatEventDateRangeSubtitle(ev);
         return `
-        <div class="flex items-center gap-4 bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)]">
+        <div class="flex items-center gap-4 bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)]">
           <div class="w-12 h-12 ${isW?'bg-black':'bg-zinc-100'} rounded-xl flex flex-col items-center justify-center flex-none">
             <span class="text-[9px] font-black uppercase ${isW?'text-white/60':'text-zinc-400'}">${m}월</span>
             <span class="text-lg font-bold leading-none ${isW?'text-white':'text-black'}">${day}</span>
@@ -1848,7 +1804,7 @@ function renderBulletinInline(b) {
 
   // 예배순서
   if (orderItems.length) {
-    parts.push('<div class="bg-white rounded-3xl overflow-hidden border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] mb-4">');
+    parts.push('<div class="bg-white rounded-3xl overflow-hidden border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] mb-4">');
     parts.push('<div class="px-5 pt-4 pb-3 border-b border-zinc-100 flex items-center gap-2">' + icon('format_list_numbered','text-zinc-400',16) + '<h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">예배순서</h3></div>');
     parts.push('<div class="divide-y divide-zinc-50">');
     orderItems.forEach(item => {
@@ -1859,7 +1815,7 @@ function renderBulletinInline(b) {
 
   // 광고
   if (announcements.length) {
-    parts.push('<div class="bg-white rounded-3xl overflow-hidden border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] mb-4">');
+    parts.push('<div class="bg-white rounded-3xl overflow-hidden border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] mb-4">');
     parts.push('<div class="px-5 pt-4 pb-3 border-b border-zinc-100 flex items-center gap-2">' + icon('campaign','text-zinc-400',16) + '<h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">광고</h3></div>');
     parts.push('<div class="divide-y divide-zinc-50">');
     announcements.forEach((a,i) => {
@@ -1870,7 +1826,7 @@ function renderBulletinInline(b) {
 
   // 우리의 드림
   if (dream.weekly||dream.tithe||dream.thanks) {
-    parts.push('<div class="bg-white rounded-3xl overflow-hidden border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] mb-4">');
+    parts.push('<div class="bg-white rounded-3xl overflow-hidden border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] mb-4">');
     parts.push('<div class="px-5 pt-4 pb-3 border-b border-zinc-100 flex items-center gap-2">' + icon('volunteer_activism','text-zinc-400',16) + '<h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">우리의 드림</h3></div>');
     parts.push('<div class="p-5 space-y-2">');
     if (dream.weekly) parts.push('<div class="flex justify-between text-sm"><span class="text-zinc-400">주정헌금</span><span class="font-medium">'+(typeof dream.weekly==='number'?dream.weekly.toLocaleString()+'원':esc(String(dream.weekly)))+'</span></div>');
@@ -1894,15 +1850,10 @@ function renderBulletinTab() {
 
   return `
   <section>
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-bold tracking-tight">주보</h2>
-      ${rest.length ? `<button data-action="toggle-bulletin-list" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 rounded-full text-xs font-bold text-zinc-600 active:bg-zinc-200">
-        ${icon('list','text-zinc-500',14)} 이전 목록
-      </button>` : ''}
-    </div>
+    <h2 class="text-xl font-bold tracking-tight mb-4">주보</h2>
     ${renderBulletinInline(latest)}
     ${listOpen && rest.length ? `<div class="space-y-2 mt-4">
-      ${rest.map(b=>`<button data-detail="bulletin:${b.id}" class="w-full text-left bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] p-4 flex items-center gap-3 active:bg-zinc-50 transition-all duration-200 active:scale-[0.97]">
+      ${rest.map(b=>`<button data-detail="bulletin:${b.id}" class="w-full text-left bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06)] p-4 flex items-center gap-3 active:bg-zinc-50 transition-all duration-200 active:scale-[0.97]">
         <div class="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center flex-none">${icon('menu_book','text-white',16)}</div>
         <div class="flex-1 min-w-0">
           <p class="font-bold text-sm truncate">${esc(b.title)}</p>
@@ -1911,6 +1862,9 @@ function renderBulletinTab() {
         ${icon('chevron_right','text-zinc-300',18)}
       </button>`).join('')}
     </div>` : ''}
+    ${rest.length ? `<button data-action="toggle-bulletin-list" class="w-full mt-4 flex items-center justify-center gap-1.5 px-3 py-3 bg-zinc-100 rounded-2xl text-xs font-bold text-zinc-600 active:bg-zinc-200">
+      ${icon('list','text-zinc-500',14)} ${listOpen ? '목록 닫기' : '목록'}
+    </button>` : ''}
   </section>`;
 }
 
@@ -1970,7 +1924,7 @@ function renderBulletinDetail() {
 
       <!-- 예배순서 -->
       ${orderItems.length ? `
-      <div class="bg-white rounded-3xl overflow-hidden border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)]">
+      <div class="bg-white rounded-3xl overflow-hidden border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)]">
         <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
           ${icon('format_list_numbered','text-zinc-400',16)}
           <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">예배순서</h3>
@@ -1987,7 +1941,7 @@ function renderBulletinDetail() {
 
       <!-- 광고 -->
       ${announcements.length ? `
-      <div class="bg-white rounded-3xl overflow-hidden border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)]">
+      <div class="bg-white rounded-3xl overflow-hidden border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)]">
         <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
           ${icon('campaign','text-zinc-400',16)}
           <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">광고</h3>
@@ -2008,7 +1962,7 @@ function renderBulletinDetail() {
 
       <!-- 우리의 드림 -->
       ${(dream.weekly||dream.tithe||dream.thanks) ? `
-      <div class="bg-white rounded-3xl overflow-hidden border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)]">
+      <div class="bg-white rounded-3xl overflow-hidden border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)]">
         <div class="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center gap-2">
           ${icon('volunteer_activism','text-zinc-400',16)}
           <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">우리의 드림</h3>
@@ -2042,7 +1996,7 @@ function renderNoticeTab() {
       ${notices.map(n => {
         const sched = formatNoticeScheduleLabel(n);
         return `
-        <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] active:bg-zinc-50 transition-all duration-200 active:scale-[0.98] text-left">
+        <button data-detail="notice:${n.id}" class="w-full flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] active:bg-zinc-50 transition-all duration-200 active:scale-[0.98] text-left">
           ${noticeRowThumbHtml(n)}
           <div class="flex-1 min-w-0 py-0.5">
             <h4 class="font-bold text-sm text-black leading-snug line-clamp-2">${esc(n.title)}</h4>
@@ -2081,7 +2035,7 @@ function renderNoticeDetail() {
         <p class="text-sm leading-relaxed text-zinc-700 whitespace-pre-line">${esc(n.body)}</p>
         ${n.images?.length ? `<div class="mt-4 space-y-2">${n.images.map(img=>`<img src="${esc(img)}" alt="" data-action="zoom-image" data-zoom-src="${esc(img)}" class="w-full rounded-xl cursor-zoom-in active:opacity-90"/>`).join('')}</div>` : ''}
       </div>
-      <div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] overflow-hidden">
+      <div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] overflow-hidden">
         <div class="px-5 py-4 border-b border-zinc-50"><p class="text-xs font-bold text-zinc-500">댓글 ${comments.length}</p></div>
         ${comments.map(c => {
           const cu = state.cache.users.find(x => x.uid === c.uid);
@@ -2306,7 +2260,7 @@ function renderCellTab() {
     })()}
 
     <!-- 오늘의 말씀 -->
-    <div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] p-5">
+    <div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] p-5">
       <div class="flex items-start gap-4">
         <div class="w-11 h-11 rounded-2xl bg-zinc-100 flex items-center justify-center flex-none shrink-0">${icon('menu_book','text-zinc-800',22)}</div>
         <div class="min-w-0 flex-1 pt-0.5">
@@ -2410,7 +2364,7 @@ function renderProfilePage() {
             ${icon('phone_android','text-zinc-400',14)}
             <p class="text-xs font-bold text-zinc-400 uppercase tracking-wider">기기 알림</p>
           </div>
-          <div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] overflow-hidden">
+          <div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] overflow-hidden">
             <div class="flex items-center justify-between px-5 py-4">
               <div class="flex items-center gap-3">
                 <div class="w-9 h-9 rounded-xl flex items-center justify-center ${pushOn ? 'bg-black' : 'bg-zinc-100'}">
@@ -2434,7 +2388,7 @@ function renderProfilePage() {
             ${icon('tune','text-zinc-500',15)}
             <p class="text-xs font-bold text-zinc-500 uppercase tracking-wider">앱 알림 항목</p>
           </div>
-          <div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] divide-y divide-zinc-50 overflow-hidden">
+          <div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] divide-y divide-zinc-50 overflow-hidden">
             ${items.map(it=>`
             <div class="flex items-center justify-between px-5 py-4">
               <div>
@@ -2457,7 +2411,7 @@ function renderProfilePage() {
       ${header('설정')}
       <div class="allow-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain anim-subtle-left px-5 py-6 pt-20 pb-10 space-y-4">
         <!-- 비밀번호 변경 -->
-        <div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] overflow-hidden">
           <button id="toggle-pw-section" class="w-full flex items-center justify-between px-5 py-4">
             <div class="flex items-center gap-3">${icon('lock','',20)}<span class="text-sm font-bold">비밀번호 변경</span></div>
             ${icon('expand_more','text-zinc-400',20)}
@@ -2505,7 +2459,7 @@ function renderAdmin() {
   let content = '';
   if (state.adminSub === 'dashboard') {
     content = `<h2 class="text-lg font-bold mb-4">관리 메뉴</h2><div class="space-y-3">${menu.map(m=>`
-      <button data-admin="${m.k}" class="w-full flex items-center gap-4 bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] active:bg-zinc-50 transition-all duration-200 active:scale-[0.98] text-left">
+      <button data-admin="${m.k}" class="w-full flex items-center gap-4 bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] active:bg-zinc-50 transition-all duration-200 active:scale-[0.98] text-left">
         <div class="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center">${icon(m.i,'text-black',20)}</div>
         <span class="flex-1 font-bold text-sm">${m.l}</span>
         ${m.dot?`<span class="w-2.5 h-2.5 bg-red-500 rounded-full"></span>`:''}
@@ -2533,6 +2487,8 @@ function renderAdmin() {
     <header class="fixed top-0 left-0 right-0 z-[100] px-4 py-3 bg-white border-b border-zinc-100/80 shadow-[0_2px_12px_rgba(0,0,0,0.06)] flex items-center gap-3">
       <button data-action="back-admin" class="w-10 h-10 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('arrow_back','',22)}</button>
       <h1 class="font-bold text-sm flex-1">${state.adminSub==='dashboard'?'관리자':menu.find(m=>m.k===state.adminSub)?.l||'관리자'}</h1>
+      ${state.adminSub === 'offering' ? `<button data-action="save-offering" class="px-3 py-1.5 bg-black text-white rounded-xl text-xs font-bold active:opacity-70">저장</button>` : ''}
+      ${state.adminSub === 'attendance' ? `<button data-action="save-attendance" class="px-3 py-1.5 bg-black text-white rounded-xl text-xs font-bold active:opacity-70">저장</button>` : ''}
     </header>
     <div class="anim-subtle-left p-5 pt-20">${content}</div>
   </div>`;
@@ -2544,7 +2500,7 @@ function renderAdminApprove() {
   if (!pending.length) return '<h2 class="text-lg font-bold mb-4">가입 승인</h2><p class="text-sm text-zinc-400 text-center py-10">대기 중인 가입 신청이 없습니다.</p>';
   return `<h2 class="text-lg font-bold mb-4">가입 승인</h2><div class="space-y-3">${pending.map(u=>{
     const match = rosters.find(r=>r.phone===u.phone);
-    return `<div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)]">
+    return `<div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)]">
       <div class="flex items-center justify-between mb-2">
         <div><p class="font-bold text-sm">${esc(u.name)}</p><p class="text-xs text-zinc-400">${fmtPhone(u.phone)} · ${fmtDate(u.birth)}</p></div>
         <button data-action="approve" data-uid="${u.uid}" class="px-4 py-2 bg-black text-white rounded-xl text-xs font-bold active:scale-[0.97]">승인</button>
@@ -2558,7 +2514,7 @@ function renderAdminWithdrawApprove() {
   const pending = state.cache.users.filter(u=>u.status==='withdraw_pending');
   if (!pending.length) return '<h2 class="text-lg font-bold mb-4">탈퇴 승인</h2><p class="text-sm text-zinc-400 text-center py-10">대기 중인 탈퇴 신청이 없습니다.</p>';
   return `<h2 class="text-lg font-bold mb-4">탈퇴 승인</h2><div class="space-y-3">${pending.map(u=>`
-    <div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)]">
+    <div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)]">
       <div class="flex items-center justify-between">
         <div><p class="font-bold text-sm">${esc(u.name)}</p><p class="text-xs text-zinc-400">${esc(u.id)} · ${fmtPhone(u.phone)}</p>
           <p class="text-[10px] text-zinc-400 mt-0.5">탈퇴 신청일: ${u.withdrawAt||'-'}</p>
@@ -2674,7 +2630,7 @@ function renderAdminServiceSchedule() {
     const ymw = dateToYMW(date);
     const label = `${ymw.mo}월 ${ymw.wk}째주`;
     return `
-    <div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] overflow-hidden mb-3">
+    <div class="bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] overflow-hidden mb-3">
       <div class="px-4 py-3 bg-zinc-50 border-b border-zinc-100">
         <span class="text-sm font-bold">${label} 주일</span>
         <span class="text-xs text-zinc-400 ml-2">${date}</span>
@@ -2699,7 +2655,7 @@ function renderAdminBulletin() {
   <div id="admin-form-area">
     <button data-action="show-bulletin-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-4">+ 새 주보 작성</button>
     <div class="space-y-2">${list.map(b=>`
-    <div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] flex items-center justify-between">
+    <div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] flex items-center justify-between">
       <div><p class="font-bold text-sm">${esc(b.title||b.date+' 주보')}</p><p class="text-xs text-zinc-400">${b.date}</p></div>
       <div class="flex gap-1">
         <button data-action="edit-bulletin" data-bid="${b.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('edit','text-zinc-400',18)}</button>
@@ -2715,7 +2671,7 @@ function renderAdminWorship() {
   return `<h2 class="text-lg font-bold mb-4">찬양 관리</h2>
   <div id="admin-form-area">
     <button data-action="show-worship-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-4">+ 새 세트</button>
-    <div class="space-y-2">${list.map(w=>`<div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] flex items-center justify-between">
+    <div class="space-y-2">${list.map(w=>`<div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] flex items-center justify-between">
       <div><p class="font-bold text-sm">${w.date} 찬양 세트</p><p class="text-xs text-zinc-400">인도: ${esc(w.leader)} · ${w.songs.length}곡</p></div>
       <div class="flex gap-1">
         <button data-action="edit-worship" data-wid="${w.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('edit','text-zinc-400',18)}</button>
@@ -2730,7 +2686,7 @@ function renderAdminNotice() {
   return `<h2 class="text-lg font-bold mb-4">공지 관리</h2>
   <div id="admin-form-area">
     <button data-action="show-notice-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-4">+ 새 공지</button>
-    <div class="space-y-2">${list.map(n=>`<div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] flex items-center justify-between">
+    <div class="space-y-2">${list.map(n=>`<div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] flex items-center justify-between">
       <div>${n.pinned?'<span class="text-[9px] font-bold bg-red-50 text-red-500 px-1.5 py-0.5 rounded mr-1">중요</span>':''}<span class="font-bold text-sm">${esc(n.title)}</span><p class="text-xs text-zinc-400">${esc(formatNoticeScheduleLabel(n) || '일정 미지정')}</p></div>
       <div class="flex gap-1">
         <button data-action="edit-notice" data-nid="${n.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('edit','text-zinc-400',18)}</button>
@@ -2749,7 +2705,7 @@ function renderAdminEvent() {
       const rangeLine = formatEventDateRangeSubtitle(e);
       const metaParts = [rangeLine || e.date, e.time || '', e.cat || ''].map(x => String(x || '').trim()).filter(Boolean);
       const meta = metaParts.map(esc).join(' · ');
-      return `<div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] flex items-center justify-between">
+      return `<div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] flex items-center justify-between">
       <div><p class="font-bold text-sm">${esc(e.title)}</p><p class="text-xs text-zinc-400">${meta}</p></div>
       <div class="flex gap-1">
         <button data-action="edit-event" data-eid="${e.id}" class="w-8 h-8 flex items-center justify-center rounded-full active:bg-zinc-100">${icon('edit','text-zinc-400',18)}</button>
@@ -2784,7 +2740,7 @@ function renderAdminAttendance() {
     ${tabs.map(t=>`<button data-att-tab="${t.id}" class="snap-start flex-none px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${activeTab===t.id?'bg-black text-white border-black':'bg-white text-zinc-500 border-zinc-200'}">${esc(t.name)}</button>`).join('')}
   </div>
   <p class="text-xs text-zinc-400 mb-3">${yr}년 ${mo}월 ${wk}째주 출석: <span class="font-bold text-black">${present}</span> / ${filtered.length}명</p>
-  <div class="space-y-1 mb-24">${filtered.map(r=>{
+  <div class="space-y-1 mb-4">${filtered.map(r=>{
     const cellName = cells.find(c=>c.id===r.cellId)?.name||'미배정';
     return `
     <button data-action="toggle-att" data-rid="${r.id}" class="w-full flex items-center gap-3 p-3 rounded-xl transition-colors ${marks[r.id]?'bg-emerald-50 border border-emerald-200':'bg-white border border-zinc-100'}">
@@ -2797,9 +2753,7 @@ function renderAdminAttendance() {
       </div>
     </button>`;
   }).join('')}</div>
-  <div class="fixed bottom-[88px] left-0 right-0 z-40 px-5 pb-2 bg-zinc-50/90 backdrop-blur-sm">
-    <button data-action="save-attendance" class="w-full py-3 bg-gradient-to-br from-zinc-800 to-black shadow-md shadow-zinc-900/20 border border-zinc-700/50 text-white rounded-2xl text-sm font-bold transition-all duration-200 active:opacity-70 active:scale-[0.98]">출석 저장</button>
-  </div>
+
   ${attKeys.length ? `
   <div class="mt-2">
     <p class="text-xs font-bold text-zinc-500 mb-2">이전 출석 기록</p>
@@ -2826,7 +2780,7 @@ function renderAdminOffering() {
   const total = (weekData.items||[]).reduce((s,i)=>s+i.amount,0);
   return `<h2 class="text-lg font-bold mb-3">헌금 기록</h2>
   ${ymwSelectors('offd', yr, mo, wk)}
-  <div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] space-y-3">
+  <div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] space-y-3">
     <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">이름</label>
       <input id="off-name" value="" placeholder="이름 직접 입력" autocomplete="off"
         class="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
@@ -2899,7 +2853,7 @@ function renderAdminRoster() {
     return `<h2 class="text-lg font-bold mb-1">명부 관리</h2>
     ${renderRosterTabs(activeTab, cells, pendingJoin.length, pendingWithdraw.length)}
     <div class="space-y-3">${pendingJoin.length ? sortByName(pendingJoin).map(u=>`
-      <div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)]">
+      <div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)]">
         <div class="flex items-center justify-between">
           <div><p class="font-bold text-sm">${esc(u.name)}</p><p class="text-xs text-zinc-400">${fmtPhone(u.phone)} · ${fmtDate(u.birth)}</p></div>
           <button data-action="approve" data-uid="${u.uid}" class="px-4 py-2 bg-black text-white rounded-xl text-xs font-bold">승인</button>
@@ -2912,7 +2866,7 @@ function renderAdminRoster() {
     return `<h2 class="text-lg font-bold mb-1">명부 관리</h2>
     ${renderRosterTabs(activeTab, cells, pendingJoin.length, pendingWithdraw.length)}
     <div class="space-y-3">${pendingWithdraw.length ? sortByName(pendingWithdraw).map(u=>`
-      <div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)]">
+      <div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)]">
         <div class="flex items-center justify-between">
           <div><p class="font-bold text-sm">${esc(u.name)}</p><p class="text-xs text-zinc-400">${esc(u.id)} · ${fmtPhone(u.phone)}</p>
             <p class="text-[10px] text-zinc-400 mt-0.5">신청일: ${u.withdrawAt||'-'}</p>
@@ -2939,7 +2893,7 @@ function renderAdminRoster() {
     const linkedUser = r.linkedUid ? users.find(u=>u.uid===r.linkedUid) : null;
     const isAdminR = linkedUser?.role === 'admin';
     return `
-    <div id="roster-card-${r.id}" class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] flex items-center gap-3">
+    <div id="roster-card-${r.id}" class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] flex items-center gap-3">
       <div class="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center flex-none">
         <span class="text-white font-bold text-sm">${esc((r.name||'?')[0])}</span>
       </div>
@@ -2989,7 +2943,7 @@ function renderAdminCells() {
   <button data-action="show-cell-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-3">+ 목장 추가</button>
   <div id="cell-form-area"></div>
   <div class="space-y-2">${cells.map(c=>`
-    <div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)]">
+    <div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)]">
       <div class="flex items-center justify-between">
         <div><p class="font-bold text-sm">${esc(c.name)}</p><p class="text-xs text-zinc-400">목자: ${esc(c.leader)}</p></div>
         <div class="flex gap-2">
@@ -3012,7 +2966,7 @@ function renderAdminCellMeet() {
   <button data-action="show-cellmeet-form" class="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-sm font-bold text-zinc-400 mb-3">+ 자료 추가</button>
   <div id="admin-form-area"></div>
   <div class="space-y-3">${meetings.map(m=>`
-    <div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)]">
+    <div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)]">
       <div class="flex items-start justify-between mb-2">
         <div>
           <p class="font-bold text-sm">${m.date}</p>
@@ -3030,7 +2984,7 @@ function renderAdminCellMeet() {
 
 function renderAdminNoti() {
   return `<h2 class="text-lg font-bold mb-4">알림 발송</h2>
-  <div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)]">
+  <div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)]">
     ${adminInput('noti-title','제목','알림 제목')}
     ${adminTextarea('noti-body','내용','알림 내용')}
     <button data-action="send-noti" class="w-full py-3 bg-gradient-to-br from-zinc-800 to-black shadow-sm shadow-zinc-900/20 border border-zinc-700/30 text-white rounded-xl text-sm font-bold transition-all duration-200 active:opacity-70 active:scale-[0.97]">전체 발송</button>
@@ -3623,7 +3577,7 @@ function openBulletinForm(existing, _forceNew) {
       <button id="bf-load-btn" class="px-4 py-2.5 bg-gradient-to-br from-zinc-800 to-black shadow-sm shadow-zinc-900/20 border border-zinc-700/30 text-white rounded-xl text-xs font-bold flex-none transition-all duration-200 active:scale-[0.97]">불러오기</button>`
     : `<span class="text-xs text-zinc-400">저장된 주보가 없습니다</span>`;
 
-  area.innerHTML = `<div id="bf-inner" class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] mb-4">
+  area.innerHTML = `<div id="bf-inner" class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] mb-4">
 
     <!-- 불러오기 -->
     <div>
@@ -4019,6 +3973,12 @@ function setupDelegation() {
             runIfLeaveEditorConfirmed(() => { state.detail = null; render(); });
             break;
           case 'back-admin':
+            if (state.adminSub === 'offering' && state._offeringDirty) {
+              showConfirm('저장되지 않은 내용이 있습니다.\n뒤로 가시겠습니까?', () => {
+                state._offeringDirty = false;
+                state.adminSub = 'dashboard'; render();
+              }); break;
+            }
             runIfLeaveEditorConfirmed(() => {
               if (state.adminSub !== 'dashboard') { state.adminSub = 'dashboard'; render(); }
               else { state.page = 'main'; state.tab = 'home'; render(); }
@@ -4248,6 +4208,10 @@ function setupDelegation() {
                 render();
               } finally { hideLoading(); }
             }); break;
+          case 'save-offering':
+            showToast('헌금 기록이 저장되었습니다.');
+            state._offeringDirty = false;
+            break;
           case 'roster-menu': {
             e.stopPropagation();
             const dd = document.getElementById('roster-dd-' + actionEl.dataset.rid);
@@ -4287,9 +4251,22 @@ function setupDelegation() {
               try {
                 const g = id => document.getElementById(id)?.value || '';
                 const rawBirth = g('re-birth-' + rid).replace(/\D/g, '');
-                const updated = { ...r, name: g('re-name-' + rid) || r.name, phone: fmtPhone(g('re-phone-' + rid) || r.phone), birth: rawBirth || r.birth, cellId: g('re-cell-' + rid) || r.cellId };
+                const newCellId = g('re-cell-' + rid);
+                const updated = { ...r, name: g('re-name-' + rid) || r.name, phone: fmtPhone(g('re-phone-' + rid) || r.phone), birth: rawBirth || r.birth, cellId: newCellId };
                 await window.FDB.setDoc('rosters', rid, updated);
                 const idx = state.cache.rosters.findIndex(x => x.id === rid); if (idx >= 0) state.cache.rosters[idx] = updated;
+                // 연결된 user의 cellId도 동기화
+                if (r.linkedUid) {
+                  await window.FDB.setDoc('users', r.linkedUid, { cellId: newCellId });
+                  const uIdx = state.cache.users.findIndex(u => u.uid === r.linkedUid);
+                  if (uIdx >= 0) {
+                    state.cache.users[uIdx] = { ...state.cache.users[uIdx], cellId: newCellId };
+                    if (state.user && state.user.uid === r.linkedUid) {
+                      state.user.cellId = newCellId;
+                      SESSION.set(state.user);
+                    }
+                  }
+                }
                 showToast('정보가 변경되었습니다.'); render();
               } finally { hideLoading(); }
             }); break;
@@ -4350,7 +4327,7 @@ function setupDelegation() {
             const nid = actionEl.dataset.nid;
             const n = state.cache.notices.find(x => x.id === nid); if (!n) break;
             const area = document.getElementById('admin-form-area'); if (!area) break;
-            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] mb-4 fade-in">
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] mb-4 fade-in">
               ${adminInput('nf-title', '제목', '공지 제목')}${adminTextarea('nf-body', '내용', '', 5)}
               <div class="flex flex-wrap items-end gap-3">
                 <div class="flex-1 min-w-[160px]">
@@ -4396,7 +4373,7 @@ function setupDelegation() {
             const eid = actionEl.dataset.eid;
             const ev = state.cache.events.find(x => x.id === eid); if (!ev) break;
             const area = document.getElementById('admin-form-area'); if (!area) break;
-            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] mb-4 fade-in">
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] mb-4 fade-in">
               ${adminInput('ef-title', '제목', '')}${adminInput('ef-date', '시작일', '', 'date')}
               <label class="flex items-center gap-2 cursor-pointer select-none"><input id="ef-date-range" type="checkbox" class="w-4 h-4 rounded accent-black"/><span class="text-sm font-medium">기간</span></label>
               <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">종료일</label>
@@ -4454,7 +4431,7 @@ function setupDelegation() {
               }
               return rows;
             };
-            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] mb-4 fade-in">
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] mb-4 fade-in">
               ${ymwSelectors('wfd', defaultYMW().yr, defaultYMW().mo, defaultYMW().wk)}${adminInput('wf-leader', '인도자', '')}
               <div><label class="block text-xs font-bold text-zinc-600 mb-2 ml-1">곡 목록</label>
                 <div id="song-rows">${getSongRows(ws.songs)}</div>
@@ -4501,7 +4478,7 @@ function setupDelegation() {
             const area = document.getElementById('admin-form-area'); if (!area) break;
             const cmP = dateToYMW(m.date || '');
             const getQRows = () => { let rows=''; for(let i=0;i<qCount;i++){ rows += cmQuestionRowHtml(i); } return rows; };
-            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] mb-4 fade-in">
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] mb-4 fade-in">
               ${ymwSelectors('cmd', cmP.yr, cmP.mo, cmP.wk)}${adminInput('cm-verse','말씀 구절','')}${adminTextarea('cm-versetext','말씀 본문 (핵심)','',2)}
               <div><label class="block text-xs font-bold text-zinc-600 mb-2 ml-1">나눔 질문</label>
                 <div id="cm-q-rows">${getQRows()}</div>
@@ -4543,7 +4520,7 @@ function setupDelegation() {
           case 'show-notice-form': {
             const area = document.getElementById('admin-form-area'); if (!area) break;
             let pendingImgs = [];
-            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] mb-4 fade-in">
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] mb-4 fade-in">
               ${adminInput('nf-title','제목','공지 제목')}${adminTextarea('nf-body','내용','공지 내용을 입력하세요',5)}
               <div class="flex flex-wrap items-end gap-3">
                 <div class="flex-1 min-w-[160px]">
@@ -4629,7 +4606,7 @@ function setupDelegation() {
           }
           case 'show-event-form': {
             const area = document.getElementById('admin-form-area'); if (!area) break;
-            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] mb-4 fade-in">
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] mb-4 fade-in">
               ${adminInput('ef-title','제목','주일 청년 예배')}${adminInput('ef-date','시작일','','date')}
               <label class="flex items-center gap-2 cursor-pointer select-none"><input id="ef-date-range" type="checkbox" class="w-4 h-4 rounded accent-black"/><span class="text-sm font-medium">기간</span></label>
               <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">종료일</label>
@@ -4664,7 +4641,7 @@ function setupDelegation() {
           case 'show-cell-form': {
             const area = document.getElementById('cell-form-area'); if (!area) break;
             if (area.innerHTML) { area.innerHTML = ''; break; }
-            area.innerHTML = `<div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] mb-3 space-y-2 fade-in">
+            area.innerHTML = `<div class="bg-white p-4 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] mb-3 space-y-2 fade-in">
               <input id="new-cell-name" placeholder="목장 이름" class="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
               <input id="new-cell-leader" placeholder="목자 이름" class="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-inset focus:ring-black"/>
               <button id="save-new-cell" class="w-full py-2 bg-gradient-to-br from-zinc-800 to-black shadow-sm shadow-zinc-900/20 border border-zinc-700/30 text-white rounded-xl text-xs font-bold transition-all duration-200 active:scale-[0.97]">추가</button></div>`;
@@ -4700,7 +4677,7 @@ function setupDelegation() {
             const area = document.getElementById('admin-form-area'); if (!area) break;
             let qCount = 1;
             const getQRows = () => { let rows=''; for(let i=0;i<qCount;i++){ rows += cmQuestionRowHtml(i); } return rows; };
-            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] mb-4 fade-in">
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] mb-4 fade-in">
               ${ymwSelectors('cmd',defaultYMW().yr,defaultYMW().mo,defaultYMW().wk)}${adminInput('cm-verse','말씀 구절','요한복음 15:1-8')}${adminTextarea('cm-versetext','말씀 본문 (핵심)','"나는 포도나무요..."',2)}
               <div><label class="block text-xs font-bold text-zinc-600 mb-2 ml-1">나눔 질문</label>
                 <div id="cm-q-rows">${getQRows()}</div>
@@ -4744,7 +4721,7 @@ function setupDelegation() {
               return rows;
             };
             const def=defaultYMW();
-            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] mb-4 fade-in">
+            area.innerHTML = `<div class="space-y-4 bg-white p-5 rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] mb-4 fade-in">
               <div><label class="block text-xs font-bold text-zinc-600 mb-1.5 ml-1">날짜</label>${ymwSelectors('wfd',def.yr,def.mo,def.wk)}</div>
               ${adminInput('wf-leader','인도자','')}
               <div><label class="block text-xs font-bold text-zinc-600 mb-2 ml-1">곡 목록</label>
@@ -5036,78 +5013,6 @@ function setupSwipeBack() {
 // APP INIT
 // ============================================================
 let _gesturesSetup = false;
-function setupInstallPrompt() {
-  const isStandalone = window.navigator.standalone === true ||
-    window.matchMedia('(display-mode: standalone)').matches;
-  if (isStandalone) return;
-
-  const ua = navigator.userAgent || '';
-  const isIOS = /iP(hone|ad|od)/.test(ua);
-  const isAndroid = /Android/.test(ua);
-  const isInApp = /KAKAOTALK|NAVER|Instagram|Line\/|FB_IAB|FBAN|fb_iab|WebView|wv;/.test(ua)
-    || (/iPhone|iPad/.test(ua) && !/Safari/.test(ua) && !/CriOS/.test(ua));
-
-  // UA 확인용 디버그 팝업 (확인 후 제거 예정)
-  const dbg = document.createElement('div');
-  dbg.style.cssText = 'position:fixed;bottom:100px;left:12px;right:12px;z-index:999999;background:#000;color:#0f0;font-size:10px;padding:10px;border-radius:10px;word-break:break-all;white-space:pre-wrap;opacity:0.92;';
-  dbg.textContent = 'UA: ' + ua + '\n\niOS:' + isIOS + ' Android:' + isAndroid + ' InApp:' + isInApp + ' Standalone:' + isStandalone;
-  const closeDbg = document.createElement('button');
-  closeDbg.textContent = '✕ 닫기';
-  closeDbg.style.cssText = 'display:block;margin-top:8px;color:#0f0;background:none;border:1px solid #0f0;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;';
-  closeDbg.onclick = () => dbg.remove();
-  dbg.appendChild(closeDbg);
-  document.body.appendChild(dbg);
-
-  if (isInApp) {
-    // 강제 탈출 모달
-    const modal = document.createElement('div');
-    modal.id = 'inapp-escape-modal';
-    const isKakao = /KAKAOTALK/.test(ua);
-    modal.innerHTML = `
-      <div style="width:64px;height:64px;border-radius:20px;background:#fff;display:flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:32px;">🔗</div>
-      <p style="color:#fff;font-size:18px;font-weight:800;margin-bottom:10px;">외부 브라우저로 열어주세요</p>
-      <p style="color:rgba(255,255,255,0.6);font-size:14px;line-height:1.7;margin-bottom:28px;">
-        ${isKakao
-          ? '우측 하단 <strong style="color:#fff">⋮</strong> 버튼 →<br><strong style="color:#fff">다른 브라우저로 열기</strong>를 선택해 주세요'
-          : '우측 상단 또는 하단 <strong style="color:#fff">⋮</strong> 버튼 →<br><strong style="color:#fff">다른 브라우저로 열기 / Safari로 열기</strong>를<br>선택해 주세요'
-        }
-      </p>
-      <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:14px 20px;color:rgba(255,255,255,0.5);font-size:12px;line-height:1.6;max-width:280px;">
-        외부 브라우저에서 열어야<br>홈 화면에 추가 및 정상 이용이 가능합니다
-      </div>
-      <button id="inapp-close" style="margin-top:20px;color:rgba(255,255,255,0.35);font-size:13px;background:none;border:none;cursor:pointer;padding:8px 16px;">그냥 계속 보기</button>
-    `;
-    document.body.appendChild(modal);
-    document.getElementById('inapp-close')?.addEventListener('click', () => modal.remove());
-    return;
-  }
-
-  // 일반 브라우저 → OS별 설치 유도 말풍선
-  if (!isIOS && !isAndroid) return;
-
-  const bubble = document.createElement('div');
-  bubble.id = 'install-bubble';
-  if (isAndroid) bubble.classList.add('android');
-
-  bubble.innerHTML = isIOS
-    ? `<div style="display:flex;align-items:flex-start;gap:10px;">
-        <span style="font-size:22px;flex-none;">👇</span>
-        <div>하단 <strong>공유</strong> 버튼을 누르고<br><strong>홈 화면에 추가</strong>를 선택해 주세요</div>
-        <button id="install-bubble-close">✕</button>
-       </div>`
-    : `<div style="display:flex;align-items:flex-start;gap:10px;">
-        <span style="font-size:22px;flex-none;">☝️</span>
-        <div>우측 상단 <strong>⋮</strong> 버튼을 누르고<br><strong>홈 화면에 추가</strong>를 선택해 주세요</div>
-        <button id="install-bubble-close">✕</button>
-       </div>`;
-
-  document.body.appendChild(bubble);
-  document.getElementById('install-bubble-close')?.addEventListener('click', () => bubble.remove());
-
-  // 5초 후 자동으로 사라짐
-  setTimeout(() => { if (bubble.parentNode) bubble.remove(); }, 8000);
-}
-
 async function initApp(firebaseUser) {
   try {
     // 제스처·이벤트위임 리스너: 앱 생애주기 동안 딱 1회만 등록
@@ -5121,7 +5026,6 @@ async function initApp(firebaseUser) {
       setupEditDirtyTracking();
       setupPTR();
       setupSwipeBack();
-      setupInstallPrompt();
       _gesturesSetup = true;
     }
     // Firebase Auth가 로그인된 유저를 알고 있으면 → 세션 복원
